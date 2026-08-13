@@ -16,16 +16,40 @@ interface TbaEvent {
   state_prov: string | null;
   country: string | null;
   website: string | null;
-  district: { abbreviation: string; display_name: string } | null;
+}
+
+interface TbaDistrict {
+  abbreviation: string; // e.g. "fim", "fit"
+  display_name: string;
+  key: string; // e.g. "2026fim"
+  year: number;
 }
 
 // FRC district events (e.g. FIM = FIRST In Michigan, FIT = FIRST In Texas)
 // use the district abbreviation as the region — it's the name people
 // actually recognize. Non-districted "regional" events (most of the
 // country) have no district, so those fall back to the plain state code.
-function regionFor(e: TbaEvent): string | undefined {
-  if (e.district?.abbreviation) return e.district.abbreviation.toUpperCase();
-  return e.state_prov || undefined;
+// Built independently of the main events list (rather than trusting a
+// `district` field might be present on it) via TBA's dedicated district
+// endpoints, so this doesn't depend on an unverified assumption about
+// which fields the events/simple response includes.
+async function buildDistrictMap(year: number, authHeaders: Record<string, string>): Promise<Map<string, string>> {
+  return cached(`frc:district-map:${year}`, 60 * 60, async () => {
+    const districtsRes = await fetch(`https://www.thebluealliance.com/api/v3/districts/${year}`, { headers: authHeaders });
+    if (!districtsRes.ok) return new Map<string, string>();
+    const districts: TbaDistrict[] = await districtsRes.json();
+
+    const map = new Map<string, string>();
+    await Promise.allSettled(
+      districts.map(async (d) => {
+        const r = await fetch(`https://www.thebluealliance.com/api/v3/district/${d.key}/events/keys`, { headers: authHeaders });
+        if (!r.ok) return;
+        const eventKeys: string[] = await r.json();
+        for (const key of eventKeys) map.set(key, d.abbreviation.toUpperCase());
+      })
+    );
+    return map;
+  });
 }
 
 function statusFor(startDate: string, endDate: string): NormalizedEvent["status"] {
@@ -70,6 +94,13 @@ router.get("/", async (_req, res) => {
       return r.json();
     });
 
+    let districtMap = new Map<string, string>();
+    try {
+      districtMap = await buildDistrictMap(year, authHeaders);
+    } catch (err) {
+      warnings.push(`Could not load FRC district names, showing state codes instead: ${err instanceof Error ? err.message : err}`);
+    }
+
     // A lightweight second call for just the followed team's event keys, so
     // we can tag matching events without fetching per-event rosters.
     let followedKeys: Set<string> = new Set();
@@ -109,7 +140,7 @@ router.get("/", async (_req, res) => {
           detailUrl: e.website || `https://www.thebluealliance.com/event/${e.key}`,
           extra: location ? [{ label: "Location", value: location }] : undefined,
           followed: followedKeys.has(e.key) || undefined,
-          region: regionFor(e),
+          region: districtMap.get(e.key) || e.state_prov || undefined,
         };
       });
 
