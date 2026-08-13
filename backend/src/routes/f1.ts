@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { cached } from "../cache.js";
-import type { NormalizedEvent } from "../types.js";
+import type { NormalizedEvent, ExtraFact } from "../types.js";
 
 const router = Router();
 
@@ -23,6 +23,13 @@ router.get("/", async (_req, res) => {
       // No live-timing feed on the free tier — approximate "live" as within a
       // ~3hr window of the scheduled race start.
       const status = start > now ? "upcoming" : now - start < 3 * 60 * 60 * 1000 ? "live" : "finished";
+
+      const circuit = race.Circuit;
+      const extra: ExtraFact[] = [];
+      if (circuit?.circuitName) extra.push({ label: "Circuit", value: circuit.circuitName });
+      const location = [circuit?.Location?.locality, circuit?.Location?.country].filter(Boolean).join(", ");
+      if (location) extra.push({ label: "Location", value: location });
+
       return {
         id: `${race.season}-${race.round}`,
         sport: "f1",
@@ -31,6 +38,8 @@ router.get("/", async (_req, res) => {
         startTime,
         status,
         detailUrl: race.url,
+        venue: circuit?.circuitName,
+        extra: extra.length ? extra : undefined,
       };
     });
 

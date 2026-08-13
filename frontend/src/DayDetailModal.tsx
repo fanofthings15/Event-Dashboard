@@ -7,9 +7,10 @@ interface Props {
   events: NormalizedEvent[];
   catalog: EsportsGame[];
   onClose: () => void;
+  onEventClick: (e: NormalizedEvent) => void;
 }
 
-export default function DayDetailModal({ date, events, catalog, onClose }: Props) {
+export default function DayDetailModal({ date, events, catalog, onClose, onEventClick }: Props) {
   const sorted = [...events].sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
 
   const byHour = new Map<number, NormalizedEvent[]>();
@@ -43,11 +44,19 @@ export default function DayDetailModal({ date, events, catalog, onClose }: Props
                     const meta = sportMeta(e, catalog);
                     const time = new Date(e.startTime).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
                     return (
-                      <div key={`${e.sport}-${e.id}`} className="hour-event">
+                      <button
+                        type="button"
+                        key={`${e.sport}-${e.id}`}
+                        className="hour-event"
+                        onClick={() => {
+                          onClose();
+                          onEventClick(e);
+                        }}
+                      >
                         <span className="dot" style={{ background: meta.color }} />
                         <span className="hour-event-name">{e.name}</span>
                         <span className="hour-event-time">{time}</span>
-                      </div>
+                      </button>
                     );
                   })}
                 </div>

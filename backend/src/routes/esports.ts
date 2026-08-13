@@ -2,7 +2,7 @@ import { Router } from "express";
 import { cached } from "../cache.js";
 import { readSettings } from "../settings.js";
 import { catalogEntry } from "../esportsCatalog.js";
-import type { NormalizedEvent } from "../types.js";
+import type { NormalizedEvent, ExtraFact } from "../types.js";
 
 const router = Router();
 
@@ -10,6 +10,35 @@ function mapStatus(status: string): NormalizedEvent["status"] {
   if (status === "running") return "live";
   if (status === "finished" || status === "canceled") return "finished";
   return "upcoming";
+}
+
+function bestStream(streamsList: any[] | undefined): string | undefined {
+  if (!streamsList?.length) return undefined;
+  const official = streamsList.find((s) => s.official && s.main && s.raw_url);
+  if (official) return official.raw_url;
+  const anyMain = streamsList.find((s) => s.main && s.raw_url);
+  if (anyMain) return anyMain.raw_url;
+  return streamsList.find((s) => s.raw_url)?.raw_url;
+}
+
+function seriesScore(m: any): string | undefined {
+  const bestOf = m.number_of_games;
+  const games: any[] = m.games ?? [];
+  const opponents: any[] = m.opponents ?? [];
+  if (opponents.length !== 2) return bestOf > 1 ? `Best of ${bestOf}` : undefined;
+
+  const [a, b] = opponents.map((o) => o.opponent?.id);
+  let winsA = 0;
+  let winsB = 0;
+  for (const g of games) {
+    if (g.status !== "finished" || !g.winner) continue;
+    if (g.winner.id === a) winsA++;
+    else if (g.winner.id === b) winsB++;
+  }
+  if (winsA === 0 && winsB === 0) {
+    return bestOf > 1 ? `Best of ${bestOf}` : undefined;
+  }
+  return bestOf > 1 ? `${winsA}-${winsB} (Bo${bestOf})` : `${winsA}-${winsB}`;
 }
 
 async function fetchGame(slug: string, sport: string, color: string, apiKey: string): Promise<NormalizedEvent[]> {
@@ -21,15 +50,30 @@ async function fetchGame(slug: string, sport: string, color: string, apiKey: str
   }
   const matches: any[] = await r.json();
   return matches.map((m) => {
-    const teams = (m.opponents ?? []).map((o: any) => o.opponent?.name ?? "TBD").join(" vs ");
+    const opponents = m.opponents ?? [];
+    const teams = opponents.map((o: any) => ({
+      name: o.opponent?.name ?? "TBD",
+      imageUrl: o.opponent?.image_url ?? undefined,
+    }));
+    const teamNames = teams.map((t: any) => t.name).join(" vs ");
+
+    const extra: ExtraFact[] = [];
+    const seriesLabel = m.serie?.full_name || m.tournament?.name;
+    if (seriesLabel) extra.push({ label: "Tournament", value: seriesLabel });
+
     return {
       id: String(m.id),
       sport,
       league: m.league?.name ?? slug,
-      name: teams || m.name,
+      name: teamNames || m.name,
       startTime: m.begin_at ?? m.scheduled_at,
       status: mapStatus(m.status),
       color,
+      teams: teams.length ? teams : undefined,
+      streamUrl: bestStream(m.streams_list),
+      seriesScore: seriesScore(m),
+      extra: extra.length ? extra : undefined,
+      detailUrl: m.league?.url ?? undefined,
     };
   });
 }

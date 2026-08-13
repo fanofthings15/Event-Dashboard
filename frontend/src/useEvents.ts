@@ -11,6 +11,7 @@ interface SourceResult {
 
 interface FeedState {
   events: NormalizedEvent[];
+  allEvents: NormalizedEvent[]; // before league exclusion — used by the league picker
   warnings: string[];
   loading: boolean;
   refreshing: boolean;
@@ -23,6 +24,7 @@ const CORE_ENDPOINTS: Record<string, string> = {
   f1: "/api/f1",
   nba: "/api/nba",
   nhl: "/api/nhl",
+  frc: "/api/frc",
 };
 
 function matchesExcluded(league: string, excludedLeagues: string[]): boolean {
@@ -32,6 +34,7 @@ function matchesExcluded(league: string, excludedLeagues: string[]): boolean {
 
 export function useEvents(disabledCoreSources: string[], excludedLeagues: string[], pollMs = 60_000): FeedState {
   const [events, setEvents] = useState<NormalizedEvent[]>([]);
+  const [allEvents, setAllEvents] = useState<NormalizedEvent[]>([]);
   const [warnings, setWarnings] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -59,10 +62,11 @@ export function useEvents(disabledCoreSources: string[], excludedLeagues: string
       })
     );
 
-    let nextEvents = results.flatMap((r) => r.events ?? []);
+    const merged = results.flatMap((r) => r.events ?? []);
+    merged.sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+
     // Custom events are the user's own — never league-filtered.
-    nextEvents = nextEvents.filter((e) => e.sport === "custom" || !matchesExcluded(e.league, excludedLeagues));
-    nextEvents.sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+    const filtered = merged.filter((e) => e.sport === "custom" || !matchesExcluded(e.league, excludedLeagues));
 
     const nextWarnings = results.flatMap((r) => {
       if (r.warnings) return r.warnings;
@@ -71,7 +75,8 @@ export function useEvents(disabledCoreSources: string[], excludedLeagues: string
       return [];
     });
 
-    setEvents(nextEvents);
+    setAllEvents(merged);
+    setEvents(filtered);
     setWarnings(nextWarnings);
     setLoading(false);
     setRefreshing(false);
@@ -84,5 +89,5 @@ export function useEvents(disabledCoreSources: string[], excludedLeagues: string
     return () => clearInterval(id);
   }, [load, pollMs]);
 
-  return { events, warnings, loading, refreshing, lastUpdated, refetch: load };
+  return { events, allEvents, warnings, loading, refreshing, lastUpdated, refetch: load };
 }

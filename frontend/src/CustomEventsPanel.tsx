@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { useSettings } from "./useSettings";
+import { useSettings } from "./SettingsContext";
 import type { CustomEvent } from "./settingsTypes";
+import ConfirmDialog from "./ConfirmDialog";
 
 interface Props {
   onClose: () => void;
@@ -10,15 +11,12 @@ function uid() {
   return crypto.randomUUID ? crypto.randomUUID() : `custom-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
+const EMPTY_FORM = { name: "", league: "", color: "#94a3b8", startTime: "", url: "", hours: 2, minutes: 0 };
+
 export default function CustomEventsPanel({ onClose }: Props) {
   const { settings, save } = useSettings();
-  const [form, setForm] = useState({
-    name: "",
-    league: "",
-    color: "#94a3b8",
-    startTime: "",
-    durationMinutes: 120,
-  });
+  const [form, setForm] = useState(EMPTY_FORM);
+  const [pendingDelete, setPendingDelete] = useState<CustomEvent | null>(null);
 
   async function addCustomEvent() {
     if (!form.name || !form.startTime) return;
@@ -28,14 +26,17 @@ export default function CustomEventsPanel({ onClose }: Props) {
       league: form.league || "Custom",
       color: form.color,
       startTime: new Date(form.startTime).toISOString(),
-      durationMinutes: form.durationMinutes,
+      durationMinutes: form.hours * 60 + form.minutes,
+      url: form.url || undefined,
     };
     await save({ customEvents: [...settings.customEvents, event] });
-    setForm({ name: "", league: "", color: "#94a3b8", startTime: "", durationMinutes: 120 });
+    setForm(EMPTY_FORM);
   }
 
-  async function removeCustomEvent(id: string) {
-    await save({ customEvents: settings.customEvents.filter((e) => e.id !== id) });
+  async function confirmRemove() {
+    if (!pendingDelete) return;
+    await save({ customEvents: settings.customEvents.filter((e) => e.id !== pendingDelete.id) });
+    setPendingDelete(null);
   }
 
   return (
@@ -53,7 +54,7 @@ export default function CustomEventsPanel({ onClose }: Props) {
                 <span className="dot" style={{ background: e.color }} />
                 <span className="custom-event-name">{e.name}</span>
                 <span className="hint">{new Date(e.startTime).toLocaleString()}</span>
-                <button className="btn-x" onClick={() => removeCustomEvent(e.id)} aria-label="Remove">
+                <button className="btn-x" onClick={() => setPendingDelete(e)} aria-label="Remove">
                   ×
                 </button>
               </li>
@@ -74,6 +75,12 @@ export default function CustomEventsPanel({ onClose }: Props) {
             value={form.league}
             onChange={(e) => setForm({ ...form, league: e.target.value })}
           />
+          <input
+            className="text-input"
+            placeholder="Link (optional) — stream, tickets, etc."
+            value={form.url}
+            onChange={(e) => setForm({ ...form, url: e.target.value })}
+          />
           <div className="form-row">
             <input type="color" value={form.color} onChange={(e) => setForm({ ...form, color: e.target.value })} />
             <input
@@ -84,14 +91,26 @@ export default function CustomEventsPanel({ onClose }: Props) {
             />
           </div>
           <label className="field">
-            <span>Duration (minutes) — how long it counts as "live"</span>
-            <input
-              type="number"
-              className="text-input"
-              min={5}
-              value={form.durationMinutes}
-              onChange={(e) => setForm({ ...form, durationMinutes: Number(e.target.value) })}
-            />
+            <span>Duration — how long it counts as "live"</span>
+            <div className="form-row">
+              <input
+                type="number"
+                className="text-input"
+                min={0}
+                value={form.hours}
+                onChange={(e) => setForm({ ...form, hours: Number(e.target.value) })}
+                placeholder="Hours"
+              />
+              <input
+                type="number"
+                className="text-input"
+                min={0}
+                max={59}
+                value={form.minutes}
+                onChange={(e) => setForm({ ...form, minutes: Number(e.target.value) })}
+                placeholder="Minutes"
+              />
+            </div>
           </label>
           <button className="btn primary" onClick={addCustomEvent} disabled={!form.name || !form.startTime}>
             Add event
@@ -102,6 +121,16 @@ export default function CustomEventsPanel({ onClose }: Props) {
           Done
         </button>
       </div>
+
+      {pendingDelete && (
+        <ConfirmDialog
+          title="Remove event?"
+          message={`"${pendingDelete.name}" will be removed for good.`}
+          confirmLabel="Remove"
+          onConfirm={confirmRemove}
+          onCancel={() => setPendingDelete(null)}
+        />
+      )}
     </div>
   );
 }

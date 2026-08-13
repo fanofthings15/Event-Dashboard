@@ -11,6 +11,7 @@ const MAX_GROUPS_PER_DAY = 4;
 interface Props {
   events: NormalizedEvent[];
   catalog: EsportsGame[];
+  onEventClick: (e: NormalizedEvent) => void;
 }
 
 interface SportGroup {
@@ -30,7 +31,7 @@ function groupBySport(dayEvents: NormalizedEvent[], catalog: EsportsGame[]): Spo
   return [...map.values()];
 }
 
-export default function CalendarView({ events, catalog }: Props) {
+export default function CalendarView({ events, catalog, onEventClick }: Props) {
   const [viewDate, setViewDate] = useState(() => new Date());
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
   const year = viewDate.getFullYear();
@@ -102,7 +103,13 @@ export default function CalendarView({ events, catalog }: Props) {
       </div>
 
       {selectedDay && (
-        <DayDetailModal date={selectedDay} events={selectedDayEvents} catalog={catalog} onClose={() => setSelectedDay(null)} />
+        <DayDetailModal
+          date={selectedDay}
+          events={selectedDayEvents}
+          catalog={catalog}
+          onClose={() => setSelectedDay(null)}
+          onEventClick={onEventClick}
+        />
       )}
     </div>
   );

@@ -1,0 +1,131 @@
+import { useMemo, useRef, useState } from "react";
+import { useSettings } from "./SettingsContext";
+import type { NormalizedEvent } from "./types";
+import { sportMeta } from "./sportMeta";
+import ConfirmDialog from "./ConfirmDialog";
+
+interface Props {
+  allEvents: NormalizedEvent[];
+}
+
+export default function LeaguePicker({ allEvents }: Props) {
+  const { settings, save } = useSettings();
+  const [pendingImport, setPendingImport] = useState<Record<string, unknown> | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Group distinct league names by sport, from currently-live data only —
+  // so a one-off tournament's league doesn't clutter this list forever once
+  // it's no longer showing up in any feed.
+  const leaguesBySport = useMemo(() => {
+    const map = new Map<string, Set<string>>();
+    for (const e of allEvents) {
+      if (e.sport === "custom") continue;
+      if (!map.has(e.sport)) map.set(e.sport, new Set());
+      map.get(e.sport)!.add(e.league);
+    }
+    return map;
+  }, [allEvents]);
+
+  function toggleLeague(league: string) {
+    const next = settings.excludedLeagues.includes(league)
+      ? settings.excludedLeagues.filter((l) => l !== league)
+      : [...settings.excludedLeagues, league];
+    save({ excludedLeagues: next });
+  }
+
+  function exportSettings() {
+    // Deliberately excludes API keys — this file is meant to move between
+    // machines, and plaintext secrets shouldn't ride along in a download.
+    const payload = {
+      excludedLeagues: settings.excludedLeagues,
+      disabledCoreSources: settings.disabledCoreSources,
+      enabledEsportsGames: settings.enabledEsportsGames,
+      customEvents: settings.customEvents,
+      frcTeamKey: settings.frcTeamKey,
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "event-dashboard-settings.json";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function onFileChosen(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const parsed = JSON.parse(String(reader.result));
+        setPendingImport(parsed);
+      } catch {
+        // Silently ignored — malformed file, nothing to import.
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = "";
+  }
+
+  async function confirmImport() {
+    if (pendingImport) await save(pendingImport);
+    setPendingImport(null);
+  }
+
+  if (leaguesBySport.size === 0) {
+    return <span className="hint">No leagues seen yet — check back once data has synced at least once.</span>;
+  }
+
+  return (
+    <div>
+      {[...leaguesBySport.entries()].map(([sport, leagues]) => {
+        const meta = sportMeta({ sport } as NormalizedEvent, settings.esportsCatalog);
+        return (
+          <div key={sport} className="league-group">
+            <div className="league-group-title">
+              <span className="dot" style={{ background: meta.color }} />
+              {meta.label}
+            </div>
+            <div className="source-chip-list">
+              {[...leagues].sort().map((league) => {
+                const hidden = settings.excludedLeagues.includes(league);
+                return (
+                  <button
+                    key={league}
+                    type="button"
+                    className={`chip ${!hidden ? "active" : ""}`}
+                    style={!hidden ? { borderColor: meta.color, background: `${meta.color}26`, color: "#fff" } : undefined}
+                    onClick={() => toggleLeague(league)}
+                  >
+                    {league}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
+
+      <div className="form-row" style={{ marginTop: 12 }}>
+        <button className="btn" onClick={exportSettings}>
+          Export settings
+        </button>
+        <button className="btn" onClick={() => fileInputRef.current?.click()}>
+          Import settings
+        </button>
+        <input ref={fileInputRef} type="file" accept="application/json" style={{ display: "none" }} onChange={onFileChosen} />
+      </div>
+
+      {pendingImport && (
+        <ConfirmDialog
+          title="Import settings?"
+          message="This will overwrite your current data sources, league filters, and custom events with what's in the file."
+          confirmLabel="Import"
+          onConfirm={confirmImport}
+          onCancel={() => setPendingImport(null)}
+        />
+      )}
+    </div>
+  );
+}

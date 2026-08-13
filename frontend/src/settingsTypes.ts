@@ -12,10 +12,13 @@ export interface CustomEvent {
   color: string;
   startTime: string;
   durationMinutes: number;
+  url?: string;
 }
 
 export interface SettingsState {
   pandaScoreApiKeySet: boolean;
+  tbaApiKeySet: boolean;
+  frcTeamKey: string;
   excludedLeagues: string[];
   disabledCoreSources: string[];
   enabledEsportsGames: string[];

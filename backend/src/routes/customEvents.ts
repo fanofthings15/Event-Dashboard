@@ -20,6 +20,7 @@ router.get("/", (_req, res) => {
       startTime: c.startTime,
       status,
       color: c.color,
+      detailUrl: c.url,
     };
   });
 

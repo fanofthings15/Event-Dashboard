@@ -1,12 +1,13 @@
 import { useMemo, useState } from "react";
 import { useEvents } from "./useEvents";
-import { useSettings } from "./useSettings";
+import { useSettings } from "./SettingsContext";
 import { useNow, formatCountdown } from "./countdown";
 import { sportMeta } from "./sportMeta";
 import { CORE_SPORT_META, type NormalizedEvent } from "./types";
 import SettingsDrawer from "./SettingsDrawer";
 import CalendarView from "./CalendarView";
 import CustomEventsPanel from "./CustomEventsPanel";
+import EventDetailModal from "./EventDetailModal";
 
 function formatTime(iso: string) {
   const d = new Date(iso);
@@ -28,11 +29,21 @@ function isLiveNow(e: NormalizedEvent, now: Date): boolean {
   return new Date(e.startTime).getTime() <= now.getTime();
 }
 
-function EventCard({ e, now, catalog }: { e: NormalizedEvent; now: Date; catalog: ReturnType<typeof useSettings>["settings"]["esportsCatalog"] }) {
+function EventCard({
+  e,
+  now,
+  catalog,
+  onClick,
+}: {
+  e: NormalizedEvent;
+  now: Date;
+  catalog: ReturnType<typeof useSettings>["settings"]["esportsCatalog"];
+  onClick: () => void;
+}) {
   const meta = sportMeta(e, catalog);
   const live = isLiveNow(e, now);
   return (
-    <div className={`event-card${live ? " is-live" : ""}`} style={{ borderLeftColor: meta.color }}>
+    <button type="button" className={`event-card${live ? " is-live" : ""}`} style={{ borderLeftColor: meta.color }} onClick={onClick}>
       <div className="event-top">
         <span className="sport-tag">{meta.label}</span>
         {live ? <span className="live-badge">LIVE</span> : <span className="countdown">{formatCountdown(e.startTime, now)}</span>}
@@ -42,13 +53,13 @@ function EventCard({ e, now, catalog }: { e: NormalizedEvent; now: Date; catalog
         <span>{e.league}</span>
         <span>{formatTime(e.startTime)}</span>
       </div>
-    </div>
+    </button>
   );
 }
 
 export default function App() {
   const { settings, loaded: settingsLoaded } = useSettings();
-  const { events, warnings, loading, refreshing, lastUpdated, refetch } = useEvents(
+  const { events, allEvents, warnings, loading, refreshing, lastUpdated, refetch } = useEvents(
     settings.disabledCoreSources,
     settings.excludedLeagues
   );
@@ -57,6 +68,7 @@ export default function App() {
   const [customEventsOpen, setCustomEventsOpen] = useState(false);
   const [dismissedWarnings, setDismissedWarnings] = useState<Set<string>>(new Set());
   const [view, setView] = useState<"list" | "calendar">("list");
+  const [selectedEvent, setSelectedEvent] = useState<NormalizedEvent | null>(null);
 
   // Every sport currently enabled, in a stable order: core sources first,
   // then enabled esports titles, then "custom" if any custom events exist.
@@ -159,7 +171,7 @@ export default function App() {
       {loading ? (
         <div className="empty">Loading…</div>
       ) : view === "calendar" ? (
-        <CalendarView events={filtered} catalog={settings.esportsCatalog} />
+        <CalendarView events={filtered} catalog={settings.esportsCatalog} onEventClick={setSelectedEvent} />
       ) : (
         <>
           <section>
@@ -169,7 +181,7 @@ export default function App() {
             ) : (
               <div className="grid">
                 {live.map((e) => (
-                  <EventCard key={`${e.sport}-${e.id}`} e={e} now={now} catalog={settings.esportsCatalog} />
+                  <EventCard key={`${e.sport}-${e.id}`} e={e} now={now} catalog={settings.esportsCatalog} onClick={() => setSelectedEvent(e)} />
                 ))}
               </div>
             )}
@@ -182,7 +194,7 @@ export default function App() {
             ) : (
               <div className="grid">
                 {upcoming.map((e) => (
-                  <EventCard key={`${e.sport}-${e.id}`} e={e} now={now} catalog={settings.esportsCatalog} />
+                  <EventCard key={`${e.sport}-${e.id}`} e={e} now={now} catalog={settings.esportsCatalog} onClick={() => setSelectedEvent(e)} />
                 ))}
               </div>
             )}
@@ -190,8 +202,11 @@ export default function App() {
         </>
       )}
 
-      {settingsOpen && <SettingsDrawer onClose={() => setSettingsOpen(false)} />}
+      {settingsOpen && <SettingsDrawer onClose={() => setSettingsOpen(false)} allEvents={allEvents} />}
       {customEventsOpen && <CustomEventsPanel onClose={() => setCustomEventsOpen(false)} />}
+      {selectedEvent && (
+        <EventDetailModal event={selectedEvent} now={now} catalog={settings.esportsCatalog} onClose={() => setSelectedEvent(null)} />
+      )}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { cached } from "./cache.js";
-import type { NormalizedEvent } from "./types.js";
+import type { NormalizedEvent, ExtraFact } from "./types.js";
 
 function mapStatus(state: string): NormalizedEvent["status"] {
   if (state === "in") return "live";
@@ -23,15 +23,36 @@ export function buildEspnScoreboardRouter(espnPath: string, sport: string, leagu
 
       const events: NormalizedEvent[] = (data.events ?? []).map((e: any) => {
         const comp = e.competitions?.[0];
-        const teams = comp?.competitors?.map((c: any) => c.team?.shortDisplayName).join(" @ ") ?? e.shortName;
+        const competitors = comp?.competitors ?? [];
+        const teams = competitors.map((c: any) => ({
+          name: c.team?.displayName ?? c.team?.shortDisplayName,
+          imageUrl: c.team?.logo,
+          record: c.records?.find((r: any) => r.type === "total")?.summary ?? c.records?.[0]?.summary,
+        }));
+        const teamNames = competitors.map((c: any) => c.team?.shortDisplayName).join(" @ ");
+
+        const extra: ExtraFact[] = [];
+        const network = comp?.broadcasts?.[0]?.names?.join(", ");
+        if (network) extra.push({ label: "Broadcast", value: network });
+
+        // Live score, when the game has actually started.
+        const state = e.status?.type?.state ?? "pre";
+        if (state !== "pre" && competitors.length === 2) {
+          const score = competitors.map((c: any) => c.score).join("-");
+          if (score && score !== "-") extra.push({ label: "Score", value: score });
+        }
+
         return {
           id: e.id,
           sport,
           league,
-          name: teams || e.name,
+          name: teamNames || e.name,
           startTime: e.date,
-          status: mapStatus(e.status?.type?.state ?? "pre"),
+          status: mapStatus(state),
           detailUrl: comp?.links?.[0]?.href,
+          venue: comp?.venue?.fullName,
+          teams: teams.length ? teams : undefined,
+          extra: extra.length ? extra : undefined,
         };
       });
 

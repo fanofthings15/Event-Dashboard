@@ -13,15 +13,18 @@ export interface CustomEvent {
   color: string; // hex
   startTime: string; // ISO 8601
   durationMinutes: number; // used to compute live/upcoming/finished
+  url?: string;
 }
 
 export interface Settings {
   pandaScoreApiKey: string;
+  tbaApiKey: string; // The Blue Alliance Read API key, for FRC events
+  frcTeamKey: string; // e.g. "frc254"
   // League names to hide everywhere, matched case-insensitively as a
   // substring (e.g. "LCK Challengers League" hides that specific league
   // without touching the main LCK league).
   excludedLeagues: string[];
-  // Core sources (nfl, f1) the user has turned off entirely.
+  // Core sources (nfl, f1, nba, nhl, frc) the user has turned off entirely.
   disabledCoreSources: string[];
   // PandaScore game slugs currently pulled (see esportsCatalog.ts for the
   // full list of what's available to enable).
@@ -31,6 +34,8 @@ export interface Settings {
 
 const DEFAULTS: Settings = {
   pandaScoreApiKey: "",
+  tbaApiKey: "",
+  frcTeamKey: "",
   excludedLeagues: [],
   disabledCoreSources: [],
   enabledEsportsGames: DEFAULT_ENABLED_SLUGS,
