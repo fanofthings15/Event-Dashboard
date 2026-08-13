@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 
-// One shared ticking clock for all cards, instead of each card running its
-// own interval — cheaper and keeps every countdown in sync.
-export function useNow(intervalMs = 30_000): Date {
+// One shared ticking clock for all cards, kept entirely client-side so
+// countdowns keep moving between data polls (which only happen every 60s or
+// on manual resync) instead of freezing until the next fetch lands.
+export function useNow(intervalMs = 15_000): Date {
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), intervalMs);

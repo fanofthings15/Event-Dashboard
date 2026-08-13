@@ -1,17 +1,10 @@
 import { Router } from "express";
 import { cached } from "../cache.js";
 import { readSettings } from "../settings.js";
-import type { NormalizedEvent, Sport } from "../types.js";
+import { catalogEntry } from "../esportsCatalog.js";
+import type { NormalizedEvent } from "../types.js";
 
 const router = Router();
-
-// PandaScore's videogame slugs. "csgo" is still the slug PandaScore uses for
-// Counter-Strike 2 matches as of writing — if they rename it, update here.
-const GAME_SLUGS: Record<string, Sport> = {
-  csgo: "cs2",
-  lol: "lol",
-  "rocket-league": "rocket-league",
-};
 
 function mapStatus(status: string): NormalizedEvent["status"] {
   if (status === "running") return "live";
@@ -19,7 +12,7 @@ function mapStatus(status: string): NormalizedEvent["status"] {
   return "upcoming";
 }
 
-async function fetchGame(slug: string, sport: Sport, apiKey: string): Promise<NormalizedEvent[]> {
+async function fetchGame(slug: string, sport: string, color: string, apiKey: string): Promise<NormalizedEvent[]> {
   const url = `https://api.pandascore.co/${slug}/matches?filter[status]=running,not_started&sort=begin_at&page[size]=25`;
   const r = await fetch(url, { headers: { Authorization: `Bearer ${apiKey}` } });
   if (!r.ok) {
@@ -36,12 +29,13 @@ async function fetchGame(slug: string, sport: Sport, apiKey: string): Promise<No
       name: teams || m.name,
       startTime: m.begin_at ?? m.scheduled_at,
       status: mapStatus(m.status),
+      color,
     };
   });
 }
 
 router.get("/", async (_req, res) => {
-  const { pandaScoreApiKey } = readSettings();
+  const { pandaScoreApiKey, enabledEsportsGames } = readSettings();
   if (!pandaScoreApiKey) {
     return res.status(200).json({
       events: [],
@@ -50,16 +44,17 @@ router.get("/", async (_req, res) => {
     });
   }
 
-  const slugs = Object.entries(GAME_SLUGS);
+  const games = enabledEsportsGames.map((slug) => catalogEntry(slug)).filter((g): g is NonNullable<typeof g> => Boolean(g));
+
   const settled = await Promise.allSettled(
-    slugs.map(([slug, sport]) => cached(`esports:${slug}`, 120, () => fetchGame(slug, sport, pandaScoreApiKey)))
+    games.map((g) => cached(`esports:${g.slug}`, 120, () => fetchGame(g.slug, g.sport, g.color, pandaScoreApiKey)))
   );
 
   const events: NormalizedEvent[] = [];
   const warnings: string[] = [];
   settled.forEach((result, i) => {
     if (result.status === "fulfilled") events.push(...result.value);
-    else warnings.push(String(result.reason?.message ?? result.reason));
+    else warnings.push(`${games[i].label}: ${String(result.reason?.message ?? result.reason)}`);
   });
 
   res.json({

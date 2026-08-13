@@ -47,24 +47,49 @@ cd backend && bun run start
 
 Open **http://localhost:3020**.
 
+## Settings menu
+
+Click **Settings** for:
+- **PandaScore API key** — needed for esports data only.
+- **Data sources** — checkboxes for NFL, F1, and every esports title in the
+  catalog (CS2, LoL, Rocket League, Valorant, Overwatch 2, Dota 2, R6 Siege,
+  StarCraft II). Unchecked sources are skipped entirely — no request made,
+  nothing shown. Add more titles by editing `backend/src/esportsCatalog.ts`.
+- **Excluded leagues** — one per line, hides any league whose name contains
+  that text (e.g. "LCK Challengers League" without touching the main LCK).
+- **Custom events** — manually add anything not covered by a data source:
+  name, league/category, a color, a start time, and how long it counts as
+  "live". These are saved to `~/.event-dashboard/settings.json`, **outside
+  the git repo**, so they survive every future code sync/deploy untouched.
+
+All of this is server-side state, not browser storage — it's what "stored
+locally" means here: it lives in a file on your machine, never sent anywhere
+but PandaScore's API and back to your own browser.
+
 ## Testing status
 
-Type-checked and built successfully (both frontend and backend) in the
-sandbox this was built in. That sandbox can't reach espn.com, jolpi.ca, or
-pandascore.co, so the three live data routes (`backend/src/routes/nfl.ts`,
-`f1.ts`, `esports.ts`) are correct against each API's documented response
-shape but **not verified against a live response** — worth a first real run
-to confirm nothing's drifted.
+Type-checked and built successfully (frontend and backend) in the sandbox
+this was built in. The settings/custom-events system was exercised directly
+end-to-end (create, filter, disable, read back) and confirmed working.
 
-Single-port static serving (backend serving the built frontend) and the
-settings read/write route were tested directly and confirmed working.
+That sandbox can't reach espn.com, jolpi.ca, or pandascore.co, so the three
+external data routes (`backend/src/routes/nfl.ts`, `f1.ts`, `esports.ts`)
+are correct against each API's documented response shape but **not verified
+against a live response** — worth a first real run to confirm nothing's
+drifted.
 
 ## Notes
 
-- Settings (PandaScore key, followed teams) are stored in
-  `~/.event-dashboard/settings.json` as plaintext — it's a free API key, not
-  a real secret. Say the word if you'd rather it be encrypted at rest.
+- Settings are stored as plaintext JSON — it's a free API key plus your own
+  data, not a real secret. Say the word if you'd rather the key be encrypted
+  at rest.
 - Backend polls/caches each upstream API for 60s–1hr depending on how often
   that data actually changes, to stay well under free-tier rate limits.
-- `followedTeams` exists in the settings shape but isn't wired into the UI
-  filter yet — natural next step once the live data pull is confirmed working.
+- Countdown timers tick client-side every 15s independent of data polls
+  (which happen every 60s or on manual Resync), so they don't freeze between
+  fetches.
+- Warnings (e.g. one esports title failing to sync) can be dismissed with the
+  ×. Dismissal is by exact message text and lasts for the current page
+  session — if the identical warning recurs on a later poll it stays hidden;
+  a warning with different wording (e.g. a different HTTP status) will still
+  show. Reload the page to clear all dismissals.

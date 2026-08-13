@@ -1,10 +1,10 @@
 import { useMemo, useState } from "react";
 import { useEvents } from "./useEvents";
+import { useSettings } from "./useSettings";
 import { useNow, formatCountdown } from "./countdown";
-import { SPORT_LABEL, type NormalizedEvent, type Sport } from "./types";
+import { sportMeta } from "./sportMeta";
+import { CORE_SPORT_META, type NormalizedEvent } from "./types";
 import SettingsDrawer from "./SettingsDrawer";
-
-const ALL_SPORTS = Object.keys(SPORT_LABEL) as Sport[];
 
 function formatTime(iso: string) {
   const d = new Date(iso);
@@ -17,11 +17,12 @@ function formatTime(iso: string) {
   });
 }
 
-function EventCard({ e, now }: { e: NormalizedEvent; now: Date }) {
+function EventCard({ e, now, catalog }: { e: NormalizedEvent; now: Date; catalog: ReturnType<typeof useSettings>["settings"]["esportsCatalog"] }) {
+  const meta = sportMeta(e, catalog);
   return (
-    <div className={`event-card sport-${e.sport} status-${e.status}`}>
+    <div className={`event-card${e.status === "live" ? " is-live" : ""}`} style={{ borderLeftColor: meta.color }}>
       <div className="event-top">
-        <span className="sport-tag">{SPORT_LABEL[e.sport]}</span>
+        <span className="sport-tag">{meta.label}</span>
         {e.status === "live" ? (
           <span className="live-dot">LIVE</span>
         ) : (
@@ -38,24 +39,42 @@ function EventCard({ e, now }: { e: NormalizedEvent; now: Date }) {
 }
 
 export default function App() {
-  const { events, warnings, loading, refreshing, lastUpdated, refetch } = useEvents();
+  const { settings, loaded: settingsLoaded } = useSettings();
+  const { events, warnings, loading, refreshing, lastUpdated, refetch } = useEvents(
+    settings.disabledCoreSources,
+    settings.excludedLeagues
+  );
   const now = useNow();
-  const [activeSports, setActiveSports] = useState<Set<Sport>>(new Set(ALL_SPORTS));
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [dismissedWarnings, setDismissedWarnings] = useState<Set<string>>(new Set());
 
-  const filtered = useMemo(() => events.filter((e) => activeSports.has(e.sport)), [events, activeSports]);
-  const live = filtered.filter((e) => e.status === "live");
-  // Already sorted soonest-first by useEvents; upcoming keeps that order.
-  const upcoming = filtered.filter((e) => e.status === "upcoming");
+  // Every sport currently enabled, in a stable order: core sources first,
+  // then enabled esports titles, then "custom" if any custom events exist.
+  const availableSports = useMemo(() => {
+    const core = Object.keys(CORE_SPORT_META).filter((s) => !settings.disabledCoreSources.includes(s));
+    const esports = settings.esportsCatalog.filter((g) => settings.enabledEsportsGames.includes(g.slug)).map((g) => g.sport);
+    const custom = settings.customEvents.length > 0 ? ["custom"] : [];
+    return [...core, ...esports, ...custom];
+  }, [settings]);
 
-  function toggleSport(s: Sport) {
+  const [activeSports, setActiveSports] = useState<Set<string> | null>(null); // null = "all"
+  const isActive = (sport: string) => activeSports === null || activeSports.has(sport);
+
+  function toggleSport(sport: string) {
     setActiveSports((prev) => {
-      const next = new Set(prev);
-      if (next.has(s)) next.delete(s);
-      else next.add(s);
+      const base = prev ?? new Set(availableSports);
+      const next = new Set(base);
+      if (next.has(sport)) next.delete(sport);
+      else next.add(sport);
       return next;
     });
   }
+
+  const filtered = useMemo(() => events.filter((e) => isActive(e.sport)), [events, activeSports, availableSports]);
+  const live = filtered.filter((e) => e.status === "live");
+  const upcoming = filtered.filter((e) => e.status === "upcoming");
+
+  const visibleWarnings = warnings.filter((w) => !dismissedWarnings.has(w));
 
   return (
     <div className="app">
@@ -71,27 +90,38 @@ export default function App() {
         </div>
       </header>
 
-      {lastUpdated && (
-        <div className="last-updated">Last synced {lastUpdated.toLocaleTimeString()}</div>
+      {lastUpdated && <div className="last-updated">Last synced {lastUpdated.toLocaleTimeString()}</div>}
+
+      {settingsLoaded && (
+        <div className="filters">
+          {availableSports.map((s) => {
+            const meta = s === "custom" ? { label: "Custom", color: "#94a3b8" } : sportMeta({ sport: s } as NormalizedEvent, settings.esportsCatalog);
+            return (
+              <button
+                key={s}
+                className={`chip ${isActive(s) ? "active" : ""}`}
+                style={isActive(s) ? { borderColor: meta.color, background: `${meta.color}26`, color: "#fff" } : undefined}
+                onClick={() => toggleSport(s)}
+              >
+                {meta.label}
+              </button>
+            );
+          })}
+        </div>
       )}
 
-      <div className="filters">
-        {ALL_SPORTS.map((s) => (
-          <button
-            key={s}
-            className={`chip chip-${s} ${activeSports.has(s) ? "active" : ""}`}
-            onClick={() => toggleSport(s)}
-          >
-            {SPORT_LABEL[s]}
-          </button>
-        ))}
-      </div>
-
-      {warnings.length > 0 && (
+      {visibleWarnings.length > 0 && (
         <div className="warnings">
-          {warnings.map((w, i) => (
+          {visibleWarnings.map((w, i) => (
             <div key={i} className="warning">
-              {w}
+              <span>{w}</span>
+              <button
+                className="btn-x"
+                aria-label="Dismiss"
+                onClick={() => setDismissedWarnings((prev) => new Set(prev).add(w))}
+              >
+                ×
+              </button>
             </div>
           ))}
         </div>
@@ -108,7 +138,7 @@ export default function App() {
             ) : (
               <div className="grid">
                 {live.map((e) => (
-                  <EventCard key={`${e.sport}-${e.id}`} e={e} now={now} />
+                  <EventCard key={`${e.sport}-${e.id}`} e={e} now={now} catalog={settings.esportsCatalog} />
                 ))}
               </div>
             )}
@@ -121,7 +151,7 @@ export default function App() {
             ) : (
               <div className="grid">
                 {upcoming.map((e) => (
-                  <EventCard key={`${e.sport}-${e.id}`} e={e} now={now} />
+                  <EventCard key={`${e.sport}-${e.id}`} e={e} now={now} catalog={settings.esportsCatalog} />
                 ))}
               </div>
             )}

@@ -1,4 +1,4 @@
-export type Sport = "nfl" | "f1" | "cs2" | "lol" | "rocket-league";
+export type Sport = string;
 export type EventStatus = "live" | "upcoming" | "finished";
 
 export interface NormalizedEvent {
@@ -9,4 +9,5 @@ export interface NormalizedEvent {
   startTime: string; // ISO 8601
   status: EventStatus;
   detailUrl?: string;
+  color?: string; // explicit override, used by custom events
 }

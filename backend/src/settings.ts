@@ -1,18 +1,41 @@
 import fs from "fs";
 import path from "path";
 import os from "os";
+import { DEFAULT_ENABLED_SLUGS } from "./esportsCatalog.js";
 
 const SETTINGS_DIR = path.join(os.homedir(), ".event-dashboard");
 const SETTINGS_FILE = path.join(SETTINGS_DIR, "settings.json");
 
-export interface Settings {
-  pandaScoreApiKey: string;
-  // Team/driver names to filter the feed down to what's actually followed.
-  // Empty array = show everything.
-  followedTeams: string[];
+export interface CustomEvent {
+  id: string;
+  name: string;
+  league: string;
+  color: string; // hex
+  startTime: string; // ISO 8601
+  durationMinutes: number; // used to compute live/upcoming/finished
 }
 
-const DEFAULTS: Settings = { pandaScoreApiKey: "", followedTeams: [] };
+export interface Settings {
+  pandaScoreApiKey: string;
+  // League names to hide everywhere, matched case-insensitively as a
+  // substring (e.g. "LCK Challengers League" hides that specific league
+  // without touching the main LCK league).
+  excludedLeagues: string[];
+  // Core sources (nfl, f1) the user has turned off entirely.
+  disabledCoreSources: string[];
+  // PandaScore game slugs currently pulled (see esportsCatalog.ts for the
+  // full list of what's available to enable).
+  enabledEsportsGames: string[];
+  customEvents: CustomEvent[];
+}
+
+const DEFAULTS: Settings = {
+  pandaScoreApiKey: "",
+  excludedLeagues: [],
+  disabledCoreSources: [],
+  enabledEsportsGames: DEFAULT_ENABLED_SLUGS,
+  customEvents: [],
+};
 
 export function readSettings(): Settings {
   try {

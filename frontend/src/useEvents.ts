@@ -18,9 +18,17 @@ interface FeedState {
   refetch: () => void;
 }
 
-const ENDPOINTS = ["/api/nfl", "/api/f1", "/api/esports"];
+const CORE_ENDPOINTS: Record<string, string> = {
+  nfl: "/api/nfl",
+  f1: "/api/f1",
+};
 
-export function useEvents(pollMs = 60_000): FeedState {
+function matchesExcluded(league: string, excludedLeagues: string[]): boolean {
+  const l = league.toLowerCase();
+  return excludedLeagues.some((ex) => ex.trim() && l.includes(ex.trim().toLowerCase()));
+}
+
+export function useEvents(disabledCoreSources: string[], excludedLeagues: string[], pollMs = 60_000): FeedState {
   const [events, setEvents] = useState<NormalizedEvent[]>([]);
   const [warnings, setWarnings] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -29,8 +37,17 @@ export function useEvents(pollMs = 60_000): FeedState {
 
   const load = useCallback(async () => {
     setRefreshing(true);
+
+    const endpoints = [
+      ...Object.entries(CORE_ENDPOINTS)
+        .filter(([sport]) => !disabledCoreSources.includes(sport))
+        .map(([, url]) => url),
+      "/api/esports",
+      "/api/custom-events",
+    ];
+
     const results = await Promise.all(
-      ENDPOINTS.map(async (url) => {
+      endpoints.map(async (url) => {
         try {
           const r = await fetch(url);
           return (await r.json()) as SourceResult;
@@ -40,8 +57,9 @@ export function useEvents(pollMs = 60_000): FeedState {
       })
     );
 
-    const nextEvents = results.flatMap((r) => r.events ?? []);
-    // Soonest event first, so the next thing to plan for is always at the top.
+    let nextEvents = results.flatMap((r) => r.events ?? []);
+    // Custom events are the user's own — never league-filtered.
+    nextEvents = nextEvents.filter((e) => e.sport === "custom" || !matchesExcluded(e.league, excludedLeagues));
     nextEvents.sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
 
     const nextWarnings = results.flatMap((r) => {
@@ -56,7 +74,7 @@ export function useEvents(pollMs = 60_000): FeedState {
     setLoading(false);
     setRefreshing(false);
     setLastUpdated(new Date());
-  }, []);
+  }, [disabledCoreSources.join(","), excludedLeagues.join(",")]);
 
   useEffect(() => {
     load();

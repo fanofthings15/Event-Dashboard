@@ -6,6 +6,7 @@ import nfl from "./routes/nfl.js";
 import f1 from "./routes/f1.js";
 import esports from "./routes/esports.js";
 import settings from "./routes/settings.js";
+import customEvents from "./routes/customEvents.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT ? Number(process.env.PORT) : 3020;
@@ -18,6 +19,7 @@ app.use("/api/nfl", nfl);
 app.use("/api/f1", f1);
 app.use("/api/esports", esports);
 app.use("/api/settings", settings);
+app.use("/api/custom-events", customEvents);
 
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
 

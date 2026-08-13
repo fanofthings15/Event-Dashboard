@@ -1,0 +1,24 @@
+export interface EsportsGame {
+  slug: string;
+  sport: string;
+  label: string;
+  color: string;
+}
+
+export interface CustomEvent {
+  id: string;
+  name: string;
+  league: string;
+  color: string;
+  startTime: string;
+  durationMinutes: number;
+}
+
+export interface SettingsState {
+  pandaScoreApiKeySet: boolean;
+  excludedLeagues: string[];
+  disabledCoreSources: string[];
+  enabledEsportsGames: string[];
+  customEvents: CustomEvent[];
+  esportsCatalog: EsportsGame[];
+}
