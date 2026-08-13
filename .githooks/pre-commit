@@ -1,0 +1,9 @@
+#!/bin/sh
+# Blocks accidental commits of node_modules (a .gitignore entry alone doesn't
+# retroactively untrack files that were already committed before it existed).
+if git diff --cached --name-only | grep -q "node_modules/"; then
+  echo "ERROR: node_modules is staged for commit. Aborting."
+  echo "Run: git rm -r --cached <path>/node_modules"
+  exit 1
+fi
+exit 0
