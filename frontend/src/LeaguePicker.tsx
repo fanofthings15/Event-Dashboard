@@ -34,11 +34,18 @@ export default function LeaguePicker({ allEvents }: Props) {
     });
   }
 
+  function toggleFollowEnabled() {
+    save({ frcFollowEnabled: !settings.frcFollowEnabled });
+  }
+
   // Group distinct league names by sport, from currently-live data only —
   // so a one-off tournament's league doesn't clutter this list forever once
-  // it's no longer showing up in any feed.
+  // it's no longer showing up in any feed. FRC always gets a group even
+  // with zero current events, since its season is mostly off-season and the
+  // team-follow field needs to stay reachable regardless.
   const leaguesBySport = useMemo(() => {
     const map = new Map<string, Set<string>>();
+    map.set("frc", new Set());
     for (const e of allEvents) {
       if (e.sport === "custom") continue;
       if (!map.has(e.sport)) map.set(e.sport, new Set());
@@ -63,6 +70,7 @@ export default function LeaguePicker({ allEvents }: Props) {
       enabledEsportsGames: settings.enabledEsportsGames,
       customEvents: settings.customEvents,
       frcTeamKey: settings.frcTeamKey,
+      frcFollowEnabled: settings.frcFollowEnabled,
     };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -96,64 +104,77 @@ export default function LeaguePicker({ allEvents }: Props) {
 
   return (
     <div>
-      <div className="filter-subsection">
-        <label className="field">
-          <span>FRC team to follow</span>
-          <input
-            className="text-input"
-            placeholder="e.g. frc254 — leave blank to show all FRC events"
-            value={teamKey}
-            onChange={(e) => {
-              setTeamKey(e.target.value);
-              setTeamKeySaved(false);
-            }}
-          />
-        </label>
-        <button className="btn primary" onClick={saveTeamKey} disabled={teamKey === settings.frcTeamKey}>
-          Save team
-        </button>
-        {teamKeySaved && <span className="ok-tag">Saved</span>}
-      </div>
-
-      {leaguesBySport.size === 0 ? (
-        <span className="hint">No leagues seen yet — check back once data has synced at least once.</span>
-      ) : (
-        [...leaguesBySport.entries()].map(([sport, leagues]) => {
-          const meta = sportMeta({ sport } as NormalizedEvent, settings.esportsCatalog);
-          const isOpen = expanded.has(sport);
-          const hiddenCount = [...leagues].filter((l) => settings.excludedLeagues.includes(l)).length;
-          return (
-            <div key={sport} className="league-group">
-              <button type="button" className="league-group-title" onClick={() => toggleExpanded(sport)}>
-                <span className={`league-chevron ${isOpen ? "open" : ""}`}>›</span>
-                <span className="dot" style={{ background: meta.color }} />
-                {meta.label}
+      {[...leaguesBySport.entries()].map(([sport, leagues]) => {
+        const meta = sportMeta({ sport } as NormalizedEvent, settings.esportsCatalog);
+        const isOpen = expanded.has(sport);
+        const hiddenCount = [...leagues].filter((l) => settings.excludedLeagues.includes(l)).length;
+        return (
+          <div key={sport} className="league-group">
+            <button type="button" className="league-group-title" onClick={() => toggleExpanded(sport)}>
+              <span className={`league-chevron ${isOpen ? "open" : ""}`}>›</span>
+              <span className="dot" style={{ background: meta.color }} />
+              {meta.label}
+              {sport !== "frc" && (
                 <span className="hint">
                   ({leagues.size}{hiddenCount > 0 ? `, ${hiddenCount} hidden` : ""})
                 </span>
-              </button>
-              {isOpen && (
-                <div className="source-chip-list" style={{ marginTop: 8 }}>
-                  {[...leagues].sort().map((league) => {
-                    const hidden = settings.excludedLeagues.includes(league);
-                    return (
-                      <button
-                        key={league}
-                        type="button"
-                        className={`chip ${!hidden ? "active" : ""}`}
-                        style={!hidden ? { borderColor: meta.color, background: `${meta.color}26`, color: "#fff" } : undefined}
-                        onClick={() => toggleLeague(league)}
-                      >
-                        {league}
-                      </button>
-                    );
-                  })}
-                </div>
               )}
-            </div>
-          );
-        })
-      )}
+            </button>
+            {isOpen && sport === "frc" && (
+              <div style={{ marginTop: 8 }}>
+                <label className="field">
+                  <span>Team to follow</span>
+                  <input
+                    className="text-input"
+                    placeholder="e.g. frc254 — leave blank for none"
+                    value={teamKey}
+                    onChange={(e) => {
+                      setTeamKey(e.target.value);
+                      setTeamKeySaved(false);
+                    }}
+                  />
+                </label>
+                <div className="form-row">
+                  <button className="btn primary" onClick={saveTeamKey} disabled={teamKey === settings.frcTeamKey}>
+                    Save team
+                  </button>
+                  {teamKeySaved && <span className="ok-tag">Saved</span>}
+                </div>
+                <button
+                  type="button"
+                  className={`chip ${settings.frcFollowEnabled ? "active" : ""}`}
+                  style={settings.frcFollowEnabled ? { borderColor: meta.color, background: `${meta.color}26`, color: "#fff" } : undefined}
+                  onClick={toggleFollowEnabled}
+                  disabled={!settings.frcTeamKey}
+                >
+                  {settings.frcFollowEnabled ? "Tagging followed team's events" : "Tag followed team's events"}
+                </button>
+                <span className="hint" style={{ display: "block", marginTop: 6 }}>
+                  When on, events your team is competing in get a small badge — this never hides other FRC events.
+                </span>
+              </div>
+            )}
+            {isOpen && sport !== "frc" && (
+              <div className="source-chip-list" style={{ marginTop: 8 }}>
+                {[...leagues].sort().map((league) => {
+                  const hidden = settings.excludedLeagues.includes(league);
+                  return (
+                    <button
+                      key={league}
+                      type="button"
+                      className={`chip ${!hidden ? "active" : ""}`}
+                      style={!hidden ? { borderColor: meta.color, background: `${meta.color}26`, color: "#fff" } : undefined}
+                      onClick={() => toggleLeague(league)}
+                    >
+                      {league}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })}
 
       <div className="form-row" style={{ marginTop: 12 }}>
         <button className="btn" onClick={exportSettings}>

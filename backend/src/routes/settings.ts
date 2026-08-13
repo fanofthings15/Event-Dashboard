@@ -10,6 +10,7 @@ router.get("/", (_req, res) => {
     pandaScoreApiKeySet: Boolean(settings.pandaScoreApiKey),
     tbaApiKeySet: Boolean(settings.tbaApiKey),
     frcTeamKey: settings.frcTeamKey,
+    frcFollowEnabled: settings.frcFollowEnabled,
     excludedLeagues: settings.excludedLeagues,
     disabledCoreSources: settings.disabledCoreSources,
     enabledEsportsGames: settings.enabledEsportsGames,
@@ -29,6 +30,7 @@ router.post("/", (req, res) => {
     next.tbaApiKey = body.tbaApiKey;
   }
   if (typeof body.frcTeamKey === "string") next.frcTeamKey = body.frcTeamKey;
+  if (typeof body.frcFollowEnabled === "boolean") next.frcFollowEnabled = body.frcFollowEnabled;
   if (Array.isArray(body.excludedLeagues)) next.excludedLeagues = body.excludedLeagues.filter((x: unknown) => typeof x === "string");
   if (Array.isArray(body.disabledCoreSources)) next.disabledCoreSources = body.disabledCoreSources.filter((x: unknown) => typeof x === "string");
   if (Array.isArray(body.enabledEsportsGames)) next.enabledEsportsGames = body.enabledEsportsGames.filter((x: unknown) => typeof x === "string");

@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import type { NormalizedEvent } from "./types";
 import type { EsportsGame } from "./settingsTypes";
 import { sportMeta } from "./sportMeta";
+import { isLiveNow } from "./eventStatus";
 import { buildMonthGrid, sameDay } from "./calendarUtils";
 import DayDetailModal from "./DayDetailModal";
 
@@ -11,6 +12,7 @@ const MAX_GROUPS_PER_DAY = 4;
 interface Props {
   events: NormalizedEvent[];
   catalog: EsportsGame[];
+  now: Date;
   onEventClick: (e: NormalizedEvent) => void;
 }
 
@@ -31,13 +33,14 @@ function groupBySport(dayEvents: NormalizedEvent[], catalog: EsportsGame[]): Spo
   return [...map.values()];
 }
 
-export default function CalendarView({ events, catalog, onEventClick }: Props) {
+export default function CalendarView({ events, catalog, now, onEventClick }: Props) {
   const [viewDate, setViewDate] = useState(() => new Date());
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
   const year = viewDate.getFullYear();
   const month = viewDate.getMonth();
 
   const weeks = useMemo(() => buildMonthGrid(year, month), [year, month]);
+  const liveNow = useMemo(() => events.filter((e) => isLiveNow(e, now)), [events, now]);
 
   const eventsByDay = useMemo(() => {
     const map = new Map<string, NormalizedEvent[]>();
@@ -54,6 +57,21 @@ export default function CalendarView({ events, catalog, onEventClick }: Props) {
 
   return (
     <div className="calendar">
+      {liveNow.length > 0 && (
+        <div className="calendar-live-strip">
+          <span className="live-badge">LIVE</span>
+          {liveNow.map((e) => {
+            const meta = sportMeta(e, catalog);
+            return (
+              <button key={`${e.sport}-${e.id}`} type="button" className="calendar-live-chip" onClick={() => onEventClick(e)}>
+                <span className="dot" style={{ background: meta.color }} />
+                {e.name}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       <div className="calendar-nav">
         <button className="btn" onClick={() => setViewDate(new Date(year, month - 1, 1))}>
           ‹
@@ -87,14 +105,21 @@ export default function CalendarView({ events, catalog, onEventClick }: Props) {
             >
               <div className="calendar-date">{cell.date.getDate()}</div>
               <div className="calendar-events">
-                {shown.map((g) => (
-                  <div key={g.sport} className="calendar-event" title={g.events.length === 1 ? g.events[0].name : `${g.events.length}x ${g.label}`}>
-                    <span className="dot" style={{ background: g.color }} />
-                    <span className="calendar-event-name">
-                      {g.events.length === 1 ? g.events[0].name : `${g.events.length}x ${g.label}`}
-                    </span>
-                  </div>
-                ))}
+                {shown.map((g) => {
+                  const groupLive = g.events.some((e) => isLiveNow(e, now));
+                  return (
+                    <div
+                      key={g.sport}
+                      className={`calendar-event${groupLive ? " is-live" : ""}`}
+                      title={g.events.length === 1 ? g.events[0].name : `${g.events.length}x ${g.label}`}
+                    >
+                      {groupLive ? <span className="live-dot-small" /> : <span className="dot" style={{ background: g.color }} />}
+                      <span className="calendar-event-name">
+                        {g.events.length === 1 ? g.events[0].name : `${g.events.length}x ${g.label}`}
+                      </span>
+                    </div>
+                  );
+                })}
                 {extraGroups > 0 && <div className="calendar-more">+{extraGroups} more</div>}
               </div>
             </button>

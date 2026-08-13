@@ -5,6 +5,7 @@ const EMPTY: SettingsState = {
   pandaScoreApiKeySet: false,
   tbaApiKeySet: false,
   frcTeamKey: "",
+  frcFollowEnabled: false,
   excludedLeagues: [],
   disabledCoreSources: [],
   enabledEsportsGames: [],

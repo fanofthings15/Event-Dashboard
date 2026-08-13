@@ -27,6 +27,7 @@ export interface NormalizedEvent {
   seriesScore?: string; // e.g. "Bo3 — 1-0" for a best-of-N match
   extra?: ExtraFact[];
   color?: string;
+  followed?: boolean;
 }
 
 // Static meta for the core (non-PandaScore) sources. Esports titles get

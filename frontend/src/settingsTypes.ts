@@ -19,6 +19,7 @@ export interface SettingsState {
   pandaScoreApiKeySet: boolean;
   tbaApiKeySet: boolean;
   frcTeamKey: string;
+  frcFollowEnabled: boolean;
   excludedLeagues: string[];
   disabledCoreSources: string[];
   enabledEsportsGames: string[];

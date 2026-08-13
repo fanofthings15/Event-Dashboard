@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { NormalizedEvent } from "./types";
 import type { EsportsGame } from "./settingsTypes";
 import { sportMeta } from "./sportMeta";
+import { isLiveNow } from "./eventStatus";
 import { liquipediaSearchUrl } from "./types";
 import { googleCalendarUrl } from "./googleCalendar";
 import { useSettings } from "./SettingsContext";
@@ -13,12 +14,6 @@ interface Props {
   now: Date;
   catalog: EsportsGame[];
   onClose: () => void;
-}
-
-function isLiveNow(e: NormalizedEvent, now: Date): boolean {
-  if (e.status === "live") return true;
-  if (e.status === "finished") return false;
-  return new Date(e.startTime).getTime() <= now.getTime();
 }
 
 function formatRange(startIso: string, endIso: string | undefined) {
@@ -53,6 +48,7 @@ export default function EventDetailModal({ event, now, catalog, onClose }: Props
         </div>
 
         <h2 style={{ marginTop: 0, marginBottom: 8 }}>{event.name}</h2>
+        {event.followed && <span className="followed-chip">★ Your team</span>}
         <div className="hint" style={{ marginBottom: 14 }}>
           {event.league} · {formatRange(event.startTime, event.endTime)}
           {event.venue ? ` · ${event.venue}` : ""}

@@ -3,6 +3,7 @@ import { useEvents } from "./useEvents";
 import { useSettings } from "./SettingsContext";
 import { useNow, formatCountdown } from "./countdown";
 import { sportMeta } from "./sportMeta";
+import { isLiveNow } from "./eventStatus";
 import { CORE_SPORT_META, type NormalizedEvent } from "./types";
 import SettingsDrawer from "./SettingsDrawer";
 import CalendarView from "./CalendarView";
@@ -18,15 +19,6 @@ function formatTime(iso: string) {
     hour: "numeric",
     minute: "2-digit",
   });
-}
-
-// The backend only knows an event's status as of its last poll (up to 60s
-// stale). Once the local clock passes an event's start time, treat it as
-// live immediately rather than waiting for the next fetch to confirm it.
-function isLiveNow(e: NormalizedEvent, now: Date): boolean {
-  if (e.status === "live") return true;
-  if (e.status === "finished") return false;
-  return new Date(e.startTime).getTime() <= now.getTime();
 }
 
 function EventCard({
@@ -48,6 +40,7 @@ function EventCard({
         <span className="sport-tag">{meta.label}</span>
         {live ? <span className="live-badge">LIVE</span> : <span className="countdown">{formatCountdown(e.startTime, now)}</span>}
       </div>
+      {e.followed && <span className="followed-chip">★ Your team</span>}
       {e.teams && e.teams.length > 0 ? (
         <div className="event-teams">
           {e.teams.map((t) => (
@@ -183,7 +176,7 @@ export default function App() {
       {loading ? (
         <div className="empty">Loading…</div>
       ) : view === "calendar" ? (
-        <CalendarView events={filtered} catalog={settings.esportsCatalog} onEventClick={setSelectedEvent} />
+        <CalendarView events={filtered} catalog={settings.esportsCatalog} now={now} onEventClick={setSelectedEvent} />
       ) : (
         <>
           <section>

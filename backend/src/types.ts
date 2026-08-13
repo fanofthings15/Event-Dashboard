@@ -27,4 +27,5 @@ export interface NormalizedEvent {
   seriesScore?: string;
   extra?: ExtraFact[];
   color?: string; // explicit override, used by custom events
+  followed?: boolean; // a team the user follows is competing in this event
 }

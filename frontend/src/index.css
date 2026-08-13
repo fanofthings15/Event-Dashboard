@@ -112,7 +112,7 @@ section h2 {
 .countdown { font-size: 12px; font-weight: 600; color: var(--accent); }
 .event-teams { display: flex; flex-direction: column; gap: 4px; margin-bottom: 6px; }
 .event-team-row { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 600; }
-.event-team-logo { width: 26px; height: 26px; object-fit: contain; border-radius: 4px; background: var(--bg); border: 1px solid var(--border); flex-shrink: 0; }
+.event-team-logo { width: 26px; height: 26px; object-fit: contain; flex-shrink: 0; }
 .event-name { font-size: 15px; font-weight: 600; margin-bottom: 6px; }
 .event-series-score { font-size: 12px; font-weight: 700; color: var(--accent); margin-bottom: 6px; }
 .event-meta { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px; font-size: 12px; color: var(--muted); }
@@ -157,8 +157,17 @@ section h2 {
 .settings-section:first-of-type { border-top: none; padding-top: 0; margin-top: 0; }
 .settings-section h3 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin: 0 0 8px; }
 
-.filter-subsection { padding-bottom: 14px; margin-bottom: 14px; border-bottom: 1px solid var(--border); }
-.filter-subsection .btn { margin-top: 4px; }
+.followed-chip {
+  display: inline-block;
+  background: rgba(250, 204, 21, 0.15);
+  border: 1px solid rgba(250, 204, 21, 0.4);
+  color: #facc15;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 999px;
+  margin-bottom: 6px;
+}
 
 .source-chip-list { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 12px; }
 .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
@@ -196,6 +205,33 @@ section h2 {
 .custom-event-list { list-style: none; margin: 0 0 12px; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .custom-event-list li { display: flex; align-items: center; gap: 8px; font-size: 13px; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px; }
 .custom-event-name { flex: 1; }
+
+.calendar-live-strip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin-bottom: 14px;
+}
+.calendar-live-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-size: 12px;
+  font-family: inherit;
+  padding: 5px 10px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.live-dot-small { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--live); flex-shrink: 0; }
+.calendar-event.is-live { color: #f3a1a1; font-weight: 600; }
 
 .calendar-nav { display: flex; align-items: center; justify-content: center; gap: 16px; margin-bottom: 14px; }
 .calendar-title { font-size: 16px; font-weight: 600; min-width: 160px; text-align: center; }

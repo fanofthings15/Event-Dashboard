@@ -20,6 +20,9 @@ export interface Settings {
   pandaScoreApiKey: string;
   tbaApiKey: string; // The Blue Alliance Read API key, for FRC events
   frcTeamKey: string; // e.g. "frc254"
+  // Whether to actually tag events where frcTeamKey is competing — lets the
+  // team key be saved without immediately turning tagging on/off.
+  frcFollowEnabled: boolean;
   // League names to hide everywhere, matched case-insensitively as a
   // substring (e.g. "LCK Challengers League" hides that specific league
   // without touching the main LCK league).
@@ -36,6 +39,7 @@ const DEFAULTS: Settings = {
   pandaScoreApiKey: "",
   tbaApiKey: "",
   frcTeamKey: "",
+  frcFollowEnabled: false,
   excludedLeagues: [],
   disabledCoreSources: [],
   enabledEsportsGames: DEFAULT_ENABLED_SLUGS,

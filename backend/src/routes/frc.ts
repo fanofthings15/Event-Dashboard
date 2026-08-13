@@ -27,7 +27,7 @@ function statusFor(startDate: string, endDate: string): NormalizedEvent["status"
 }
 
 router.get("/", async (_req, res) => {
-  const { tbaApiKey, frcTeamKey } = readSettings();
+  const { tbaApiKey, frcTeamKey, frcFollowEnabled } = readSettings();
   if (!tbaApiKey) {
     return res.status(200).json({
       events: [],
@@ -38,22 +38,35 @@ router.get("/", async (_req, res) => {
 
   const year = new Date().getFullYear();
   const team = frcTeamKey.trim();
-  const url = team
-    ? `https://www.thebluealliance.com/api/v3/team/${team}/events/${year}/simple`
-    : `https://www.thebluealliance.com/api/v3/events/${year}/simple`;
-  const cacheKey = team ? `frc:events:${year}:${team}` : `frc:events:${year}`;
+  const authHeaders = { "X-TBA-Auth-Key": tbaApiKey, "User-Agent": "event-dashboard (personal use)" };
 
   try {
-    const data: TbaEvent[] = await cached(cacheKey, 60 * 60, async () => {
-      const r = await fetch(url, {
-        headers: { "X-TBA-Auth-Key": tbaApiKey, "User-Agent": "event-dashboard (personal use)" },
-      });
+    // Always the full event list — the followed team never hides other events.
+    const data: TbaEvent[] = await cached(`frc:events:${year}`, 60 * 60, async () => {
+      const r = await fetch(`https://www.thebluealliance.com/api/v3/events/${year}/simple`, { headers: authHeaders });
       if (!r.ok) {
         const body = await r.text().catch(() => "");
         throw new Error(`TBA responded ${r.status}${body ? `: ${body.slice(0, 200)}` : ""}`);
       }
       return r.json();
     });
+
+    // A lightweight second call for just the followed team's event keys, so
+    // we can tag matching events without fetching per-event rosters.
+    let followedKeys: Set<string> = new Set();
+    if (team && frcFollowEnabled) {
+      try {
+        const keys: string[] = await cached(`frc:team-keys:${year}:${team}`, 60 * 60, async () => {
+          const r = await fetch(`https://www.thebluealliance.com/api/v3/team/${team}/events/${year}/keys`, { headers: authHeaders });
+          if (!r.ok) throw new Error(`TBA team lookup responded ${r.status}`);
+          return r.json();
+        });
+        followedKeys = new Set(keys);
+      } catch {
+        // Followed-team tagging is a nice-to-have — if this lookup fails,
+        // still show the full event list rather than erroring the whole route.
+      }
+    }
 
     // Only full events, never individual matches — and only ones that
     // haven't already finished, so this stays a forward-looking schedule.
@@ -72,6 +85,7 @@ router.get("/", async (_req, res) => {
           status: statusFor(e.start_date, e.end_date),
           detailUrl: e.website || `https://www.thebluealliance.com/event/${e.key}`,
           extra: location ? [{ label: "Location", value: location }] : undefined,
+          followed: followedKeys.has(e.key) || undefined,
         };
       });
 

@@ -75,8 +75,10 @@ Open **http://localhost:3020**.
 - **Select all / Deselect all** — next to the sport filter chips, for
   quickly narrowing to just what you want to look at right now.
 - **Calendar** — toggles the Live/Upcoming list for a month calendar (equal-
-  width days). Multiple same-day events for one sport collapse to shorthand
-  (e.g. "5x League of Legends"); click any day for an hourly breakdown.
+  width days), with a "Live now" strip at the top for anything currently
+  live and a live indicator on matching day-cell entries. Multiple same-day
+  events for one sport collapse to shorthand (e.g. "5x League of Legends");
+  click any day for an hourly breakdown.
 
 ## Settings menu
 
@@ -95,9 +97,12 @@ Click **Settings** for:
 - **Filters** — per-sport, collapsible checkbox groups (click a sport to
   expand it; collapsed groups show a hidden-league count) built from
   whatever leagues are currently showing up in your data, so a one-off
-  tournament doesn't clutter this list forever once it's gone. The **FRC
-  team to follow** field lives here too (e.g. `frc254`) — leave it blank to
-  see every FRC event, or set it to narrow to just that team's events.
+  tournament doesn't clutter this list forever once it's gone. The **FRC**
+  group holds its own team-to-follow field (e.g. `frc254`) plus a toggle —
+  when on, events that team is competing in get a small "★ Your team" badge
+  on the card and detail view. This never hides other FRC events; it's
+  purely a tag, using a lightweight lookup of just that team's event keys
+  rather than fetching every event's roster.
   **Export/Import** at the bottom move all of this to a new machine — import
   shows an in-app confirmation before overwriting anything, never a browser
   popup. Export deliberately leaves out your API keys for safety, so those
