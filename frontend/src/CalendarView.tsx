@@ -132,6 +132,7 @@ export default function CalendarView({ events, catalog, now, onEventClick }: Pro
           date={selectedDay}
           events={selectedDayEvents}
           catalog={catalog}
+          now={now}
           onClose={() => setSelectedDay(null)}
           onEventClick={onEventClick}
         />

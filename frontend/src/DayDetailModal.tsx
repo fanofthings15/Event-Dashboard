@@ -1,16 +1,18 @@
 import type { NormalizedEvent } from "./types";
 import type { EsportsGame } from "./settingsTypes";
 import { sportMeta } from "./sportMeta";
+import { isLiveNow } from "./eventStatus";
 
 interface Props {
   date: Date;
   events: NormalizedEvent[];
   catalog: EsportsGame[];
+  now: Date;
   onClose: () => void;
   onEventClick: (e: NormalizedEvent) => void;
 }
 
-export default function DayDetailModal({ date, events, catalog, onClose, onEventClick }: Props) {
+export default function DayDetailModal({ date, events, catalog, now, onClose, onEventClick }: Props) {
   const sorted = [...events].sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
 
   const byHour = new Map<number, NormalizedEvent[]>();
@@ -42,20 +44,21 @@ export default function DayDetailModal({ date, events, catalog, onClose, onEvent
                 <div className="hour-events">
                   {byHour.get(h)!.map((e) => {
                     const meta = sportMeta(e, catalog);
+                    const live = isLiveNow(e, now);
                     const time = new Date(e.startTime).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
                     return (
                       <button
                         type="button"
                         key={`${e.sport}-${e.id}`}
-                        className="hour-event"
+                        className={`hour-event${live ? " is-live" : ""}`}
                         onClick={() => {
                           onClose();
                           onEventClick(e);
                         }}
                       >
-                        <span className="dot" style={{ background: meta.color }} />
+                        {live ? <span className="live-dot-small" /> : <span className="dot" style={{ background: meta.color }} />}
                         <span className="hour-event-name">{e.name}</span>
-                        <span className="hour-event-time">{time}</span>
+                        {live ? <span className="live-badge">LIVE</span> : <span className="hour-event-time">{time}</span>}
                       </button>
                     );
                   })}
