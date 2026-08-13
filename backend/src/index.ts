@@ -22,7 +22,7 @@ app.use("/api/settings", settings);
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
 
 // Production: serve the built frontend from this same port. In dev, the Vite
-// dev server runs separately on :5173 and proxies /api to this port instead.
+// dev server runs separately (default :5290) and proxies /api to this port instead.
 const frontendDist = path.join(__dirname, "../../frontend/dist");
 app.use(express.static(frontendDist));
 app.get("*", (_req, res) => res.sendFile(path.join(frontendDist, "index.html")));

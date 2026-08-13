@@ -3,8 +3,9 @@
 Personal one-stop dashboard for NFL, F1, and esports (CS2, League of Legends,
 Rocket League) — live status and upcoming schedule in one page.
 
-Bun runtime, React + TypeScript (Vite) frontend, Node/Express + TypeScript
-backend acting as an API proxy, single-port production serving.
+Bun runtime, React + TypeScript (Vite) frontend, Express + TypeScript
+backend (run directly by Bun, no compile step) acting as an API proxy,
+single-port production serving.
 
 ## Data sources (all free)
 
@@ -33,8 +34,9 @@ once it's running, not into a config file.
 bun run dev
 ```
 
-Backend on :3020, frontend dev server on :5173 (proxies `/api` to :3020).
-Open **http://localhost:5173**.
+Backend on :3020, frontend dev server on :5290 by default (override with
+`FRONTEND_PORT=xxxx`) — proxies `/api` to :3020.
+Open **http://localhost:5290**.
 
 ## Running it (production-style, one process)
 
