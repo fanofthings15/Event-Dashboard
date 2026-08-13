@@ -24,13 +24,15 @@ import zipFile from "../ui-dist.zip" with { type: "file" };
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT ? Number(process.env.PORT) : 3020;
 
-// Bun rewrites embedded-file imports to an internal "$bunfs/..." path only
-// inside a compiled executable — in dev or `bun run start` from source, the
-// import just returns the literal relative path string. This is a more
-// reliable check than the exe's file extension, since it works for any
-// --target (Windows, Linux, macOS), not just Windows's ".exe" suffix.
+// Bun rewrites embedded-file imports to an internal path only inside a
+// compiled executable — in dev or `bun run start` from source, the import
+// just returns the literal relative path string. The internal marker
+// differs by platform: "$bunfs" on Linux/macOS, "~BUN" on Windows (e.g.
+// "B:/~BUN/root/..."), confirmed against a real compiled Windows binary —
+// this was the actual bug behind "no built frontend" on a real .exe run:
+// the original check only looked for "$bunfs" and silently missed Windows.
 function isCompiledExe(): boolean {
-  return zipFile.includes("$bunfs");
+  return zipFile.includes("$bunfs") || zipFile.includes("~BUN");
 }
 
 // Where the built frontend's static files live, for whichever mode we're
