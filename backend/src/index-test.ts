@@ -19,7 +19,7 @@ import customEvents from "./routes/customEvents.js";
 // evaluates on module load (even in plain dev mode) — that's why an empty
 // placeholder ui-dist.zip is committed, so the import never fails to resolve
 // before you've run `bun run build:ui` for real.
-import zipFile from "../ui-dist.zip" with { type: "file" };
+// [TEST STUB] Bun-only import stripped for Node-based verification
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT ? Number(process.env.PORT) : 3020;
@@ -30,7 +30,7 @@ const PORT = process.env.PORT ? Number(process.env.PORT) : 3020;
 // reliable check than the exe's file extension, since it works for any
 // --target (Windows, Linux, macOS), not just Windows's ".exe" suffix.
 function isCompiledExe(): boolean {
-  return zipFile.includes("$bunfs");
+  return false; // [TEST STUB] always source-mode for this isolated test
 }
 
 // Where the built frontend's static files live, for whichever mode we're
@@ -41,7 +41,7 @@ function isCompiledExe(): boolean {
 function resolveUiDir(): string | null {
   if (isCompiledExe()) {
     try {
-      const zipBytes = fs.readFileSync(zipFile);
+      const zipBytes = fs.readFileSync("unreachable-in-this-test");
       const files = unzipSync(new Uint8Array(zipBytes));
       if (Object.keys(files).length === 0) return null; // empty placeholder, nothing real embedded
 

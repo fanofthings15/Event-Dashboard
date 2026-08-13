@@ -6,9 +6,12 @@
     "dev:backend": "cd backend && bun run dev",
     "dev:frontend": "cd frontend && bun run dev",
     "build": "cd frontend && bun run build && cd ../backend && bun run typecheck",
+    "build:ui": "cd frontend && bun run build",
+    "build:exe": "bun run build:ui && bun run ./scripts/zip-ui.ts && bun build --compile --target=bun-windows-x64 ./backend/src/index.ts --outfile app.exe",
     "start": "cd backend && bun run start"
   },
   "devDependencies": {
-    "concurrently": "^8.2.2"
+    "concurrently": "^8.2.2",
+    "fflate": "^0.8.2"
   }
 }

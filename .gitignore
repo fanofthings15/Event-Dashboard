@@ -5,3 +5,5 @@ dist/
 .env.local
 frontend/dist/
 backend/dist/
+app.exe
+app-*.exe

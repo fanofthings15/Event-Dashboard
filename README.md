@@ -49,6 +49,40 @@ cd backend && bun run start
 
 Open **http://localhost:3020**.
 
+## Building the distributable .exe
+
+```bash
+bun run build:exe
+```
+
+This runs `build:ui`, zips the result into `backend/ui-dist.zip` (via
+`scripts/zip-ui.ts` — a plain JS zip implementation, not the `zip` command,
+so this works identically on Windows), then compiles the backend with that
+zip embedded into a single Windows executable: `app.exe`. Double-click it —
+no Bun install required on the machine running it.
+
+> **Note on `backend/ui-dist.zip`:** an empty placeholder version of this
+> file is committed to the repo. That's intentional — the backend statically
+> imports it (required for Bun to know what to embed into the `.exe`), so
+> without *some* file there, even `bun run dev` would fail to start before
+> you'd ever built the UI once. `build:exe` overwrites it with the real
+> bundle each time you run it.
+
+## Releasing a new version
+
+Push a version tag:
+
+```bash
+git tag v1.1.0
+git push origin v1.1.0
+```
+
+`.github/workflows/release.yml` picks this up, builds `app.exe` on GitHub's
+servers, renames it to `app-1.1.0.exe`, and publishes it as a GitHub
+release — automatically, no local Windows machine or Bun install needed to
+produce it. Anyone can then just download the latest release and
+double-click it.
+
 ## Main page
 
 - **Click any event** — card, calendar day, or hourly breakdown — for a

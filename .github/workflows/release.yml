@@ -1,0 +1,41 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: bun install
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: bun install
+
+      - name: Install root (script) dependencies
+        run: bun install
+
+      - name: Build exe
+        run: bun run build:exe
+
+      - name: Rename with version
+        run: mv app.exe "app-${GITHUB_REF_NAME#v}.exe"
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: app-*.exe
+          generate_release_notes: true
