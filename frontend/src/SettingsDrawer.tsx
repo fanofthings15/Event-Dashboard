@@ -123,21 +123,37 @@ export default function SettingsDrawer({ onClose }: Props) {
         <section className="settings-section">
           <h3>Data sources</h3>
           <span className="hint">Turned off sources are skipped entirely — no requests made, nothing shown.</span>
-          <div className="checkbox-list">
-            {Object.entries(CORE_SPORT_META).map(([sport, meta]) => (
-              <label key={sport} className="checkbox-row">
-                <input type="checkbox" checked={!disabledCore.includes(sport)} onChange={() => toggleCore(sport)} />
-                <span className="dot" style={{ background: meta.color }} />
-                {meta.label}
-              </label>
-            ))}
-            {settings.esportsCatalog.map((g) => (
-              <label key={g.slug} className="checkbox-row">
-                <input type="checkbox" checked={enabledGames.includes(g.slug)} onChange={() => toggleGame(g.slug)} />
-                <span className="dot" style={{ background: g.color }} />
-                {g.label}
-              </label>
-            ))}
+          <div className="source-chip-list">
+            {Object.entries(CORE_SPORT_META).map(([sport, meta]) => {
+              const active = !disabledCore.includes(sport);
+              return (
+                <button
+                  key={sport}
+                  type="button"
+                  className={`chip ${active ? "active" : ""}`}
+                  style={active ? { borderColor: meta.color, background: `${meta.color}26`, color: "#fff" } : undefined}
+                  onClick={() => toggleCore(sport)}
+                >
+                  <span className="dot" style={{ background: meta.color }} />
+                  {meta.label}
+                </button>
+              );
+            })}
+            {settings.esportsCatalog.map((g) => {
+              const active = enabledGames.includes(g.slug);
+              return (
+                <button
+                  key={g.slug}
+                  type="button"
+                  className={`chip ${active ? "active" : ""}`}
+                  style={active ? { borderColor: g.color, background: `${g.color}26`, color: "#fff" } : undefined}
+                  onClick={() => toggleGame(g.slug)}
+                >
+                  <span className="dot" style={{ background: g.color }} />
+                  {g.label}
+                </button>
+              );
+            })}
           </div>
           <button className="btn primary" onClick={saveSources}>
             Save sources

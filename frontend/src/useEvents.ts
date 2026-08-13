@@ -21,6 +21,8 @@ interface FeedState {
 const CORE_ENDPOINTS: Record<string, string> = {
   nfl: "/api/nfl",
   f1: "/api/f1",
+  nba: "/api/nba",
+  nhl: "/api/nhl",
 };
 
 function matchesExcluded(league: string, excludedLeagues: string[]): boolean {

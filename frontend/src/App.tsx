@@ -5,6 +5,7 @@ import { useNow, formatCountdown } from "./countdown";
 import { sportMeta } from "./sportMeta";
 import { CORE_SPORT_META, type NormalizedEvent } from "./types";
 import SettingsDrawer from "./SettingsDrawer";
+import CalendarView from "./CalendarView";
 
 function formatTime(iso: string) {
   const d = new Date(iso);
@@ -17,17 +18,23 @@ function formatTime(iso: string) {
   });
 }
 
+// The backend only knows an event's status as of its last poll (up to 60s
+// stale). Once the local clock passes an event's start time, treat it as
+// live immediately rather than waiting for the next fetch to confirm it.
+function isLiveNow(e: NormalizedEvent, now: Date): boolean {
+  if (e.status === "live") return true;
+  if (e.status === "finished") return false;
+  return new Date(e.startTime).getTime() <= now.getTime();
+}
+
 function EventCard({ e, now, catalog }: { e: NormalizedEvent; now: Date; catalog: ReturnType<typeof useSettings>["settings"]["esportsCatalog"] }) {
   const meta = sportMeta(e, catalog);
+  const live = isLiveNow(e, now);
   return (
-    <div className={`event-card${e.status === "live" ? " is-live" : ""}`} style={{ borderLeftColor: meta.color }}>
+    <div className={`event-card${live ? " is-live" : ""}`} style={{ borderLeftColor: meta.color }}>
       <div className="event-top">
         <span className="sport-tag">{meta.label}</span>
-        {e.status === "live" ? (
-          <span className="live-dot">LIVE</span>
-        ) : (
-          <span className="countdown">{formatCountdown(e.startTime, now)}</span>
-        )}
+        {live ? <span className="live-badge">LIVE</span> : <span className="countdown">{formatCountdown(e.startTime, now)}</span>}
       </div>
       <div className="event-name">{e.name}</div>
       <div className="event-meta">
@@ -47,6 +54,7 @@ export default function App() {
   const now = useNow();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [dismissedWarnings, setDismissedWarnings] = useState<Set<string>>(new Set());
+  const [view, setView] = useState<"list" | "calendar">("list");
 
   // Every sport currently enabled, in a stable order: core sources first,
   // then enabled esports titles, then "custom" if any custom events exist.
@@ -71,8 +79,8 @@ export default function App() {
   }
 
   const filtered = useMemo(() => events.filter((e) => isActive(e.sport)), [events, activeSports, availableSports]);
-  const live = filtered.filter((e) => e.status === "live");
-  const upcoming = filtered.filter((e) => e.status === "upcoming");
+  const live = filtered.filter((e) => isLiveNow(e, now));
+  const upcoming = filtered.filter((e) => !isLiveNow(e, now) && e.status !== "finished");
 
   const visibleWarnings = warnings.filter((w) => !dismissedWarnings.has(w));
 
@@ -81,6 +89,9 @@ export default function App() {
       <header className="header">
         <h1>Event Dashboard</h1>
         <div className="header-actions">
+          <button className="btn" onClick={() => setView(view === "list" ? "calendar" : "list")}>
+            {view === "list" ? "Calendar" : "List"}
+          </button>
           <button className="btn" onClick={refetch} disabled={refreshing}>
             {refreshing ? "Syncing…" : "Resync"}
           </button>
@@ -129,6 +140,8 @@ export default function App() {
 
       {loading ? (
         <div className="empty">Loading…</div>
+      ) : view === "calendar" ? (
+        <CalendarView events={filtered} catalog={settings.esportsCatalog} />
       ) : (
         <>
           <section>

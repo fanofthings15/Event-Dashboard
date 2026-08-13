@@ -3,6 +3,8 @@ import cors from "cors";
 import path from "path";
 import { fileURLToPath } from "url";
 import nfl from "./routes/nfl.js";
+import nba from "./routes/nba.js";
+import nhl from "./routes/nhl.js";
 import f1 from "./routes/f1.js";
 import esports from "./routes/esports.js";
 import settings from "./routes/settings.js";
@@ -16,6 +18,8 @@ app.use(cors());
 app.use(express.json());
 
 app.use("/api/nfl", nfl);
+app.use("/api/nba", nba);
+app.use("/api/nhl", nhl);
 app.use("/api/f1", f1);
 app.use("/api/esports", esports);
 app.use("/api/settings", settings);

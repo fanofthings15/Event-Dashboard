@@ -1,7 +1,8 @@
 # Event Dashboard
 
-Personal one-stop dashboard for NFL, F1, and esports (CS2, League of Legends,
-Rocket League) — live status and upcoming schedule in one page.
+Personal one-stop dashboard for NFL, NBA, NHL, F1, and esports (CS2, League
+of Legends, Rocket League, and more) — live status, upcoming schedule, and a
+calendar view, all in one page.
 
 Bun runtime, React + TypeScript (Vite) frontend, Express + TypeScript
 backend (run directly by Bun, no compile step) acting as an API proxy,
@@ -11,9 +12,9 @@ single-port production serving.
 
 | Sport | Source | Trade-off |
 |---|---|---|
-| NFL | ESPN scoreboard endpoint (unofficial) | No API key, but undocumented — could change without notice |
+| NFL / NBA / NHL | ESPN scoreboard endpoint (unofficial) | No API key, but undocumented — could change without notice |
 | F1 | Jolpica (free Ergast successor) | Full schedule/results, no live timing — "live" is approximated from scheduled start time |
-| CS2 / LoL / Rocket League | PandaScore free tier | ~1000 requests/month cap; some lower-tier tournaments may be gated behind paid plans |
+| Esports (CS2, LoL, Rocket League, Valorant, Overwatch 2, Dota 2, R6 Siege, StarCraft II) | PandaScore free tier | ~1000 requests/month cap; some lower-tier tournaments may be gated behind paid plans |
 
 ## Setup
 
@@ -51,10 +52,12 @@ Open **http://localhost:3020**.
 
 Click **Settings** for:
 - **PandaScore API key** — needed for esports data only.
-- **Data sources** — checkboxes for NFL, F1, and every esports title in the
-  catalog (CS2, LoL, Rocket League, Valorant, Overwatch 2, Dota 2, R6 Siege,
-  StarCraft II). Unchecked sources are skipped entirely — no request made,
-  nothing shown. Add more titles by editing `backend/src/esportsCatalog.ts`.
+- **Data sources** — toggle chips for NFL, NBA, NHL, F1, and every esports
+  title in the catalog (CS2, LoL, Rocket League, Valorant, Overwatch 2,
+  Dota 2, R6 Siege, StarCraft II). Off means skipped entirely — no request
+  made, nothing shown. Add more titles by editing
+  `backend/src/esportsCatalog.ts`; add more ESPN-covered sports (e.g. MLB)
+  by adding a route via `backend/src/espnScoreboard.ts`'s router factory.
 - **Excluded leagues** — one per line, hides any league whose name contains
   that text (e.g. "LCK Challengers League" without touching the main LCK).
 - **Custom events** — manually add anything not covered by a data source:
@@ -93,3 +96,10 @@ drifted.
   session — if the identical warning recurs on a later poll it stays hidden;
   a warning with different wording (e.g. a different HTTP status) will still
   show. Reload the page to clear all dismissals.
+- **Calendar view** — the header button toggles between the Live/Upcoming
+  list and a month calendar with prev/next navigation, showing each event's
+  color and name on the day it falls on (all currently filtered events, not
+  just live/upcoming).
+- An event is shown as **Live** the moment the local clock passes its start
+  time, even if the backend's last poll (up to 60s old) still says
+  "upcoming" — it doesn't wait for the next fetch to catch up.
