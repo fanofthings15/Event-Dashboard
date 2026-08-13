@@ -126,7 +126,7 @@ export default function LeaguePicker({ allEvents }: Props) {
                   <span>Team to follow</span>
                   <input
                     className="text-input"
-                    placeholder="e.g. frc254 — leave blank for none"
+                    placeholder="e.g. 254 or frc254 — leave blank for none"
                     value={teamKey}
                     onChange={(e) => {
                       setTeamKey(e.target.value);
@@ -134,7 +134,7 @@ export default function LeaguePicker({ allEvents }: Props) {
                     }}
                   />
                 </label>
-                <div className="form-row">
+                <div className="form-row" style={{ marginBottom: 10 }}>
                   <button className="btn primary" onClick={saveTeamKey} disabled={teamKey === settings.frcTeamKey}>
                     Save team
                   </button>

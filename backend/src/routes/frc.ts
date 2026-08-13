@@ -26,6 +26,13 @@ function statusFor(startDate: string, endDate: string): NormalizedEvent["status"
   return "live";
 }
 
+function normalizeTeamKey(input: string): string {
+  const trimmed = input.trim();
+  // TBA requires the "frcNNN" form — accept a bare number too, since that's
+  // the natural thing to type.
+  return /^\d+$/.test(trimmed) ? `frc${trimmed}` : trimmed;
+}
+
 router.get("/", async (_req, res) => {
   const { tbaApiKey, frcTeamKey, frcFollowEnabled } = readSettings();
   if (!tbaApiKey) {
@@ -37,8 +44,9 @@ router.get("/", async (_req, res) => {
   }
 
   const year = new Date().getFullYear();
-  const team = frcTeamKey.trim();
+  const team = normalizeTeamKey(frcTeamKey);
   const authHeaders = { "X-TBA-Auth-Key": tbaApiKey, "User-Agent": "event-dashboard (personal use)" };
+  const warnings: string[] = [];
 
   try {
     // Always the full event list — the followed team never hides other events.
@@ -58,13 +66,17 @@ router.get("/", async (_req, res) => {
       try {
         const keys: string[] = await cached(`frc:team-keys:${year}:${team}`, 60 * 60, async () => {
           const r = await fetch(`https://www.thebluealliance.com/api/v3/team/${team}/events/${year}/keys`, { headers: authHeaders });
-          if (!r.ok) throw new Error(`TBA team lookup responded ${r.status}`);
+          if (!r.ok) {
+            const body = await r.text().catch(() => "");
+            throw new Error(`TBA team lookup for ${team} responded ${r.status}${body ? `: ${body.slice(0, 150)}` : ""}`);
+          }
           return r.json();
         });
         followedKeys = new Set(keys);
-      } catch {
-        // Followed-team tagging is a nice-to-have — if this lookup fails,
-        // still show the full event list rather than erroring the whole route.
+      } catch (err) {
+        // Still show the full event list even if the team lookup fails —
+        // but surface why, instead of silently tagging nothing.
+        warnings.push(String(err instanceof Error ? err.message : err));
       }
     }
 
@@ -89,7 +101,7 @@ router.get("/", async (_req, res) => {
         };
       });
 
-    res.json({ events, source: "thebluealliance" });
+    res.json({ events, source: "thebluealliance", warnings: warnings.length ? warnings : undefined });
   } catch (err) {
     res.status(502).json({ error: "Failed to fetch FRC data", detail: String(err) });
   }
