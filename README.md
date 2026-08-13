@@ -14,7 +14,7 @@ single-port production serving.
 |---|---|---|
 | NFL / NBA / NHL | ESPN scoreboard endpoint (unofficial) | No API key, but undocumented — could change without notice |
 | F1 | Jolpica (free Ergast successor) | Full schedule/results, no live timing — "live" is approximated from scheduled start time |
-| Esports (CS2, LoL, Rocket League, Valorant, Overwatch 2, Dota 2, R6 Siege, StarCraft II) | PandaScore free tier | ~1000 requests/month cap; some lower-tier tournaments may be gated behind paid plans |
+| Esports (CS2, LoL, Rocket League, Valorant, Overwatch 2, Dota 2, R6 Siege) | PandaScore free tier | ~1000 requests/month cap; some lower-tier tournaments may be gated behind paid plans |
 
 ## Setup
 
@@ -48,23 +48,34 @@ cd backend && bun run start
 
 Open **http://localhost:3020**.
 
+## Main page
+
+- **+ Add Event** — opens the custom events panel directly (name, league,
+  color, start time, how long it counts as "live"). Moved here from Settings
+  since it's something you'll reach for often, not a one-time config.
+- **Select all / Deselect all** — next to the sport filter chips, for
+  quickly narrowing to just what you want to look at right now.
+- **Calendar** — toggles the Live/Upcoming list for a month calendar.
+  Multiple same-day events for one sport collapse to shorthand (e.g. "5x
+  League of Legends") to keep every day the same width; click any day for an
+  hourly breakdown with full event names and times.
+
 ## Settings menu
 
 Click **Settings** for:
 - **PandaScore API key** — needed for esports data only.
 - **Data sources** — toggle chips for NFL, NBA, NHL, F1, and every esports
   title in the catalog (CS2, LoL, Rocket League, Valorant, Overwatch 2,
-  Dota 2, R6 Siege, StarCraft II). Off means skipped entirely — no request
-  made, nothing shown. Add more titles by editing
-  `backend/src/esportsCatalog.ts`; add more ESPN-covered sports (e.g. MLB)
-  by adding a route via `backend/src/espnScoreboard.ts`'s router factory.
+  Dota 2, R6 Siege). Off means skipped entirely — no request made, nothing
+  shown. Add more titles by editing `backend/src/esportsCatalog.ts` (double
+  check the PandaScore slug — it's not always the obvious name, e.g. Rocket
+  League is `rl`); add more ESPN-covered sports (e.g. MLB) by adding a route
+  via `backend/src/espnScoreboard.ts`'s router factory.
 - **Excluded leagues** — one per line, hides any league whose name contains
   that text (e.g. "LCK Challengers League" without touching the main LCK).
-- **Custom events** — manually add anything not covered by a data source:
-  name, league/category, a color, a start time, and how long it counts as
-  "live". These are saved to `~/.event-dashboard/settings.json`, **outside
-  the git repo**, so they survive every future code sync/deploy untouched.
 
+Custom events are saved to `~/.event-dashboard/settings.json`, **outside
+the git repo**, so they survive every future code sync/deploy untouched.
 All of this is server-side state, not browser storage — it's what "stored
 locally" means here: it lives in a file on your machine, never sent anywhere
 but PandaScore's API and back to your own browser.
@@ -75,11 +86,18 @@ Type-checked and built successfully (frontend and backend) in the sandbox
 this was built in. The settings/custom-events system was exercised directly
 end-to-end (create, filter, disable, read back) and confirmed working.
 
-That sandbox can't reach espn.com, jolpi.ca, or pandascore.co, so the three
-external data routes (`backend/src/routes/nfl.ts`, `f1.ts`, `esports.ts`)
-are correct against each API's documented response shape but **not verified
-against a live response** — worth a first real run to confirm nothing's
-drifted.
+That sandbox can't reach espn.com, jolpi.ca, or pandascore.co, so the NFL,
+NBA, NHL, F1, and esports routes are correct against each API's documented
+shape but **not verified against a live response**. One real bug was already
+caught this way and fixed: PandaScore's Rocket League slug is `rl`, not the
+`rocket-league` guess originally used, which caused a live 404 — worth
+treating every external route as "should work" rather than "confirmed
+working" until you've run it for real.
+
+**If you already have a settings file from before this fix:** your saved
+`enabledEsportsGames` list still has the old `rocket-league` string in it,
+which won't match anything anymore (silently — no error). Open Settings and
+re-toggle the Rocket League chip once to save it under the corrected `rl`.
 
 ## Notes
 
@@ -96,10 +114,6 @@ drifted.
   session — if the identical warning recurs on a later poll it stays hidden;
   a warning with different wording (e.g. a different HTTP status) will still
   show. Reload the page to clear all dismissals.
-- **Calendar view** — the header button toggles between the Live/Upcoming
-  list and a month calendar with prev/next navigation, showing each event's
-  color and name on the day it falls on (all currently filtered events, not
-  just live/upcoming).
 - An event is shown as **Live** the moment the local clock passes its start
   time, even if the backend's last poll (up to 60s old) still says
   "upcoming" — it doesn't wait for the next fetch to catch up.

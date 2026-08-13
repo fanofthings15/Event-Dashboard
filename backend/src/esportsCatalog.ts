@@ -10,15 +10,14 @@ export interface EsportsGame {
 export const ESPORTS_CATALOG: EsportsGame[] = [
   { slug: "csgo", sport: "cs2", label: "Counter-Strike 2", color: "#a855f7" },
   { slug: "lol", sport: "lol", label: "League of Legends", color: "#eab308" },
-  { slug: "rocket-league", sport: "rocket-league", label: "Rocket League", color: "#06b6d4" },
+  { slug: "rl", sport: "rocket-league", label: "Rocket League", color: "#06b6d4" },
   { slug: "valorant", sport: "valorant", label: "Valorant", color: "#f43f5e" },
-  { slug: "ow", sport: "overwatch", label: "Overwatch 2", color: "#22c55e" },
+  { slug: "overwatch", sport: "overwatch", label: "Overwatch 2", color: "#22c55e" },
   { slug: "dota2", sport: "dota2", label: "Dota 2", color: "#dc2626" },
   { slug: "r6siege", sport: "r6siege", label: "Rainbow Six Siege", color: "#0ea5e9" },
-  { slug: "starcraft-2", sport: "sc2", label: "StarCraft II", color: "#8b5cf6" },
 ];
 
-export const DEFAULT_ENABLED_SLUGS = ["csgo", "lol", "rocket-league"];
+export const DEFAULT_ENABLED_SLUGS = ["csgo", "lol", "rl"];
 
 export function catalogEntry(slug: string): EsportsGame | undefined {
   return ESPORTS_CATALOG.find((g) => g.slug === slug);

@@ -6,6 +6,7 @@ import { sportMeta } from "./sportMeta";
 import { CORE_SPORT_META, type NormalizedEvent } from "./types";
 import SettingsDrawer from "./SettingsDrawer";
 import CalendarView from "./CalendarView";
+import CustomEventsPanel from "./CustomEventsPanel";
 
 function formatTime(iso: string) {
   const d = new Date(iso);
@@ -53,6 +54,7 @@ export default function App() {
   );
   const now = useNow();
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [customEventsOpen, setCustomEventsOpen] = useState(false);
   const [dismissedWarnings, setDismissedWarnings] = useState<Set<string>>(new Set());
   const [view, setView] = useState<"list" | "calendar">("list");
 
@@ -78,6 +80,13 @@ export default function App() {
     });
   }
 
+  function selectAll() {
+    setActiveSports(new Set(availableSports));
+  }
+  function deselectAll() {
+    setActiveSports(new Set());
+  }
+
   const filtered = useMemo(() => events.filter((e) => isActive(e.sport)), [events, activeSports, availableSports]);
   const live = filtered.filter((e) => isLiveNow(e, now));
   const upcoming = filtered.filter((e) => !isLiveNow(e, now) && e.status !== "finished");
@@ -89,6 +98,9 @@ export default function App() {
       <header className="header">
         <h1>Event Dashboard</h1>
         <div className="header-actions">
+          <button className="btn" onClick={() => setCustomEventsOpen(true)}>
+            + Add Event
+          </button>
           <button className="btn" onClick={() => setView(view === "list" ? "calendar" : "list")}>
             {view === "list" ? "Calendar" : "List"}
           </button>
@@ -105,6 +117,12 @@ export default function App() {
 
       {settingsLoaded && (
         <div className="filters">
+          <button className="btn small" onClick={selectAll}>
+            Select all
+          </button>
+          <button className="btn small" onClick={deselectAll}>
+            Deselect all
+          </button>
           {availableSports.map((s) => {
             const meta = s === "custom" ? { label: "Custom", color: "#94a3b8" } : sportMeta({ sport: s } as NormalizedEvent, settings.esportsCatalog);
             return (
@@ -173,6 +191,7 @@ export default function App() {
       )}
 
       {settingsOpen && <SettingsDrawer onClose={() => setSettingsOpen(false)} />}
+      {customEventsOpen && <CustomEventsPanel onClose={() => setCustomEventsOpen(false)} />}
     </div>
   );
 }
