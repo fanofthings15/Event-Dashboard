@@ -136,7 +136,14 @@ Click **Settings** for:
   when on, events that team is competing in get a small "★ Your team" badge
   on the card and detail view. This never hides other FRC events; it's
   purely a tag, using a lightweight lookup of just that team's event keys
-  rather than fetching every event's roster.
+  rather than fetching every event's roster. The same FRC group also has a
+  **region picker** (e.g. MI, OH, IN) — an include-list, not exclude, since
+  picking the 2-3 regions you actually care about is more natural than
+  excluding everywhere else; "All regions" resets it. FRC event cards also
+  show current competition status when the event is happening today — a
+  qual match count ("Qual Match 23 of 40") or playoff round/match
+  ("Semifinals — Match 2"), computed from TBA's match data the same way
+  the FRC Commentary Dashboard project does it.
   **Export/Import** at the bottom move all of this to a new machine — import
   shows an in-app confirmation before overwriting anything, never a browser
   popup. Export deliberately leaves out your API keys for safety, so those

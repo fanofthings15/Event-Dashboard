@@ -66,7 +66,8 @@ export default function App() {
   const { settings, loaded: settingsLoaded } = useSettings();
   const { events, allEvents, warnings, loading, refreshing, lastUpdated, refetch } = useEvents(
     settings.disabledCoreSources,
-    settings.excludedLeagues
+    settings.excludedLeagues,
+    settings.frcRegions
   );
   const now = useNow();
   const [settingsOpen, setSettingsOpen] = useState(false);

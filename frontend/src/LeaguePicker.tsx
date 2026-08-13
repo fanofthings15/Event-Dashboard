@@ -38,6 +38,27 @@ export default function LeaguePicker({ allEvents }: Props) {
     save({ frcFollowEnabled: !settings.frcFollowEnabled });
   }
 
+  // Include-list toggle: first click narrows to just that region; clicking
+  // an already-included region removes it; an explicit "All regions" resets
+  // back to showing everything. Uses the unfiltered event set so a region
+  // you've narrowed away from doesn't disappear from the picker itself.
+  function toggleRegion(region: string) {
+    const current = settings.frcRegions;
+    const next = current.includes(region) ? current.filter((r) => r !== region) : [...current, region];
+    save({ frcRegions: next });
+  }
+  function showAllRegions() {
+    save({ frcRegions: [] });
+  }
+
+  const frcRegionsAvailable = useMemo(() => {
+    const set = new Set<string>();
+    for (const e of allEvents) {
+      if (e.sport === "frc" && e.region) set.add(e.region);
+    }
+    return [...set].sort();
+  }, [allEvents]);
+
   // Group distinct league names by sport, from currently-live data only —
   // so a one-off tournament's league doesn't clutter this list forever once
   // it's no longer showing up in any feed. FRC always gets a group even
@@ -71,6 +92,7 @@ export default function LeaguePicker({ allEvents }: Props) {
       customEvents: settings.customEvents,
       frcTeamKey: settings.frcTeamKey,
       frcFollowEnabled: settings.frcFollowEnabled,
+      frcRegions: settings.frcRegions,
     };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -149,9 +171,38 @@ export default function LeaguePicker({ allEvents }: Props) {
                 >
                   {settings.frcFollowEnabled ? "Tagging followed team's events" : "Tag followed team's events"}
                 </button>
-                <span className="hint" style={{ display: "block", marginTop: 6 }}>
+                <span className="hint" style={{ display: "block", marginTop: 6, marginBottom: 10 }}>
                   When on, events your team is competing in get a small badge — this never hides other FRC events.
                 </span>
+
+                <div className="field" style={{ marginBottom: 6 }}>
+                  <span>
+                    Regions {settings.frcRegions.length > 0 && <span className="hint">(showing {settings.frcRegions.length} of {frcRegionsAvailable.length})</span>}
+                  </span>
+                </div>
+                {frcRegionsAvailable.length === 0 ? (
+                  <span className="hint">No regions seen yet — check back once FRC events have synced.</span>
+                ) : (
+                  <div className="source-chip-list">
+                    <button type="button" className={`chip ${settings.frcRegions.length === 0 ? "active" : ""}`} onClick={showAllRegions}>
+                      All regions
+                    </button>
+                    {frcRegionsAvailable.map((region) => {
+                      const active = settings.frcRegions.length === 0 || settings.frcRegions.includes(region);
+                      return (
+                        <button
+                          key={region}
+                          type="button"
+                          className={`chip ${active ? "active" : ""}`}
+                          style={active ? { borderColor: meta.color, background: `${meta.color}26`, color: "#fff" } : undefined}
+                          onClick={() => toggleRegion(region)}
+                        >
+                          {region}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             )}
             {isOpen && sport !== "frc" && (

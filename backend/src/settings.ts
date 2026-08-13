@@ -23,6 +23,10 @@ export interface Settings {
   // Whether to actually tag events where frcTeamKey is competing — lets the
   // team key be saved without immediately turning tagging on/off.
   frcFollowEnabled: boolean;
+  // State/province codes (e.g. "MI") to show FRC events from. Empty means
+  // show every region — this is an include-list, not exclude, since picking
+  // 2-3 wanted regions is more natural than excluding everywhere else.
+  frcRegions: string[];
   // League names to hide everywhere, matched case-insensitively as a
   // substring (e.g. "LCK Challengers League" hides that specific league
   // without touching the main LCK league).
@@ -40,6 +44,7 @@ const DEFAULTS: Settings = {
   tbaApiKey: "",
   frcTeamKey: "",
   frcFollowEnabled: false,
+  frcRegions: [],
   excludedLeagues: [],
   disabledCoreSources: [],
   enabledEsportsGames: DEFAULT_ENABLED_SLUGS,

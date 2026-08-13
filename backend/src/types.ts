@@ -28,4 +28,5 @@ export interface NormalizedEvent {
   extra?: ExtraFact[];
   color?: string; // explicit override, used by custom events
   followed?: boolean; // a team the user follows is competing in this event
+  region?: string; // state/province code, e.g. "MI" — currently FRC only
 }

@@ -28,6 +28,7 @@ export interface NormalizedEvent {
   extra?: ExtraFact[];
   color?: string;
   followed?: boolean;
+  region?: string; // state/province code, e.g. "MI" — currently FRC only
 }
 
 // Static meta for the core (non-PandaScore) sources. Esports titles get

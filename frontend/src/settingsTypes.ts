@@ -20,6 +20,7 @@ export interface SettingsState {
   tbaApiKeySet: boolean;
   frcTeamKey: string;
   frcFollowEnabled: boolean;
+  frcRegions: string[];
   excludedLeagues: string[];
   disabledCoreSources: string[];
   enabledEsportsGames: string[];

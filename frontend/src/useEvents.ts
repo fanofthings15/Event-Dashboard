@@ -32,7 +32,19 @@ function matchesExcluded(league: string, excludedLeagues: string[]): boolean {
   return excludedLeagues.some((ex) => ex.trim() && l.includes(ex.trim().toLowerCase()));
 }
 
-export function useEvents(disabledCoreSources: string[], excludedLeagues: string[], pollMs = 60_000): FeedState {
+// Include-list: empty means show every region. Only applies to events that
+// actually have a region (FRC currently) — everything else passes through.
+function matchesRegion(e: NormalizedEvent, frcRegions: string[]): boolean {
+  if (!e.region || frcRegions.length === 0) return true;
+  return frcRegions.includes(e.region);
+}
+
+export function useEvents(
+  disabledCoreSources: string[],
+  excludedLeagues: string[],
+  frcRegions: string[],
+  pollMs = 60_000
+): FeedState {
   const [events, setEvents] = useState<NormalizedEvent[]>([]);
   const [allEvents, setAllEvents] = useState<NormalizedEvent[]>([]);
   const [warnings, setWarnings] = useState<string[]>([]);
@@ -66,7 +78,9 @@ export function useEvents(disabledCoreSources: string[], excludedLeagues: string
     merged.sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
 
     // Custom events are the user's own — never league-filtered.
-    const filtered = merged.filter((e) => e.sport === "custom" || !matchesExcluded(e.league, excludedLeagues));
+    const filtered = merged.filter(
+      (e) => (e.sport === "custom" || !matchesExcluded(e.league, excludedLeagues)) && matchesRegion(e, frcRegions)
+    );
 
     const nextWarnings = results.flatMap((r) => {
       if (r.warnings) return r.warnings;
@@ -81,7 +95,7 @@ export function useEvents(disabledCoreSources: string[], excludedLeagues: string
     setLoading(false);
     setRefreshing(false);
     setLastUpdated(new Date());
-  }, [disabledCoreSources.join(","), excludedLeagues.join(",")]);
+  }, [disabledCoreSources.join(","), excludedLeagues.join(","), frcRegions.join(",")]);
 
   useEffect(() => {
     load();

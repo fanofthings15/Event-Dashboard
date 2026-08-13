@@ -6,6 +6,7 @@ const EMPTY: SettingsState = {
   tbaApiKeySet: false,
   frcTeamKey: "",
   frcFollowEnabled: false,
+  frcRegions: [],
   excludedLeagues: [],
   disabledCoreSources: [],
   enabledEsportsGames: [],

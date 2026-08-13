@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { cached } from "../cache.js";
 import { readSettings } from "../settings.js";
+import { computeMatchProgress } from "../frcMatchProgress.js";
 import type { NormalizedEvent } from "../types.js";
 
 const router = Router();
@@ -98,8 +99,32 @@ router.get("/", async (_req, res) => {
           detailUrl: e.website || `https://www.thebluealliance.com/event/${e.key}`,
           extra: location ? [{ label: "Location", value: location }] : undefined,
           followed: followedKeys.has(e.key) || undefined,
+          region: e.state_prov || undefined,
         };
       });
+
+    // Match progress ("Qual Match 23 of 40", "Semifinals — Match 2") only
+    // makes sense for events actually happening today — fetching it for the
+    // whole season's events would be a lot of wasted TBA calls for nothing.
+    const liveEvents = events.filter((e) => e.status === "live");
+    if (liveEvents.length > 0) {
+      const settled = await Promise.allSettled(
+        liveEvents.map((e) =>
+          cached(`frc:matches:${e.id}`, 120, async () => {
+            const r = await fetch(`https://www.thebluealliance.com/api/v3/event/${e.id}/matches/simple`, { headers: authHeaders });
+            if (!r.ok) throw new Error(`TBA matches for ${e.id} responded ${r.status}`);
+            return r.json();
+          })
+        )
+      );
+      settled.forEach((result, i) => {
+        if (result.status === "fulfilled") {
+          liveEvents[i].seriesScore = computeMatchProgress(result.value as any[]);
+        }
+        // A failed per-event match lookup just means no progress line shows
+        // for that one event — not worth surfacing as a user-facing warning.
+      });
+    }
 
     res.json({ events, source: "thebluealliance", warnings: warnings.length ? warnings : undefined });
   } catch (err) {
