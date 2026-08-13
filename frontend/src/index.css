@@ -6,6 +6,11 @@
   --muted: #8b92a3;
   --accent: #4f8dfd;
   --live: #ef4444;
+  --sport-nfl: #3b82f6;
+  --sport-f1: #f97316;
+  --sport-cs2: #a855f7;
+  --sport-lol: #eab308;
+  --sport-rocket-league: #06b6d4;
   color-scheme: dark;
 }
 
@@ -34,6 +39,8 @@ body {
 }
 
 .header h1 { font-size: 22px; margin: 0; }
+.header-actions { display: flex; gap: 8px; }
+.last-updated { font-size: 12px; color: var(--muted); margin-bottom: 16px; }
 
 .btn {
   background: var(--panel);
@@ -61,6 +68,11 @@ body {
   min-height: 36px;
 }
 .chip.active { color: #fff; border-color: var(--accent); background: rgba(79, 141, 253, 0.15); }
+.chip-nfl.active { border-color: var(--sport-nfl); background: color-mix(in srgb, var(--sport-nfl) 18%, transparent); }
+.chip-f1.active { border-color: var(--sport-f1); background: color-mix(in srgb, var(--sport-f1) 18%, transparent); }
+.chip-cs2.active { border-color: var(--sport-cs2); background: color-mix(in srgb, var(--sport-cs2) 18%, transparent); }
+.chip-lol.active { border-color: var(--sport-lol); background: color-mix(in srgb, var(--sport-lol) 18%, transparent); }
+.chip-rocket-league.active { border-color: var(--sport-rocket-league); background: color-mix(in srgb, var(--sport-rocket-league) 18%, transparent); }
 
 section { margin-bottom: 28px; }
 section h2 {
@@ -77,12 +89,18 @@ section h2 {
   gap: 12px;
 }
 
-.event-card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 14px; }
+.event-card { background: var(--panel); border: 1px solid var(--border); border-left: 4px solid var(--border); border-radius: 10px; padding: 14px; }
+.event-card.sport-nfl { border-left-color: var(--sport-nfl); }
+.event-card.sport-f1 { border-left-color: var(--sport-f1); }
+.event-card.sport-cs2 { border-left-color: var(--sport-cs2); }
+.event-card.sport-lol { border-left-color: var(--sport-lol); }
+.event-card.sport-rocket-league { border-left-color: var(--sport-rocket-league); }
 .event-card.status-live { border-color: var(--live); }
 
 .event-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
 .sport-tag { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
 .live-dot { font-size: 11px; font-weight: 700; color: var(--live); }
+.countdown { font-size: 12px; font-weight: 600; color: var(--accent); }
 .event-name { font-size: 15px; font-weight: 600; margin-bottom: 6px; }
 .event-meta { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px; font-size: 12px; color: var(--muted); }
 

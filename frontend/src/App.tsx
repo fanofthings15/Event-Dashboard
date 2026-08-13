@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { useEvents } from "./useEvents";
+import { useNow, formatCountdown } from "./countdown";
 import { SPORT_LABEL, type NormalizedEvent, type Sport } from "./types";
 import SettingsDrawer from "./SettingsDrawer";
 
@@ -16,12 +17,16 @@ function formatTime(iso: string) {
   });
 }
 
-function EventCard({ e }: { e: NormalizedEvent }) {
+function EventCard({ e, now }: { e: NormalizedEvent; now: Date }) {
   return (
-    <div className={`event-card status-${e.status}`}>
+    <div className={`event-card sport-${e.sport} status-${e.status}`}>
       <div className="event-top">
         <span className="sport-tag">{SPORT_LABEL[e.sport]}</span>
-        {e.status === "live" && <span className="live-dot">LIVE</span>}
+        {e.status === "live" ? (
+          <span className="live-dot">LIVE</span>
+        ) : (
+          <span className="countdown">{formatCountdown(e.startTime, now)}</span>
+        )}
       </div>
       <div className="event-name">{e.name}</div>
       <div className="event-meta">
@@ -33,12 +38,14 @@ function EventCard({ e }: { e: NormalizedEvent }) {
 }
 
 export default function App() {
-  const { events, warnings, loading } = useEvents();
+  const { events, warnings, loading, refreshing, lastUpdated, refetch } = useEvents();
+  const now = useNow();
   const [activeSports, setActiveSports] = useState<Set<Sport>>(new Set(ALL_SPORTS));
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   const filtered = useMemo(() => events.filter((e) => activeSports.has(e.sport)), [events, activeSports]);
   const live = filtered.filter((e) => e.status === "live");
+  // Already sorted soonest-first by useEvents; upcoming keeps that order.
   const upcoming = filtered.filter((e) => e.status === "upcoming");
 
   function toggleSport(s: Sport) {
@@ -54,14 +61,27 @@ export default function App() {
     <div className="app">
       <header className="header">
         <h1>Event Dashboard</h1>
-        <button className="btn" onClick={() => setSettingsOpen(true)}>
-          Settings
-        </button>
+        <div className="header-actions">
+          <button className="btn" onClick={refetch} disabled={refreshing}>
+            {refreshing ? "Syncing…" : "Resync"}
+          </button>
+          <button className="btn" onClick={() => setSettingsOpen(true)}>
+            Settings
+          </button>
+        </div>
       </header>
+
+      {lastUpdated && (
+        <div className="last-updated">Last synced {lastUpdated.toLocaleTimeString()}</div>
+      )}
 
       <div className="filters">
         {ALL_SPORTS.map((s) => (
-          <button key={s} className={`chip ${activeSports.has(s) ? "active" : ""}`} onClick={() => toggleSport(s)}>
+          <button
+            key={s}
+            className={`chip chip-${s} ${activeSports.has(s) ? "active" : ""}`}
+            onClick={() => toggleSport(s)}
+          >
             {SPORT_LABEL[s]}
           </button>
         ))}
@@ -88,7 +108,7 @@ export default function App() {
             ) : (
               <div className="grid">
                 {live.map((e) => (
-                  <EventCard key={`${e.sport}-${e.id}`} e={e} />
+                  <EventCard key={`${e.sport}-${e.id}`} e={e} now={now} />
                 ))}
               </div>
             )}
@@ -101,7 +121,7 @@ export default function App() {
             ) : (
               <div className="grid">
                 {upcoming.map((e) => (
-                  <EventCard key={`${e.sport}-${e.id}`} e={e} />
+                  <EventCard key={`${e.sport}-${e.id}`} e={e} now={now} />
                 ))}
               </div>
             )}

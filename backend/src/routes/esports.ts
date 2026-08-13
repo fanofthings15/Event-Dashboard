@@ -22,7 +22,10 @@ function mapStatus(status: string): NormalizedEvent["status"] {
 async function fetchGame(slug: string, sport: Sport, apiKey: string): Promise<NormalizedEvent[]> {
   const url = `https://api.pandascore.co/${slug}/matches?filter[status]=running,not_started&sort=begin_at&page[size]=25`;
   const r = await fetch(url, { headers: { Authorization: `Bearer ${apiKey}` } });
-  if (!r.ok) throw new Error(`PandaScore ${slug} responded ${r.status}`);
+  if (!r.ok) {
+    const body = await r.text().catch(() => "");
+    throw new Error(`${slug} responded ${r.status}${body ? `: ${body.slice(0, 200)}` : ""}`);
+  }
   const matches: any[] = await r.json();
   return matches.map((m) => {
     const teams = (m.opponents ?? []).map((o: any) => o.opponent?.name ?? "TBD").join(" vs ");
@@ -43,20 +46,27 @@ router.get("/", async (_req, res) => {
     return res.status(200).json({
       events: [],
       source: "pandascore",
-      warning: "No PandaScore API key set yet — add one in Settings (free at pandascore.co).",
+      warnings: ["No PandaScore API key set yet — add one in Settings (free at pandascore.co)."],
     });
   }
 
-  try {
-    const results = await Promise.all(
-      Object.entries(GAME_SLUGS).map(([slug, sport]) =>
-        cached(`esports:${slug}`, 120, () => fetchGame(slug, sport, pandaScoreApiKey))
-      )
-    );
-    res.json({ events: results.flat(), source: "pandascore (free tier — ~1000 req/month)" });
-  } catch (err) {
-    res.status(502).json({ error: "Failed to fetch esports data", detail: String(err) });
-  }
+  const slugs = Object.entries(GAME_SLUGS);
+  const settled = await Promise.allSettled(
+    slugs.map(([slug, sport]) => cached(`esports:${slug}`, 120, () => fetchGame(slug, sport, pandaScoreApiKey)))
+  );
+
+  const events: NormalizedEvent[] = [];
+  const warnings: string[] = [];
+  settled.forEach((result, i) => {
+    if (result.status === "fulfilled") events.push(...result.value);
+    else warnings.push(String(result.reason?.message ?? result.reason));
+  });
+
+  res.json({
+    events,
+    source: "pandascore (free tier — ~1000 req/month)",
+    warnings: warnings.length ? warnings : undefined,
+  });
 });
 
 export default router;
