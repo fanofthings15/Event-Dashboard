@@ -16,6 +16,16 @@ interface TbaEvent {
   state_prov: string | null;
   country: string | null;
   website: string | null;
+  district: { abbreviation: string; display_name: string } | null;
+}
+
+// FRC district events (e.g. FIM = FIRST In Michigan, FIT = FIRST In Texas)
+// use the district abbreviation as the region — it's the name people
+// actually recognize. Non-districted "regional" events (most of the
+// country) have no district, so those fall back to the plain state code.
+function regionFor(e: TbaEvent): string | undefined {
+  if (e.district?.abbreviation) return e.district.abbreviation.toUpperCase();
+  return e.state_prov || undefined;
 }
 
 function statusFor(startDate: string, endDate: string): NormalizedEvent["status"] {
@@ -99,7 +109,7 @@ router.get("/", async (_req, res) => {
           detailUrl: e.website || `https://www.thebluealliance.com/event/${e.key}`,
           extra: location ? [{ label: "Location", value: location }] : undefined,
           followed: followedKeys.has(e.key) || undefined,
-          region: e.state_prov || undefined,
+          region: regionFor(e),
         };
       });
 

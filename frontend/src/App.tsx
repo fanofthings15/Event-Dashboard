@@ -37,7 +37,10 @@ function EventCard({
   return (
     <button type="button" className={`event-card${live ? " is-live" : ""}`} style={{ borderLeftColor: meta.color }} onClick={onClick}>
       <div className="event-top">
-        <span className="sport-tag">{meta.label}</span>
+        <div className="event-top-left">
+          <span className="sport-tag">{meta.label}</span>
+          {e.region && <span className="region-chip">{e.region}</span>}
+        </div>
         {live ? <span className="live-badge">LIVE</span> : <span className="countdown">{formatCountdown(e.startTime, now)}</span>}
       </div>
       {e.followed && <span className="followed-chip">★ Your team</span>}

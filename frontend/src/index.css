@@ -98,7 +98,17 @@ section h2 {
 .event-card.is-live { box-shadow: 0 0 0 1px var(--live) inset; }
 
 .event-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.event-top-left { display: flex; align-items: center; gap: 6px; }
 .sport-tag { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
+.region-chip {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--accent);
+  background: rgba(79, 141, 253, 0.15);
+  border: 1px solid rgba(79, 141, 253, 0.3);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
 .live-badge {
   display: inline-block;
   background: var(--live);

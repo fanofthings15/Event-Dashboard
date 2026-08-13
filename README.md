@@ -137,7 +137,8 @@ Click **Settings** for:
   on the card and detail view. This never hides other FRC events; it's
   purely a tag, using a lightweight lookup of just that team's event keys
   rather than fetching every event's roster. The same FRC group also has a
-  **region picker** (e.g. MI, OH, IN) — an include-list, not exclude, since
+  **region picker** (e.g. FIM, FIT, or a plain state code like GA for
+  non-districted regionals) — an include-list, not exclude, since
   picking the 2-3 regions you actually care about is more natural than
   excluding everywhere else; "All regions" resets it. FRC event cards also
   show current competition status when the event is happening today — a
