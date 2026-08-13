@@ -11,7 +11,17 @@ interface Props {
 export default function LeaguePicker({ allEvents }: Props) {
   const { settings, save } = useSettings();
   const [pendingImport, setPendingImport] = useState<Record<string, unknown> | null>(null);
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  function toggleExpanded(sport: string) {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(sport)) next.delete(sport);
+      else next.add(sport);
+      return next;
+    });
+  }
 
   // Group distinct league names by sport, from currently-live data only —
   // so a one-off tournament's league doesn't clutter this list forever once
@@ -81,28 +91,36 @@ export default function LeaguePicker({ allEvents }: Props) {
     <div>
       {[...leaguesBySport.entries()].map(([sport, leagues]) => {
         const meta = sportMeta({ sport } as NormalizedEvent, settings.esportsCatalog);
+        const isOpen = expanded.has(sport);
+        const hiddenCount = [...leagues].filter((l) => settings.excludedLeagues.includes(l)).length;
         return (
           <div key={sport} className="league-group">
-            <div className="league-group-title">
+            <button type="button" className="league-group-title" onClick={() => toggleExpanded(sport)}>
+              <span className={`league-chevron ${isOpen ? "open" : ""}`}>›</span>
               <span className="dot" style={{ background: meta.color }} />
               {meta.label}
-            </div>
-            <div className="source-chip-list">
-              {[...leagues].sort().map((league) => {
-                const hidden = settings.excludedLeagues.includes(league);
-                return (
-                  <button
-                    key={league}
-                    type="button"
-                    className={`chip ${!hidden ? "active" : ""}`}
-                    style={!hidden ? { borderColor: meta.color, background: `${meta.color}26`, color: "#fff" } : undefined}
-                    onClick={() => toggleLeague(league)}
-                  >
-                    {league}
-                  </button>
-                );
-              })}
-            </div>
+              <span className="hint">
+                ({leagues.size}{hiddenCount > 0 ? `, ${hiddenCount} hidden` : ""})
+              </span>
+            </button>
+            {isOpen && (
+              <div className="source-chip-list" style={{ marginTop: 8 }}>
+                {[...leagues].sort().map((league) => {
+                  const hidden = settings.excludedLeagues.includes(league);
+                  return (
+                    <button
+                      key={league}
+                      type="button"
+                      className={`chip ${!hidden ? "active" : ""}`}
+                      style={!hidden ? { borderColor: meta.color, background: `${meta.color}26`, color: "#fff" } : undefined}
+                      onClick={() => toggleLeague(league)}
+                    >
+                      {league}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
         );
       })}

@@ -42,13 +42,22 @@ function EventCard({
 }) {
   const meta = sportMeta(e, catalog);
   const live = isLiveNow(e, now);
+  const teamsWithLogos = e.teams?.filter((t) => t.imageUrl);
   return (
     <button type="button" className={`event-card${live ? " is-live" : ""}`} style={{ borderLeftColor: meta.color }} onClick={onClick}>
       <div className="event-top">
         <span className="sport-tag">{meta.label}</span>
         {live ? <span className="live-badge">LIVE</span> : <span className="countdown">{formatCountdown(e.startTime, now)}</span>}
       </div>
+      {teamsWithLogos && teamsWithLogos.length > 0 && (
+        <div className="event-team-logos">
+          {teamsWithLogos.map((t) => (
+            <img key={t.name} src={t.imageUrl} alt="" className="event-team-logo" />
+          ))}
+        </div>
+      )}
       <div className="event-name">{e.name}</div>
+      {e.seriesScore && <div className="event-series-score">{e.seriesScore}</div>}
       <div className="event-meta">
         <span>{e.league}</span>
         <span>{formatTime(e.startTime)}</span>
