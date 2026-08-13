@@ -7,7 +7,7 @@
     "dev:frontend": "cd frontend && bun run dev",
     "build": "cd frontend && bun run build && cd ../backend && bun run typecheck",
     "build:ui": "cd frontend && bun run build",
-    "build:exe": "bun run build:ui && bun run ./scripts/zip-ui.ts && bun build --compile --target=bun-windows-x64 ./backend/src/index.ts --outfile app.exe",
+    "build:exe": "bun run build:ui && bun run ./scripts/zip-ui.ts && bun build --compile --target=bun-windows-x64 ./backend/src/index.ts --outfile Event-Dashboard.exe",
     "start": "cd backend && bun run start"
   },
   "devDependencies": {

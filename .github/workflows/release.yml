@@ -33,9 +33,9 @@ jobs:
         run: bun run build:exe
 
       - name: Rename with version
-        run: mv app.exe "app-${GITHUB_REF_NAME#v}.exe"
+        run: mv Event-Dashboard.exe "Event-Dashboard-${GITHUB_REF_NAME#v}.exe"
 
       - uses: softprops/action-gh-release@v2
         with:
-          files: app-*.exe
+          files: Event-Dashboard-*.exe
           generate_release_notes: true

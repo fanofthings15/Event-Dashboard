@@ -39,11 +39,20 @@ function isCompiledExe(): boolean {
 // backend just serves the API and you're expected to be running the Vite
 // dev server separately for the UI.
 function resolveUiDir(): string | null {
-  if (isCompiledExe()) {
+  const compiled = isCompiledExe();
+  console.log(`[ui] isCompiledExe=${compiled} zipFile path="${zipFile}"`);
+
+  if (compiled) {
     try {
       const zipBytes = fs.readFileSync(zipFile);
+      console.log(`[ui] read embedded zip: ${zipBytes.length} bytes`);
       const files = unzipSync(new Uint8Array(zipBytes));
-      if (Object.keys(files).length === 0) return null; // empty placeholder, nothing real embedded
+      const names = Object.keys(files);
+      console.log(`[ui] zip contains ${names.length} entries${names.length ? ": " + names.join(", ") : ""}`);
+      if (names.length === 0) {
+        console.log("[ui] embedded zip is empty — this .exe was built before `bun run build:ui` produced a real frontend/dist, or the zip step ran before the UI was built. Rebuild with `bun run build:exe`.");
+        return null;
+      }
 
       const tempDir = path.join(os.tmpdir(), "event-dashboard-ui");
       fs.rmSync(tempDir, { recursive: true, force: true });
@@ -54,9 +63,10 @@ function resolveUiDir(): string | null {
         fs.mkdirSync(path.dirname(outPath), { recursive: true });
         fs.writeFileSync(outPath, data);
       }
+      console.log(`[ui] unpacked to ${tempDir}`);
       return tempDir;
     } catch (err) {
-      console.error("Failed to unpack embedded UI:", err);
+      console.error("[ui] Failed to unpack embedded UI:", err);
       return null;
     }
   }
@@ -64,7 +74,9 @@ function resolveUiDir(): string | null {
   // Running from source: after `bun run build:ui`, the built frontend lives
   // at frontend/dist, two levels up from this compiled backend/src file.
   const sourceDist = path.join(__dirname, "../../frontend/dist");
-  return fs.existsSync(sourceDist) ? sourceDist : null;
+  const exists = fs.existsSync(sourceDist);
+  console.log(`[ui] source mode — checking ${sourceDist} — exists=${exists}`);
+  return exists ? sourceDist : null;
 }
 
 const app = express();
