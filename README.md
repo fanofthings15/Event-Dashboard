@@ -53,11 +53,14 @@ Open **http://localhost:3020**.
 
 - **Click any event** — card, calendar day, or hourly breakdown — for a
   detail view: teams/players with logos and records where available, a
-  "Watch live" button when a stream link exists, best-of series scores
-  (e.g. "2-1 (Bo3)"), venue, and other facts. When a source (mainly
-  PandaScore) gives no richer data or link, it falls back to a Liquipedia
-  search for that match. A "Hide this league" button there adds it to your
-  exclusions in one click — no need to find and type it elsewhere.
+  "Watch live" button (prioritized YouTube, then Twitch, then anything else)
+  when a stream link exists, best-of series scores (e.g. "2-1 (Bo3)"),
+  venue, and other facts. When a source (mainly PandaScore) gives no richer
+  data or link, it falls back to a Liquipedia search for that match. A
+  "Hide this league" button there adds it to your exclusions in one click —
+  no need to find and type it elsewhere.
+- Team logos (next to each team's name) and the series score also show
+  directly on the main-page cards, not just in the detail view.
 - **Add to Google Calendar** — on the detail view, opens Google Calendar
   pre-filled with the event name, date/time, teams, and any stream/info
   link. Uses Google's public "create event" URL, which needs **no API key
@@ -79,8 +82,8 @@ Open **http://localhost:3020**.
 
 Click **Settings** for:
 - **PandaScore API key** — needed for esports data.
-- **Blue Alliance API key + team to follow** — needed for FRC data. Free key
-  at thebluealliance.com/account.
+- **Blue Alliance API key** — needed for FRC data. Free key at
+  thebluealliance.com/account.
 - **Data sources** — toggle chips for NFL, NBA, NHL, F1, FRC, and every
   esports title in the catalog. Off means skipped entirely — no request
   made, nothing shown, and it saves the instant you click (no Save button,
@@ -89,12 +92,16 @@ Click **Settings** for:
   the PandaScore slug — it's not always the obvious name, e.g. Rocket League
   is `rl`); add more ESPN-covered sports (e.g. MLB) via
   `backend/src/espnScoreboard.ts`'s router factory.
-- **Leagues** — per-sport checkboxes built from whatever leagues are
-  currently showing up in your data (so a one-off tournament doesn't clutter
-  this list forever once it's gone), plus **Export/Import** for moving to a
-  new machine. Import shows an in-app confirmation before overwriting
-  anything — never a browser popup. Export deliberately leaves out your API
-  keys for safety, so those need re-entering once after an import.
+- **Filters** — per-sport, collapsible checkbox groups (click a sport to
+  expand it; collapsed groups show a hidden-league count) built from
+  whatever leagues are currently showing up in your data, so a one-off
+  tournament doesn't clutter this list forever once it's gone. The **FRC
+  team to follow** field lives here too (e.g. `frc254`) — leave it blank to
+  see every FRC event, or set it to narrow to just that team's events.
+  **Export/Import** at the bottom move all of this to a new machine — import
+  shows an in-app confirmation before overwriting anything, never a browser
+  popup. Export deliberately leaves out your API keys for safety, so those
+  need re-entering once after an import.
 
 Custom events and all settings are saved to `~/.event-dashboard/settings.json`,
 **outside the git repo**, so they survive every future code sync/deploy

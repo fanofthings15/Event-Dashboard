@@ -47,19 +47,19 @@ export default function EventDetailModal({ event, now, catalog, onClose }: Props
   return (
     <div className="drawer-backdrop" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <div className="event-top" style={{ marginBottom: 4 }}>
+        <div className="event-top" style={{ marginBottom: 8 }}>
           <span className="sport-tag">{meta.label}</span>
           {live ? <span className="live-badge">LIVE</span> : <span className="countdown">{formatCountdown(event.startTime, now)}</span>}
         </div>
 
-        <h2 style={{ marginBottom: 2 }}>{event.name}</h2>
-        <div className="hint" style={{ marginBottom: 12 }}>
+        <h2 style={{ marginTop: 0, marginBottom: 8 }}>{event.name}</h2>
+        <div className="hint" style={{ marginBottom: 14 }}>
           {event.league} · {formatRange(event.startTime, event.endTime)}
           {event.venue ? ` · ${event.venue}` : ""}
         </div>
 
         {event.seriesScore && (
-          <div className="detail-fact">
+          <div className="detail-fact" style={{ marginBottom: 14 }}>
             <strong>{event.seriesScore}</strong>
           </div>
         )}

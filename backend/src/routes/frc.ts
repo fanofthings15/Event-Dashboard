@@ -27,7 +27,7 @@ function statusFor(startDate: string, endDate: string): NormalizedEvent["status"
 }
 
 router.get("/", async (_req, res) => {
-  const { tbaApiKey } = readSettings();
+  const { tbaApiKey, frcTeamKey } = readSettings();
   if (!tbaApiKey) {
     return res.status(200).json({
       events: [],
@@ -37,10 +37,15 @@ router.get("/", async (_req, res) => {
   }
 
   const year = new Date().getFullYear();
+  const team = frcTeamKey.trim();
+  const url = team
+    ? `https://www.thebluealliance.com/api/v3/team/${team}/events/${year}/simple`
+    : `https://www.thebluealliance.com/api/v3/events/${year}/simple`;
+  const cacheKey = team ? `frc:events:${year}:${team}` : `frc:events:${year}`;
 
   try {
-    const data: TbaEvent[] = await cached(`frc:events:${year}`, 60 * 60, async () => {
-      const r = await fetch(`https://www.thebluealliance.com/api/v3/events/${year}/simple`, {
+    const data: TbaEvent[] = await cached(cacheKey, 60 * 60, async () => {
+      const r = await fetch(url, {
         headers: { "X-TBA-Auth-Key": tbaApiKey, "User-Agent": "event-dashboard (personal use)" },
       });
       if (!r.ok) {

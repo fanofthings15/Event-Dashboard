@@ -30,13 +30,6 @@ export default function SettingsDrawer({ onClose, allEvents }: Props) {
     setNewTbaKey("");
   }
 
-  const [teamKey, setTeamKey] = useState(settings.frcTeamKey);
-  const [teamKeySaved, setTeamKeySaved] = useState(false);
-  async function saveTeamKey() {
-    await save({ frcTeamKey: teamKey });
-    setTeamKeySaved(true);
-  }
-
   // --- Data sources — every click saves immediately, no Save button ---
   function toggleCore(sport: string) {
     const next = settings.disabledCoreSources.includes(sport)
@@ -99,23 +92,6 @@ export default function SettingsDrawer({ onClose, allEvents }: Props) {
             Save key
           </button>
           {tbaKeySaved && <span className="ok-tag">Saved</span>}
-
-          <label className="field" style={{ marginTop: 12 }}>
-            <span>Team to follow</span>
-            <input
-              className="text-input"
-              placeholder="e.g. frc254"
-              value={teamKey}
-              onChange={(e) => {
-                setTeamKey(e.target.value);
-                setTeamKeySaved(false);
-              }}
-            />
-          </label>
-          <button className="btn primary" onClick={saveTeamKey} disabled={!teamKey}>
-            Save team
-          </button>
-          {teamKeySaved && <span className="ok-tag">Saved</span>}
         </section>
 
         {/* Data sources */}
@@ -156,9 +132,9 @@ export default function SettingsDrawer({ onClose, allEvents }: Props) {
           </div>
         </section>
 
-        {/* League filtering */}
+        {/* League filtering + FRC team filter */}
         <section className="settings-section">
-          <h3>Leagues</h3>
+          <h3>Filters</h3>
           <span className="hint">Highlighted leagues are shown; click to hide one. Only leagues currently in your data appear here.</span>
           <div style={{ marginTop: 10 }}>
             <LeaguePicker allEvents={allEvents} />

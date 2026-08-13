@@ -12,13 +12,25 @@ function mapStatus(status: string): NormalizedEvent["status"] {
   return "upcoming";
 }
 
+function platformRank(url: string): number {
+  if (/youtube\.com|youtu\.be/i.test(url)) return 0;
+  if (/twitch\.tv/i.test(url)) return 1;
+  return 2;
+}
+
 function bestStream(streamsList: any[] | undefined): string | undefined {
-  if (!streamsList?.length) return undefined;
-  const official = streamsList.find((s) => s.official && s.main && s.raw_url);
-  if (official) return official.raw_url;
-  const anyMain = streamsList.find((s) => s.main && s.raw_url);
-  if (anyMain) return anyMain.raw_url;
-  return streamsList.find((s) => s.raw_url)?.raw_url;
+  const candidates = (streamsList ?? []).filter((s) => s.raw_url);
+  if (!candidates.length) return undefined;
+
+  const ranked = candidates
+    .map((s) => ({
+      url: s.raw_url as string,
+      platform: platformRank(s.raw_url),
+      quality: s.official && s.main ? 0 : s.main ? 1 : s.official ? 2 : 3,
+    }))
+    .sort((a, b) => a.platform - b.platform || a.quality - b.quality);
+
+  return ranked[0].url;
 }
 
 function seriesScore(m: any): string | undefined {
@@ -59,7 +71,11 @@ async function fetchGame(slug: string, sport: string, color: string, apiKey: str
 
     const extra: ExtraFact[] = [];
     const seriesLabel = m.serie?.full_name || m.tournament?.name;
-    if (seriesLabel) extra.push({ label: "Tournament", value: seriesLabel });
+    // PandaScore auto-names a series/tournament "Tournament <year>" (or
+    // similar) when the organizer never gave it a real name — showing that
+    // verbatim isn't useful, so skip it rather than clutter the detail view.
+    const looksGeneric = seriesLabel && /^(tournament|series|serie)\s*\d{4}$/i.test(seriesLabel.trim());
+    if (seriesLabel && !looksGeneric) extra.push({ label: "Tournament", value: seriesLabel });
 
     return {
       id: String(m.id),

@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSettings } from "./SettingsContext";
 import type { NormalizedEvent } from "./types";
 import { sportMeta } from "./sportMeta";
@@ -12,7 +12,18 @@ export default function LeaguePicker({ allEvents }: Props) {
   const { settings, save } = useSettings();
   const [pendingImport, setPendingImport] = useState<Record<string, unknown> | null>(null);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [teamKey, setTeamKey] = useState(settings.frcTeamKey);
+  const [teamKeySaved, setTeamKeySaved] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  async function saveTeamKey() {
+    await save({ frcTeamKey: teamKey });
+    setTeamKeySaved(true);
+  }
+
+  useEffect(() => {
+    setTeamKey(settings.frcTeamKey);
+  }, [settings.frcTeamKey]);
 
   function toggleExpanded(sport: string) {
     setExpanded((prev) => {
@@ -83,47 +94,66 @@ export default function LeaguePicker({ allEvents }: Props) {
     setPendingImport(null);
   }
 
-  if (leaguesBySport.size === 0) {
-    return <span className="hint">No leagues seen yet — check back once data has synced at least once.</span>;
-  }
-
   return (
     <div>
-      {[...leaguesBySport.entries()].map(([sport, leagues]) => {
-        const meta = sportMeta({ sport } as NormalizedEvent, settings.esportsCatalog);
-        const isOpen = expanded.has(sport);
-        const hiddenCount = [...leagues].filter((l) => settings.excludedLeagues.includes(l)).length;
-        return (
-          <div key={sport} className="league-group">
-            <button type="button" className="league-group-title" onClick={() => toggleExpanded(sport)}>
-              <span className={`league-chevron ${isOpen ? "open" : ""}`}>›</span>
-              <span className="dot" style={{ background: meta.color }} />
-              {meta.label}
-              <span className="hint">
-                ({leagues.size}{hiddenCount > 0 ? `, ${hiddenCount} hidden` : ""})
-              </span>
-            </button>
-            {isOpen && (
-              <div className="source-chip-list" style={{ marginTop: 8 }}>
-                {[...leagues].sort().map((league) => {
-                  const hidden = settings.excludedLeagues.includes(league);
-                  return (
-                    <button
-                      key={league}
-                      type="button"
-                      className={`chip ${!hidden ? "active" : ""}`}
-                      style={!hidden ? { borderColor: meta.color, background: `${meta.color}26`, color: "#fff" } : undefined}
-                      onClick={() => toggleLeague(league)}
-                    >
-                      {league}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        );
-      })}
+      <div className="filter-subsection">
+        <label className="field">
+          <span>FRC team to follow</span>
+          <input
+            className="text-input"
+            placeholder="e.g. frc254 — leave blank to show all FRC events"
+            value={teamKey}
+            onChange={(e) => {
+              setTeamKey(e.target.value);
+              setTeamKeySaved(false);
+            }}
+          />
+        </label>
+        <button className="btn primary" onClick={saveTeamKey} disabled={teamKey === settings.frcTeamKey}>
+          Save team
+        </button>
+        {teamKeySaved && <span className="ok-tag">Saved</span>}
+      </div>
+
+      {leaguesBySport.size === 0 ? (
+        <span className="hint">No leagues seen yet — check back once data has synced at least once.</span>
+      ) : (
+        [...leaguesBySport.entries()].map(([sport, leagues]) => {
+          const meta = sportMeta({ sport } as NormalizedEvent, settings.esportsCatalog);
+          const isOpen = expanded.has(sport);
+          const hiddenCount = [...leagues].filter((l) => settings.excludedLeagues.includes(l)).length;
+          return (
+            <div key={sport} className="league-group">
+              <button type="button" className="league-group-title" onClick={() => toggleExpanded(sport)}>
+                <span className={`league-chevron ${isOpen ? "open" : ""}`}>›</span>
+                <span className="dot" style={{ background: meta.color }} />
+                {meta.label}
+                <span className="hint">
+                  ({leagues.size}{hiddenCount > 0 ? `, ${hiddenCount} hidden` : ""})
+                </span>
+              </button>
+              {isOpen && (
+                <div className="source-chip-list" style={{ marginTop: 8 }}>
+                  {[...leagues].sort().map((league) => {
+                    const hidden = settings.excludedLeagues.includes(league);
+                    return (
+                      <button
+                        key={league}
+                        type="button"
+                        className={`chip ${!hidden ? "active" : ""}`}
+                        style={!hidden ? { borderColor: meta.color, background: `${meta.color}26`, color: "#fff" } : undefined}
+                        onClick={() => toggleLeague(league)}
+                      >
+                        {league}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })
+      )}
 
       <div className="form-row" style={{ marginTop: 12 }}>
         <button className="btn" onClick={exportSettings}>
