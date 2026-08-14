@@ -98,6 +98,7 @@ export default function App() {
     settings.excludedLeagues,
     settings.frcRegions,
     settings.favoriteTeams,
+    settings.followedEventIds,
     settings.pollIntervalSeconds * 1000,
     notifyLive
   );

@@ -31,4 +31,6 @@ export interface SettingsState {
   notifyOnLive: boolean;
   pollIntervalSeconds: number;
   theme: "dark" | "light";
+  icsFavoritesOnly: boolean;
+  followedEventIds: string[];
 }

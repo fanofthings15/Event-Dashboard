@@ -49,6 +49,16 @@ export interface Settings {
   // How often the frontend polls for new data, in seconds.
   pollIntervalSeconds: number;
   theme: "dark" | "light";
+  // When on, /calendar.ics only includes events matching favoriteTeams (or
+  // FRC's own followed-team tag) instead of everything currently enabled —
+  // for someone who wants their synced calendar limited to specific teams,
+  // not just whole sports/leagues.
+  icsFavoritesOnly: boolean;
+  // Specific events manually followed via the detail view's "Follow event"
+  // button — stored as "sport-id" composite keys. Distinct from
+  // favoriteTeams (which matches by team name): this is a one-off follow
+  // for a single event, not a standing team preference.
+  followedEventIds: string[];
 }
 
 const DEFAULTS: Settings = {
@@ -66,6 +76,8 @@ const DEFAULTS: Settings = {
   notifyOnLive: false,
   pollIntervalSeconds: 60,
   theme: "dark",
+  icsFavoritesOnly: false,
+  followedEventIds: [],
 };
 
 export function readSettings(): Settings {

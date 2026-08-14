@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { readSettings } from "../settings.js";
+import { matchesFavoriteTeam } from "../favoriteTeams.js";
 
 const router = Router();
 
@@ -45,7 +46,20 @@ router.get("/", async (_req, res) => {
     if (r.status === "fulfilled" && Array.isArray(r.value?.events)) events.push(...r.value.events);
   }
 
-  const filtered = events.filter((e) => e.sport === "custom" || !matchesExcluded(e.league ?? "", settings.excludedLeagues));
+  const followedSet = new Set(settings.followedEventIds);
+  for (const e of events) {
+    if (followedSet.has(`${e.sport}-${e.id}`)) e.followed = true;
+  }
+
+  let filtered = events.filter((e) => e.sport === "custom" || !matchesExcluded(e.league ?? "", settings.excludedLeagues));
+
+  // When on, narrow the feed down to just favorited/followed teams instead
+  // of everything currently enabled — for someone who wants their synced
+  // calendar limited to specific teams, not just whole sports/leagues.
+  // Custom events are the user's own and always included either way.
+  if (settings.icsFavoritesOnly) {
+    filtered = filtered.filter((e) => e.sport === "custom" || matchesFavoriteTeam(e, settings.favoriteTeams));
+  }
 
   const nowStamp = toIcsDate(new Date().toISOString());
   const lines: string[] = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Event Dashboard//EN", "CALSCALE:GREGORIAN"];

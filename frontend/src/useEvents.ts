@@ -53,11 +53,19 @@ function withFavoriteTeams(e: NormalizedEvent, favoriteTeams: string[]): Normali
   return matched ? { ...e, followed: true } : e;
 }
 
+// A one-off manual follow on a specific event (the detail view's "Follow
+// event" button), independent of team-name matching.
+function withManualFollow(e: NormalizedEvent, followedEventIds: string[]): NormalizedEvent {
+  if (e.followed) return e;
+  return followedEventIds.includes(`${e.sport}-${e.id}`) ? { ...e, followed: true } : e;
+}
+
 export function useEvents(
   disabledCoreSources: string[],
   excludedLeagues: string[],
   frcRegions: string[],
   favoriteTeams: string[],
+  followedEventIds: string[],
   pollMs = 60_000,
   onNewlyLive?: (e: NormalizedEvent) => void
 ): FeedState {
@@ -91,7 +99,10 @@ export function useEvents(
       })
     );
 
-    const merged = results.flatMap((r) => r.events ?? []).map((e) => withFavoriteTeams(e, favoriteTeams));
+    const merged = results
+      .flatMap((r) => r.events ?? [])
+      .map((e) => withFavoriteTeams(e, favoriteTeams))
+      .map((e) => withManualFollow(e, followedEventIds));
     merged.sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
 
     if (onNewlyLive) {
@@ -123,7 +134,7 @@ export function useEvents(
     setLoading(false);
     setRefreshing(false);
     setLastUpdated(new Date());
-  }, [disabledCoreSources.join(","), excludedLeagues.join(","), frcRegions.join(","), favoriteTeams.join(","), onNewlyLive]);
+  }, [disabledCoreSources.join(","), excludedLeagues.join(","), frcRegions.join(","), favoriteTeams.join(","), followedEventIds.join(","), onNewlyLive]);
 
   useEffect(() => {
     load();

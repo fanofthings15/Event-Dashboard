@@ -34,6 +34,26 @@ export default function EventDetailModal({ event, now, catalog, onClose }: Props
   const alreadyHidden = settings.excludedLeagues.includes(event.league);
   const fallbackUrl = event.detailUrl ?? liquipediaSearchUrl(event.sport, event.teams?.map((t) => t.name).join(" ") || event.name);
 
+  const eventKey = `${event.sport}-${event.id}`;
+  const isManuallyFollowed = settings.followedEventIds.includes(eventKey);
+
+  async function toggleFollowEvent() {
+    if (isManuallyFollowed) {
+      await save({ followedEventIds: settings.followedEventIds.filter((k) => k !== eventKey) });
+      return;
+    }
+    // Following implies wanting a heads-up when it goes live — request
+    // permission if we don't have it yet, and make sure the global
+    // notify-on-live setting is actually on.
+    if (typeof Notification !== "undefined" && Notification.permission === "default") {
+      await Notification.requestPermission();
+    }
+    await save({
+      followedEventIds: [...settings.followedEventIds, eventKey],
+      notifyOnLive: true,
+    });
+  }
+
   async function confirmHideLeague() {
     await save({ excludedLeagues: [...settings.excludedLeagues, event.league] });
     setConfirmingHide(false);
@@ -84,6 +104,9 @@ export default function EventDetailModal({ event, now, catalog, onClose }: Props
         )}
 
         <div className="detail-actions">
+          <button type="button" className={`btn ${isManuallyFollowed ? "primary" : ""}`} onClick={toggleFollowEvent}>
+            {isManuallyFollowed ? "★ Following — notified when live" : "☆ Follow event"}
+          </button>
           {event.streamUrl && (
             <a className="btn primary" href={event.streamUrl} target="_blank" rel="noopener noreferrer">
               Watch live
@@ -98,6 +121,12 @@ export default function EventDetailModal({ event, now, catalog, onClose }: Props
             Add to Google Calendar
           </a>
         </div>
+        {isManuallyFollowed && (
+          <span className="hint" style={{ display: "block", marginBottom: 12 }}>
+            You'll get a browser notification when this goes live. It's also guaranteed to stay in your{" "}
+            <code>/calendar.ics</code> feed if you ever turn on "favorites only" in Settings.
+          </span>
+        )}
 
         {event.sport !== "custom" && !alreadyHidden && (
           <button className="btn-x-link" onClick={() => setConfirmingHide(true)}>

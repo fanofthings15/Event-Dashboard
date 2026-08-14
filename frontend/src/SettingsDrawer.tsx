@@ -66,6 +66,9 @@ export default function SettingsDrawer({ onClose, allEvents }: Props) {
       setTimeout(() => setFeedCopied(false), 2000);
     });
   }
+  function toggleIcsFavoritesOnly() {
+    save({ icsFavoritesOnly: !settings.icsFavoritesOnly });
+  }
 
   return (
     <div className="drawer-backdrop" onClick={onClose}>
@@ -181,7 +184,7 @@ export default function SettingsDrawer({ onClose, allEvents }: Props) {
           <h3>Calendar feed</h3>
           <span className="hint">
             Subscribe to this URL in Google Calendar, Apple Calendar, or Outlook to get every currently-shown event
-            synced automatically.
+            synced automatically — no need to add events one at a time.
           </span>
           <div className="form-row" style={{ marginTop: 10 }}>
             <input className="text-input" readOnly value={feedUrl} onClick={(e) => (e.target as HTMLInputElement).select()} />
@@ -189,6 +192,18 @@ export default function SettingsDrawer({ onClose, allEvents }: Props) {
               {feedCopied ? "Copied!" : "Copy"}
             </button>
           </div>
+          <button
+            type="button"
+            className={`chip ${settings.icsFavoritesOnly ? "active" : ""}`}
+            style={{ marginTop: 10 }}
+            onClick={toggleIcsFavoritesOnly}
+          >
+            {settings.icsFavoritesOnly ? "Only favorited/followed teams" : "Everything currently enabled"}
+          </button>
+          <span className="hint" style={{ display: "block", marginTop: 6 }}>
+            Want just specific teams instead of whole sports/leagues? Add them under Favorite teams above, then
+            flip this on — the feed narrows to just those (plus your custom events).
+          </span>
         </section>
 
         <button className="btn" style={{ marginTop: 16, width: "100%" }} onClick={onClose}>

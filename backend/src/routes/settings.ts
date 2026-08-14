@@ -21,6 +21,8 @@ router.get("/", (_req, res) => {
     notifyOnLive: settings.notifyOnLive,
     pollIntervalSeconds: settings.pollIntervalSeconds,
     theme: settings.theme,
+    icsFavoritesOnly: settings.icsFavoritesOnly,
+    followedEventIds: settings.followedEventIds,
     esportsCatalog: ESPORTS_CATALOG,
   });
 });
@@ -66,6 +68,8 @@ router.post("/", (req, res) => {
     next.pollIntervalSeconds = Math.floor(body.pollIntervalSeconds);
   }
   if (body.theme === "dark" || body.theme === "light") next.theme = body.theme;
+  if (typeof body.icsFavoritesOnly === "boolean") next.icsFavoritesOnly = body.icsFavoritesOnly;
+  if (Array.isArray(body.followedEventIds)) next.followedEventIds = body.followedEventIds.filter((x: unknown) => typeof x === "string");
 
   writeSettings(next);
   res.json({ ok: true });

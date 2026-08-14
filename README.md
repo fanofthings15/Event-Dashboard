@@ -95,13 +95,21 @@ release and double-click it.
   no need to find and type it elsewhere.
 - Team logos (next to each team's name) and the series score also show
   directly on the main-page cards, not just in the detail view.
+- **Follow event** — on the detail view, a one-click way to follow one
+  specific event without adding a whole team as a favorite. Requests
+  notification permission the first time (browser-native prompt), turns on
+  the global notify-on-live setting, and tags that exact event so it
+  survives the calendar feed's "favorites only" mode even without a
+  team-name match. Independent of the Favorite teams feature — this is a
+  one-off follow, not a standing preference.
 - **Add to Google Calendar** — on the detail view, opens Google Calendar
   pre-filled with the event name, date/time, teams, and any stream/info
   link. Uses Google's public "create event" URL, which needs **no API key
   or sign-in on this end** — you just confirm and save it on Google's side.
-  (If you actually want events inserted automatically without that manual
-  step, that needs real OAuth setup, which is a bigger follow-up — say the
-  word if you want that instead.)
+  A calendar you *subscribe to by URL* (see Calendar feed below) is a
+  read-only synced mirror, so there's no way for a button to push a single
+  event into one directly; true one-click silent insert into your primary
+  calendar would need real Google OAuth, which isn't built.
 - **+ Add Event** — opens the custom events panel directly (name, league,
   color, start time, duration as hours + minutes, optional link). Moved
   here from Settings since it's something you'll reach for often, not a
@@ -180,8 +188,17 @@ sent anywhere but each service's own API and back to your own browser.
   currently-enabled source (respecting your saved settings — disabled
   sources and excluded leagues) into a real subscribable calendar feed.
   Point Google Calendar, Apple Calendar, or Outlook's "subscribe by URL" at
-  it and it stays in sync automatically, unlike the one-off "Add to Google
-  Calendar" button on individual events.
+  it and it stays in sync automatically — a subscribed calendar is a
+  read-only mirror of this feed, so there's no way for a button on an
+  individual event to "push" into it; the feed itself is what controls
+  what shows up. For finer control than whole sports/leagues, a
+  **"favorites only"** toggle in Settings narrows the feed down to just
+  the teams you've added under Favorite teams (custom events always stay
+  included either way). The one-off "Add to Google Calendar" button on
+  individual events is separate — it uses Google's own unauthenticated
+  "create event" link, which is why it opens a confirm page instead of
+  adding silently; true one-click silent insert would need real Google
+  OAuth, which isn't built.
 - **Refresh interval** — how often the dashboard polls for new data,
   configurable in Settings (minimum 15s).
 - **Light theme** — a full second color palette, toggled in Settings.

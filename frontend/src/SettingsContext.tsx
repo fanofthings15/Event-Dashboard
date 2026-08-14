@@ -17,6 +17,8 @@ const EMPTY: SettingsState = {
   notifyOnLive: false,
   pollIntervalSeconds: 60,
   theme: "dark",
+  icsFavoritesOnly: false,
+  followedEventIds: [],
 };
 
 interface SettingsContextValue {
