@@ -164,7 +164,7 @@ export default function SourceSettings({ allEvents }: Props) {
     <div>
       {/* Quick toggle row — click through on/off for every source at a
           glance, without needing to open each one's group. */}
-      <div className="source-chip-list" style={{ marginBottom: 14 }}>
+      <div className="source-chip-list" style={{ marginBottom: 8 }}>
         {[...sourcesBySport.entries()].map(([sport, { esportsSlug }]) => {
           const meta = sportMeta({ sport } as NormalizedEvent, settings.esportsCatalog, settings.sportColorOverrides);
           const enabled = isEnabled(sport, esportsSlug);
@@ -182,8 +182,13 @@ export default function SourceSettings({ allEvents }: Props) {
           );
         })}
       </div>
+      <span className="hint" style={{ display: "block", marginBottom: 14 }}>
+        Only enabled sources show detailed settings below — turn one on above to configure it.
+      </span>
 
-      {[...sourcesBySport.entries()].map(([sport, { leagues }]) => {
+      {[...sourcesBySport.entries()]
+        .filter(([sport, { esportsSlug }]) => isEnabled(sport, esportsSlug))
+        .map(([sport, { leagues }]) => {
         const meta = sportMeta({ sport } as NormalizedEvent, settings.esportsCatalog, settings.sportColorOverrides);
         const isOpen = expanded.has(sport);
         const isFrc = sport === "frc";
