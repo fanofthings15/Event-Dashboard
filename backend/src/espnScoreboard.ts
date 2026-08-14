@@ -35,11 +35,14 @@ export function buildEspnScoreboardRouter(espnPath: string, sport: string, leagu
         const network = comp?.broadcasts?.[0]?.names?.join(", ");
         if (network) extra.push({ label: "Broadcast", value: network });
 
-        // Live score, when the game has actually started.
+        // Live score, when the game has actually started — shown on the
+        // main-page card itself (via seriesScore), same slot esports/FRC use
+        // for their current-state summary, not just buried in detail facts.
         const state = e.status?.type?.state ?? "pre";
+        let seriesScore: string | undefined;
         if (state !== "pre" && competitors.length === 2) {
           const score = competitors.map((c: any) => c.score).join("-");
-          if (score && score !== "-") extra.push({ label: "Score", value: score });
+          if (score && score !== "-") seriesScore = score;
         }
 
         return {
@@ -52,6 +55,7 @@ export function buildEspnScoreboardRouter(espnPath: string, sport: string, leagu
           detailUrl: comp?.links?.[0]?.href,
           venue: comp?.venue?.fullName,
           teams: teams.length ? teams : undefined,
+          seriesScore,
           extra: extra.length ? extra : undefined,
         };
       });
