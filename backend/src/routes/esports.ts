@@ -70,12 +70,6 @@ async function fetchGame(slug: string, sport: string, color: string, apiKey: str
     const teamNames = teams.map((t: any) => t.name).join(" vs ");
 
     const extra: ExtraFact[] = [];
-    const seriesLabel = m.serie?.full_name || m.tournament?.name;
-    // PandaScore auto-names a series/tournament "Tournament <year>" (or
-    // similar) when the organizer never gave it a real name — showing that
-    // verbatim isn't useful, so skip it rather than clutter the detail view.
-    const looksGeneric = seriesLabel && /^(tournament|series|serie)\s*\d{4}$/i.test(seriesLabel.trim());
-    if (seriesLabel && !looksGeneric) extra.push({ label: "Tournament", value: seriesLabel });
 
     return {
       id: String(m.id),

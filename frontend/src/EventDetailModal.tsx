@@ -55,8 +55,8 @@ export default function EventDetailModal({ event, now, catalog, onClose }: Props
         </div>
 
         {event.seriesScore && (
-          <div className="detail-fact" style={{ marginBottom: 14 }}>
-            <strong>{event.seriesScore}</strong>
+          <div className="detail-score" style={{ marginBottom: 14 }}>
+            {event.seriesScore}
           </div>
         )}
 
@@ -76,7 +76,7 @@ export default function EventDetailModal({ event, now, catalog, onClose }: Props
           <div className="detail-facts">
             {event.extra.map((f) => (
               <div key={f.label} className="detail-fact">
-                <span className="hint">{f.label}</span>
+                <span className="hint">{f.label}:</span>
                 <span>{f.value}</span>
               </div>
             ))}

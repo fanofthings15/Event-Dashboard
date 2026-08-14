@@ -327,8 +327,17 @@ section h2 {
   box-sizing: border-box;
 }
 
-.detail-facts { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
-.detail-fact { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px; }
+.detail-score {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--accent);
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.detail-facts { display: flex; flex-direction: column; margin-bottom: 14px; }
+.detail-fact { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; padding: 6px 0; border-bottom: 1px solid var(--border); }
+.detail-fact:last-child { border-bottom: none; }
 
 .detail-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
 .detail-actions .btn { text-decoration: none; display: inline-flex; align-items: center; }

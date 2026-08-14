@@ -32,8 +32,6 @@ export function buildEspnScoreboardRouter(espnPath: string, sport: string, leagu
         const teamNames = competitors.map((c: any) => c.team?.shortDisplayName).join(" @ ");
 
         const extra: ExtraFact[] = [];
-        const network = comp?.broadcasts?.[0]?.names?.join(", ");
-        if (network) extra.push({ label: "Broadcast", value: network });
 
         // Live score, when the game has actually started — shown on the
         // main-page card itself (via seriesScore), same slot esports/FRC use
