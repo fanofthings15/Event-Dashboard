@@ -5,22 +5,14 @@ import { useNow, formatCountdown } from "./countdown";
 import { sportMeta } from "./sportMeta";
 import { isLiveNow } from "./eventStatus";
 import { sameDay } from "./calendarUtils";
+import { formatEventTime } from "./dateFormat";
+import { useNewlySeen } from "./useNewlySeen";
+import { playNotificationPing } from "./notifySound";
 import { CORE_SPORT_META, type NormalizedEvent } from "./types";
 import SettingsDrawer from "./SettingsDrawer";
 import CalendarView from "./CalendarView";
 import CustomEventsPanel from "./CustomEventsPanel";
 import EventDetailModal from "./EventDetailModal";
-
-function formatTime(iso: string) {
-  const d = new Date(iso);
-  return d.toLocaleString(undefined, {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
 
 function matchesSearch(e: NormalizedEvent, query: string): boolean {
   if (!query.trim()) return true;
@@ -46,6 +38,8 @@ function EventCard({
   now,
   catalog,
   overrides,
+  timezone,
+  isNew,
   onClick,
   onDismiss,
 }: {
@@ -53,6 +47,8 @@ function EventCard({
   now: Date;
   catalog: ReturnType<typeof useSettings>["settings"]["esportsCatalog"];
   overrides: Record<string, string>;
+  timezone: string;
+  isNew?: boolean;
   onClick: () => void;
   onDismiss?: () => void;
 }) {
@@ -64,6 +60,7 @@ function EventCard({
         <div className="event-top-left">
           <span className="sport-tag">{meta.label}</span>
           {e.region && <span className="region-chip">{e.region}</span>}
+          {isNew && <span className="new-chip">NEW</span>}
         </div>
         {onDismiss ? (
           <button
@@ -101,7 +98,7 @@ function EventCard({
       {live && e.liveDetail && <div className="event-live-detail">{e.liveDetail}</div>}
       <div className="event-meta">
         <span>{e.league}</span>
-        <span>{formatTime(e.startTime)}</span>
+        <span>{formatEventTime(e.startTime, timezone)}</span>
       </div>
     </button>
   );
@@ -115,6 +112,11 @@ export default function App() {
     document.documentElement.setAttribute("data-theme", settings.theme);
   }, [settings.theme]);
 
+  // Denser card layout, same pattern as the theme attribute.
+  useEffect(() => {
+    document.documentElement.setAttribute("data-density", settings.compactCards ? "compact" : "comfortable");
+  }, [settings.compactCards]);
+
   const notifyEvent = useCallback(
     (e: NormalizedEvent, reason: NotifyReason, leadMinutes?: number) => {
       if (!settings.notifyOnLive) return;
@@ -123,16 +125,18 @@ export default function App() {
       const meta = sportMeta(e, settings.esportsCatalog, settings.sportColorOverrides);
       const title = reason === "live" ? `${e.name} is live` : `${e.name} starts in ${leadMinutes} min`;
       new Notification(title, { body: meta.label, tag: `${e.sport}-${e.id}-${reason}-${leadMinutes ?? ""}` });
+      if (settings.notifySoundEnabled) playNotificationPing();
     },
-    [settings.notifyOnLive, settings.notifyMode, settings.esportsCatalog, settings.sportColorOverrides]
+    [settings.notifyOnLive, settings.notifyMode, settings.notifySoundEnabled, settings.esportsCatalog, settings.sportColorOverrides]
   );
 
-  const { events, allEvents, warnings, loading, refreshing, lastUpdated, refetch } = useEvents(
+  const { events, allEvents, warnings, loading, refreshing, lastUpdated, isOffline, refetch } = useEvents(
     settings.disabledCoreSources,
     settings.excludedLeagues,
     settings.frcRegions,
     settings.favoriteTeams,
     settings.followedEventIds,
+    settings.snoozedEventIds,
     settings.notifyLeadMinutes,
     settings.pollIntervalSeconds * 1000,
     notifyEvent
@@ -144,6 +148,13 @@ export default function App() {
   const [view, setView] = useState<"list" | "calendar" | "agenda" | "finished">("list");
   const [selectedEvent, setSelectedEvent] = useState<NormalizedEvent | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const newKeys = useNewlySeen(events);
+
+  function goToTeam(teamName: string) {
+    setSearchQuery(teamName);
+    setSelectedEvent(null);
+    setView("list");
+  }
 
   function dismissFinished(e: NormalizedEvent) {
     const key = `${e.sport}-${e.id}`;
@@ -224,7 +235,12 @@ export default function App() {
         </div>
       </header>
 
-      {lastUpdated && <div className="last-updated">Last synced {lastUpdated.toLocaleTimeString()}</div>}
+      {lastUpdated && (
+        <div className="last-updated">
+          Last synced {lastUpdated.toLocaleTimeString()}
+          {isOffline && <span className="offline-tag"> · Offline, showing cached data</span>}
+        </div>
+      )}
 
       <input
         className="search-input"
@@ -278,7 +294,7 @@ export default function App() {
       {loading ? (
         <div className="empty">Loading…</div>
       ) : view === "calendar" ? (
-        <CalendarView events={filtered} catalog={settings.esportsCatalog} overrides={settings.sportColorOverrides} now={now} onEventClick={setSelectedEvent} />
+        <CalendarView events={filtered} catalog={settings.esportsCatalog} overrides={settings.sportColorOverrides} timezone={settings.timezone} now={now} onEventClick={setSelectedEvent} />
       ) : view === "agenda" ? (
         <section>
           <h2>Today</h2>
@@ -287,7 +303,16 @@ export default function App() {
           ) : (
             <div className="grid">
               {today.map((e) => (
-                <EventCard key={`${e.sport}-${e.id}`} e={e} now={now} catalog={settings.esportsCatalog} overrides={settings.sportColorOverrides} onClick={() => setSelectedEvent(e)} />
+                <EventCard
+                  key={`${e.sport}-${e.id}`}
+                  e={e}
+                  now={now}
+                  catalog={settings.esportsCatalog}
+                  overrides={settings.sportColorOverrides}
+                  timezone={settings.timezone}
+                  isNew={newKeys.has(`${e.sport}-${e.id}`)}
+                  onClick={() => setSelectedEvent(e)}
+                />
               ))}
             </div>
           )}
@@ -309,6 +334,7 @@ export default function App() {
                   now={now}
                   catalog={settings.esportsCatalog}
                   overrides={settings.sportColorOverrides}
+                  timezone={settings.timezone}
                   onClick={() => setSelectedEvent(e)}
                   onDismiss={() => dismissFinished(e)}
                 />
@@ -325,7 +351,16 @@ export default function App() {
             ) : (
               <div className="grid">
                 {live.map((e) => (
-                  <EventCard key={`${e.sport}-${e.id}`} e={e} now={now} catalog={settings.esportsCatalog} overrides={settings.sportColorOverrides} onClick={() => setSelectedEvent(e)} />
+                  <EventCard
+                    key={`${e.sport}-${e.id}`}
+                    e={e}
+                    now={now}
+                    catalog={settings.esportsCatalog}
+                    overrides={settings.sportColorOverrides}
+                    timezone={settings.timezone}
+                    isNew={newKeys.has(`${e.sport}-${e.id}`)}
+                    onClick={() => setSelectedEvent(e)}
+                  />
                 ))}
               </div>
             )}
@@ -338,7 +373,16 @@ export default function App() {
             ) : (
               <div className="grid">
                 {upcoming.map((e) => (
-                  <EventCard key={`${e.sport}-${e.id}`} e={e} now={now} catalog={settings.esportsCatalog} overrides={settings.sportColorOverrides} onClick={() => setSelectedEvent(e)} />
+                  <EventCard
+                    key={`${e.sport}-${e.id}`}
+                    e={e}
+                    now={now}
+                    catalog={settings.esportsCatalog}
+                    overrides={settings.sportColorOverrides}
+                    timezone={settings.timezone}
+                    isNew={newKeys.has(`${e.sport}-${e.id}`)}
+                    onClick={() => setSelectedEvent(e)}
+                  />
                 ))}
               </div>
             )}
@@ -349,7 +393,7 @@ export default function App() {
       {settingsOpen && <SettingsDrawer onClose={() => setSettingsOpen(false)} allEvents={allEvents} />}
       {customEventsOpen && <CustomEventsPanel onClose={() => setCustomEventsOpen(false)} />}
       {selectedEvent && (
-        <EventDetailModal event={selectedEvent} now={now} catalog={settings.esportsCatalog} onClose={() => setSelectedEvent(null)} />
+        <EventDetailModal event={selectedEvent} now={now} catalog={settings.esportsCatalog} onClose={() => setSelectedEvent(null)} onTeamClick={goToTeam} />
       )}
     </div>
   );

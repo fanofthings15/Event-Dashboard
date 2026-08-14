@@ -16,7 +16,27 @@ interface FeedState {
   loading: boolean;
   refreshing: boolean;
   lastUpdated: Date | null;
+  isOffline: boolean;
   refetch: () => void;
+}
+
+const OFFLINE_CACHE_KEY = "event-dashboard-offline-cache";
+
+function saveOfflineCache(events: NormalizedEvent[]) {
+  try {
+    localStorage.setItem(OFFLINE_CACHE_KEY, JSON.stringify({ events, savedAt: Date.now() }));
+  } catch {
+    // Not critical — offline fallback just won't have anything to show.
+  }
+}
+
+function loadOfflineCache(): { events: NormalizedEvent[]; savedAt: number } | null {
+  try {
+    const raw = localStorage.getItem(OFFLINE_CACHE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
 }
 
 const CORE_ENDPOINTS: Record<string, string> = {
@@ -70,6 +90,7 @@ export function useEvents(
   frcRegions: string[],
   favoriteTeams: string[],
   followedEventIds: string[],
+  snoozedEventIds: string[],
   notifyLeadMinutes: number[],
   pollMs = 60_000,
   onNotify?: (e: NormalizedEvent, reason: NotifyReason, leadMinutes?: number) => void
@@ -80,6 +101,7 @@ export function useEvents(
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [isOffline, setIsOffline] = useState(false);
   const prevLiveIds = useRef<Set<string>>(new Set());
   const notifiedUpcoming = useRef<Set<string>>(new Set());
 
@@ -105,6 +127,24 @@ export function useEvents(
       })
     );
 
+    // Every single request failed — likely offline. Fall back to the last
+    // successfully-loaded snapshot instead of showing an empty dashboard.
+    if (results.length > 0 && results.every((r) => r.error)) {
+      const cached = loadOfflineCache();
+      setIsOffline(true);
+      if (cached) {
+        setEvents(cached.events);
+        setAllEvents(cached.events);
+        setWarnings([`Offline — showing cached data from ${new Date(cached.savedAt).toLocaleTimeString()}.`]);
+      } else {
+        setWarnings(["Offline, and no cached data yet from a previous successful sync."]);
+      }
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
+    setIsOffline(false);
+
     const merged = results
       .flatMap((r) => r.events ?? [])
       .map((e) => withFavoriteTeams(e, favoriteTeams))
@@ -120,6 +160,7 @@ export function useEvents(
 
       for (const e of merged) {
         const key = `${e.sport}-${e.id}`;
+        if (snoozedEventIds.includes(key)) continue;
 
         if (e.status === "live") {
           nowLiveIds.add(key);
@@ -154,6 +195,7 @@ export function useEvents(
       return [];
     });
 
+    saveOfflineCache(filtered);
     setAllEvents(merged);
     setEvents(filtered);
     setWarnings(nextWarnings);
@@ -166,6 +208,7 @@ export function useEvents(
     frcRegions.join(","),
     favoriteTeams.join(","),
     followedEventIds.join(","),
+    snoozedEventIds.join(","),
     notifyLeadMinutes.join(","),
     onNotify,
   ]);
@@ -176,5 +219,5 @@ export function useEvents(
     return () => clearInterval(id);
   }, [load, pollMs]);
 
-  return { events, allEvents, warnings, loading, refreshing, lastUpdated, refetch: load };
+  return { events, allEvents, warnings, loading, refreshing, lastUpdated, isOffline, refetch: load };
 }

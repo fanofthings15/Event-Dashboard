@@ -226,6 +226,20 @@ section h2 {
   margin-bottom: 6px;
 }
 
+.new-chip {
+  display: inline-block;
+  background: rgba(34, 197, 94, 0.18);
+  border: 1px solid rgba(34, 197, 94, 0.45);
+  color: #4ade80;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.offline-tag { color: var(--live); font-weight: 600; }
+
 .source-chip-list { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 12px; }
 
 .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
@@ -356,6 +370,18 @@ section h2 {
 
 .detail-teams { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
 .detail-team { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+.detail-team-clickable {
+  background: transparent;
+  border: none;
+  padding: 4px 0;
+  color: var(--text);
+  font-family: inherit;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  border-radius: 6px;
+}
+.detail-team-clickable:hover { background: rgba(148, 163, 184, 0.08); }
 .detail-team-logo {
   width: 24px;
   height: 24px;
@@ -443,3 +469,17 @@ section h2 {
   .calendar-date { font-size: 10px; }
   .calendar-title { min-width: 0; font-size: 14px; }
 }
+
+/* Compact layout — denser cards, smaller text, tighter grid for scanning
+   more events at once instead of reading full detail on each card. */
+[data-density="compact"] .grid { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; }
+[data-density="compact"] .event-card { padding: 8px 10px; }
+[data-density="compact"] .event-top { margin-bottom: 4px; }
+[data-density="compact"] .event-teams { gap: 2px; }
+[data-density="compact"] .event-team-row { font-size: 12px; }
+[data-density="compact"] .event-team-logo { width: 16px; height: 16px; }
+[data-density="compact"] .event-name { font-size: 13px; }
+[data-density="compact"] .event-series-score { font-size: 11px; margin-bottom: 2px; }
+[data-density="compact"] .event-live-detail { font-size: 10px; margin-bottom: 2px; }
+[data-density="compact"] .event-meta { font-size: 11px; }
+[data-density="compact"] .sport-tag { font-size: 10px; }

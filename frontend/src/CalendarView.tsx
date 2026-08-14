@@ -13,6 +13,7 @@ interface Props {
   events: NormalizedEvent[];
   catalog: EsportsGame[];
   overrides: Record<string, string>;
+  timezone: string;
   now: Date;
   onEventClick: (e: NormalizedEvent) => void;
 }
@@ -34,7 +35,7 @@ function groupBySport(dayEvents: NormalizedEvent[], catalog: EsportsGame[], over
   return [...map.values()];
 }
 
-export default function CalendarView({ events, catalog, overrides, now, onEventClick }: Props) {
+export default function CalendarView({ events, catalog, overrides, timezone, now, onEventClick }: Props) {
   const [viewDate, setViewDate] = useState(() => new Date());
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
   const year = viewDate.getFullYear();
@@ -134,6 +135,7 @@ export default function CalendarView({ events, catalog, overrides, now, onEventC
           events={selectedDayEvents}
           catalog={catalog}
           overrides={overrides}
+          timezone={timezone}
           now={now}
           onClose={() => setSelectedDay(null)}
           onEventClick={onEventClick}

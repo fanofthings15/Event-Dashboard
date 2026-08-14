@@ -26,6 +26,10 @@ router.get("/", (_req, res) => {
     notifyMode: settings.notifyMode,
     dismissedFinishedEventIds: settings.dismissedFinishedEventIds,
     notifyLeadMinutes: settings.notifyLeadMinutes,
+    notifySoundEnabled: settings.notifySoundEnabled,
+    snoozedEventIds: settings.snoozedEventIds,
+    compactCards: settings.compactCards,
+    timezone: settings.timezone,
     esportsCatalog: ESPORTS_CATALOG,
   });
 });
@@ -81,6 +85,24 @@ router.post("/", (req, res) => {
     next.notifyLeadMinutes = body.notifyLeadMinutes
       .filter((x: unknown) => typeof x === "number" && x >= 0)
       .map((x: number) => Math.floor(x));
+  }
+  if (typeof body.notifySoundEnabled === "boolean") next.notifySoundEnabled = body.notifySoundEnabled;
+  if (Array.isArray(body.snoozedEventIds)) next.snoozedEventIds = body.snoozedEventIds.filter((x: unknown) => typeof x === "string");
+  if (typeof body.compactCards === "boolean") next.compactCards = body.compactCards;
+  if (typeof body.timezone === "string") {
+    if (body.timezone === "") {
+      next.timezone = "";
+    } else {
+      try {
+        // Intl throws RangeError on an invalid IANA zone — validate here so
+        // a bad value can never reach the frontend's date formatting and
+        // crash every single time formatter across the app.
+        new Intl.DateTimeFormat("en-US", { timeZone: body.timezone });
+        next.timezone = body.timezone;
+      } catch {
+        // Silently ignored — invalid zone, keep whatever was set before.
+      }
+    }
   }
 
   writeSettings(next);

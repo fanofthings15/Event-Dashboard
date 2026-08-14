@@ -8,24 +8,24 @@ import { googleCalendarUrl } from "./googleCalendar";
 import { useSettings } from "./SettingsContext";
 import ConfirmDialog from "./ConfirmDialog";
 import { formatCountdown } from "./countdown";
+import { formatEventDate, formatEventTime } from "./dateFormat";
 
 interface Props {
   event: NormalizedEvent;
   now: Date;
   catalog: EsportsGame[];
   onClose: () => void;
+  onTeamClick: (teamName: string) => void;
 }
 
-function formatRange(startIso: string, endIso: string | undefined) {
-  const start = new Date(startIso);
-  const startStr = start.toLocaleString(undefined, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+function formatRange(startIso: string, endIso: string | undefined, timezone: string) {
+  const startStr = formatEventTime(startIso, timezone);
   if (!endIso) return startStr;
-  const end = new Date(endIso);
-  const endStr = end.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
-  return `${start.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })} – ${endStr}`;
+  const endStr = formatEventDate(endIso, timezone);
+  return `${formatEventDate(startIso, timezone)} – ${endStr}`;
 }
 
-export default function EventDetailModal({ event, now, catalog, onClose }: Props) {
+export default function EventDetailModal({ event, now, catalog, onClose, onTeamClick }: Props) {
   const { settings, save } = useSettings();
   const [confirmingHide, setConfirmingHide] = useState(false);
 
@@ -42,6 +42,7 @@ export default function EventDetailModal({ event, now, catalog, onClose }: Props
   // events) with the locally-toggled state, so the badge updates instantly
   // on click rather than waiting for the next poll to confirm it.
   const isManuallyFollowed = event.manuallyFollowed || settings.followedEventIds.includes(eventKey);
+  const isSnoozed = settings.snoozedEventIds.includes(eventKey);
 
   async function toggleFollowEvent() {
     if (isManuallyFollowed) {
@@ -58,6 +59,11 @@ export default function EventDetailModal({ event, now, catalog, onClose }: Props
       followedEventIds: [...settings.followedEventIds, eventKey],
       notifyOnLive: true,
     });
+  }
+
+  async function toggleSnooze() {
+    const next = isSnoozed ? settings.snoozedEventIds.filter((k) => k !== eventKey) : [...settings.snoozedEventIds, eventKey];
+    await save({ snoozedEventIds: next });
   }
 
   async function confirmHideLeague() {
@@ -77,7 +83,7 @@ export default function EventDetailModal({ event, now, catalog, onClose }: Props
         {event.followed && <span className="followed-chip">★ Your team</span>}
         {event.manuallyFollowed && <span className="manual-follow-chip">📌 Followed event</span>}
         <div className="hint" style={{ marginBottom: 14 }}>
-          {event.league} · {formatRange(event.startTime, event.endTime)}
+          {event.league} · {formatRange(event.startTime, event.endTime, settings.timezone)}
           {event.venue ? ` · ${event.venue}` : ""}
           {live && event.liveDetail ? ` · ${event.liveDetail}` : ""}
         </div>
@@ -91,11 +97,11 @@ export default function EventDetailModal({ event, now, catalog, onClose }: Props
         {event.teams && event.teams.length > 0 && (
           <div className="detail-teams">
             {event.teams.map((t) => (
-              <div key={t.name} className="detail-team">
+              <button type="button" key={t.name} className="detail-team detail-team-clickable" onClick={() => onTeamClick(t.name)}>
                 {t.imageUrl && <img src={t.imageUrl} alt="" className="detail-team-logo" />}
                 <span>{t.name}</span>
                 {t.record && <span className="hint">{t.record}</span>}
-              </div>
+              </button>
             ))}
           </div>
         )}
@@ -117,6 +123,9 @@ export default function EventDetailModal({ event, now, catalog, onClose }: Props
               {isManuallyFollowed ? "★ Following — notified when live" : "☆ Follow event"}
             </button>
           )}
+          <button type="button" className={`btn ${isSnoozed ? "primary" : ""}`} onClick={toggleSnooze}>
+            {isSnoozed ? "🔕 Snoozed — no notifications" : "🔔 Snooze notifications"}
+          </button>
           {event.streamUrl && (
             <a className="btn primary" href={event.streamUrl} target="_blank" rel="noopener noreferrer">
               Watch live

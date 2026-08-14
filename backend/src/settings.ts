@@ -71,6 +71,16 @@ export interface Settings {
   // of the always-on at-live one — any combination (e.g. [0, 30] for both
   // "at start" and "30 min before").
   notifyLeadMinutes: number[];
+  // Play a short ping alongside the browser notification.
+  notifySoundEnabled: boolean;
+  // Specific events muted from notifications without unfollowing them —
+  // "sport-id" composite keys, same shape as followedEventIds.
+  snoozedEventIds: string[];
+  // Denser card layout — smaller padding/text for seeing more at once.
+  compactCards: boolean;
+  // IANA timezone (e.g. "America/New_York") to display all times in,
+  // overriding the browser's local timezone. Empty string = use local.
+  timezone: string;
 }
 
 const DEFAULTS: Settings = {
@@ -93,6 +103,10 @@ const DEFAULTS: Settings = {
   notifyMode: "followed",
   dismissedFinishedEventIds: [],
   notifyLeadMinutes: [],
+  notifySoundEnabled: true,
+  snoozedEventIds: [],
+  compactCards: false,
+  timezone: "",
 };
 
 export function readSettings(): Settings {

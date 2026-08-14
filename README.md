@@ -197,7 +197,28 @@ sent anywhere but each service's own API and back to your own browser.
   event"** across every enabled source, or **"Followed teams only"** (the
   default — just events matching a favorite/followed team). A separate
   chip row lets you pick any combination of advance reminders — e.g. both
-  "30 min before" and "At start" at once, not just one.
+  "30 min before" and "At start" at once, not just one. A short
+  synthesized ping (no audio file needed) plays alongside the browser
+  notification, muteable separately. Want notifications off for one
+  specific event without unfollowing it? Hit **Snooze notifications** on
+  that event's detail view.
+- **New-event highlight** — a small "NEW" badge on any card you haven't
+  seen before, tracked across visits (not just within one session).
+- **Offline fallback** — if every data source is unreachable at once
+  (likely means you're offline), the dashboard falls back to the last
+  successfully-loaded snapshot instead of going blank, with a clear
+  "Offline, showing cached data" indicator next to the sync timestamp.
+- **Click a team name** (detail view) to jump straight to a search
+  filtered to just that team — reuses the same search bar rather than
+  being a separate feature, so it behaves exactly like typing the name
+  yourself would.
+- **Compact layout** — a denser card grid for scanning more at a glance,
+  toggle in Settings next to Theme.
+- **Timezone override** — show every event time in a specific zone instead
+  of your browser's local one, picked from a dropdown of common zones.
+  (The calendar's month-grid day-grouping itself stays on local time even
+  with an override set — only the displayed clock times respect it; fully
+  timezone-correct day bucketing would need a bigger rewrite.)
 - **Today / Agenda view** and **Finished view** — two extra view modes
   next to List and Calendar. Today is a flat chronological list of every
   event happening today, including ones that already finished. Finished

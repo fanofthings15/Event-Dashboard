@@ -36,4 +36,8 @@ export interface SettingsState {
   notifyMode: "followed" | "all";
   dismissedFinishedEventIds: string[];
   notifyLeadMinutes: number[];
+  notifySoundEnabled: boolean;
+  snoozedEventIds: string[];
+  compactCards: boolean;
+  timezone: string;
 }

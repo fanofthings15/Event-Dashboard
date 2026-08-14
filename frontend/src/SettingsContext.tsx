@@ -22,6 +22,10 @@ const EMPTY: SettingsState = {
   notifyMode: "followed",
   dismissedFinishedEventIds: [],
   notifyLeadMinutes: [],
+  notifySoundEnabled: true,
+  snoozedEventIds: [],
+  compactCards: false,
+  timezone: "",
 };
 
 interface SettingsContextValue {

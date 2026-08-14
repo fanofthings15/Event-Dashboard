@@ -2,18 +2,20 @@ import type { NormalizedEvent } from "./types";
 import type { EsportsGame } from "./settingsTypes";
 import { sportMeta } from "./sportMeta";
 import { isLiveNow } from "./eventStatus";
+import { formatEventClock } from "./dateFormat";
 
 interface Props {
   date: Date;
   events: NormalizedEvent[];
   catalog: EsportsGame[];
   overrides: Record<string, string>;
+  timezone: string;
   now: Date;
   onClose: () => void;
   onEventClick: (e: NormalizedEvent) => void;
 }
 
-export default function DayDetailModal({ date, events, catalog, overrides, now, onClose, onEventClick }: Props) {
+export default function DayDetailModal({ date, events, catalog, overrides, timezone, now, onClose, onEventClick }: Props) {
   const sorted = [...events].sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
 
   const byHour = new Map<number, NormalizedEvent[]>();
@@ -46,7 +48,7 @@ export default function DayDetailModal({ date, events, catalog, overrides, now, 
                   {byHour.get(h)!.map((e) => {
                     const meta = sportMeta(e, catalog, overrides);
                     const live = isLiveNow(e, now);
-                    const time = new Date(e.startTime).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+                    const time = formatEventClock(e.startTime, timezone);
                     return (
                       <button
                         type="button"

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useSettings } from "./SettingsContext";
 import SourceSettings from "./SourceSettings";
+import { COMMON_TIMEZONES } from "./dateFormat";
 import type { NormalizedEvent } from "./types";
 
 interface Props {
@@ -69,6 +70,9 @@ export default function SettingsDrawer({ onClose, allEvents }: Props) {
       ? settings.notifyLeadMinutes.filter((m) => m !== minutes)
       : [...settings.notifyLeadMinutes, minutes];
     save({ notifyLeadMinutes: next });
+  }
+  function toggleNotifySound() {
+    save({ notifySoundEnabled: !settings.notifySoundEnabled });
   }
 
   // --- Poll interval ---
@@ -198,6 +202,11 @@ export default function SettingsDrawer({ onClose, allEvents }: Props) {
                 </div>
               )}
               {settings.notifyOnLive && (
+                <button type="button" className={`chip ${settings.notifySoundEnabled ? "active" : ""}`} style={{ marginTop: 10 }} onClick={toggleNotifySound}>
+                  {settings.notifySoundEnabled ? "🔊 Sound on" : "🔇 Sound muted"}
+                </button>
+              )}
+              {settings.notifyOnLive && (
                 <>
                   <span className="hint" style={{ display: "block", marginTop: 12, marginBottom: 6 }}>
                     Also get a heads-up before an event starts — pick any combination:
@@ -247,6 +256,35 @@ export default function SettingsDrawer({ onClose, allEvents }: Props) {
               Light
             </button>
           </div>
+        </section>
+
+        <section className="settings-section">
+          <h3>Layout</h3>
+          <div className="source-chip-list">
+            <button type="button" className={`chip ${!settings.compactCards ? "active" : ""}`} onClick={() => save({ compactCards: false })}>
+              Comfortable
+            </button>
+            <button type="button" className={`chip ${settings.compactCards ? "active" : ""}`} onClick={() => save({ compactCards: true })}>
+              Compact
+            </button>
+          </div>
+        </section>
+
+        <section className="settings-section">
+          <h3>Timezone</h3>
+          <span className="hint">Show event times in a specific timezone instead of your browser's local one.</span>
+          <select
+            className="text-input"
+            style={{ marginTop: 10 }}
+            value={settings.timezone}
+            onChange={(e) => save({ timezone: e.target.value })}
+          >
+            {COMMON_TIMEZONES.map((tz) => (
+              <option key={tz.value} value={tz.value}>
+                {tz.label}
+              </option>
+            ))}
+          </select>
         </section>
 
         <section className="settings-section">
