@@ -27,4 +27,8 @@ export interface SettingsState {
   customEvents: CustomEvent[];
   esportsCatalog: EsportsGame[];
   sportColorOverrides: Record<string, string>;
+  favoriteTeams: string[];
+  notifyOnLive: boolean;
+  pollIntervalSeconds: number;
+  theme: "dark" | "light";
 }

@@ -13,6 +13,7 @@ import frc from "./routes/frc.js";
 import esports from "./routes/esports.js";
 import settings from "./routes/settings.js";
 import customEvents from "./routes/customEvents.js";
+import ics from "./routes/ics.js";
 
 // Static top-level import so Bun's compiler can statically detect and embed
 // this file into the .exe when running `bun build --compile`. This always
@@ -93,6 +94,7 @@ app.use("/api/frc", frc);
 app.use("/api/esports", esports);
 app.use("/api/settings", settings);
 app.use("/api/custom-events", customEvents);
+app.use("/calendar.ics", ics);
 
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
 

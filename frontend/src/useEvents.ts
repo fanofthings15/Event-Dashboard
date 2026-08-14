@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { NormalizedEvent } from "./types";
 
 interface SourceResult {
@@ -39,11 +39,27 @@ function matchesRegion(e: NormalizedEvent, frcRegions: string[]): boolean {
   return frcRegions.includes(e.region);
 }
 
+// Cross-sport favorite-team tagging: matches a saved team name against an
+// event's team list (or its combined name, for sources without a teams
+// array) case-insensitively. Reuses the same "followed" flag FRC's
+// team-follow feature already uses, so every existing badge/UI just works.
+function withFavoriteTeams(e: NormalizedEvent, favoriteTeams: string[]): NormalizedEvent {
+  if (e.followed || favoriteTeams.length === 0) return e;
+  const haystacks = e.teams?.length ? e.teams.map((t) => t.name.toLowerCase()) : [e.name.toLowerCase()];
+  const matched = favoriteTeams.some((team) => {
+    const t = team.trim().toLowerCase();
+    return t && haystacks.some((h) => h.includes(t));
+  });
+  return matched ? { ...e, followed: true } : e;
+}
+
 export function useEvents(
   disabledCoreSources: string[],
   excludedLeagues: string[],
   frcRegions: string[],
-  pollMs = 60_000
+  favoriteTeams: string[],
+  pollMs = 60_000,
+  onNewlyLive?: (e: NormalizedEvent) => void
 ): FeedState {
   const [events, setEvents] = useState<NormalizedEvent[]>([]);
   const [allEvents, setAllEvents] = useState<NormalizedEvent[]>([]);
@@ -51,6 +67,7 @@ export function useEvents(
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const prevLiveIds = useRef<Set<string>>(new Set());
 
   const load = useCallback(async () => {
     setRefreshing(true);
@@ -74,8 +91,19 @@ export function useEvents(
       })
     );
 
-    const merged = results.flatMap((r) => r.events ?? []);
+    const merged = results.flatMap((r) => r.events ?? []).map((e) => withFavoriteTeams(e, favoriteTeams));
     merged.sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+
+    if (onNewlyLive) {
+      const nowLiveIds = new Set<string>();
+      for (const e of merged) {
+        if (e.status !== "live") continue;
+        const key = `${e.sport}-${e.id}`;
+        nowLiveIds.add(key);
+        if (e.followed && !prevLiveIds.current.has(key)) onNewlyLive(e);
+      }
+      prevLiveIds.current = nowLiveIds;
+    }
 
     // Custom events are the user's own — never league-filtered.
     const filtered = merged.filter(
@@ -95,7 +123,7 @@ export function useEvents(
     setLoading(false);
     setRefreshing(false);
     setLastUpdated(new Date());
-  }, [disabledCoreSources.join(","), excludedLeagues.join(","), frcRegions.join(",")]);
+  }, [disabledCoreSources.join(","), excludedLeagues.join(","), frcRegions.join(","), favoriteTeams.join(","), onNewlyLive]);
 
   useEffect(() => {
     load();

@@ -40,6 +40,15 @@ export interface Settings {
   // Per-sport color overrides (sport key -> hex), layered on top of the
   // built-in defaults so a user can fix any pair they still find too close.
   sportColorOverrides: Record<string, string>;
+  // Team names to watch across every sport (not just FRC) — matched against
+  // each event's team list to set the same "followed" badge FRC uses.
+  favoriteTeams: string[];
+  // Whether to fire a browser notification when a favorited/followed
+  // event goes live.
+  notifyOnLive: boolean;
+  // How often the frontend polls for new data, in seconds.
+  pollIntervalSeconds: number;
+  theme: "dark" | "light";
 }
 
 const DEFAULTS: Settings = {
@@ -53,6 +62,10 @@ const DEFAULTS: Settings = {
   enabledEsportsGames: DEFAULT_ENABLED_SLUGS,
   customEvents: [],
   sportColorOverrides: {},
+  favoriteTeams: [],
+  notifyOnLive: false,
+  pollIntervalSeconds: 60,
+  theme: "dark",
 };
 
 export function readSettings(): Settings {

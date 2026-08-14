@@ -1,9 +1,10 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useEvents } from "./useEvents";
 import { useSettings } from "./SettingsContext";
 import { useNow, formatCountdown } from "./countdown";
 import { sportMeta } from "./sportMeta";
 import { isLiveNow } from "./eventStatus";
+import { sameDay } from "./calendarUtils";
 import { CORE_SPORT_META, type NormalizedEvent } from "./types";
 import SettingsDrawer from "./SettingsDrawer";
 import CalendarView from "./CalendarView";
@@ -19,6 +20,13 @@ function formatTime(iso: string) {
     hour: "numeric",
     minute: "2-digit",
   });
+}
+
+function matchesSearch(e: NormalizedEvent, query: string): boolean {
+  if (!query.trim()) return true;
+  const q = query.trim().toLowerCase();
+  if (e.name.toLowerCase().includes(q) || e.league.toLowerCase().includes(q)) return true;
+  return Boolean(e.teams?.some((t) => t.name.toLowerCase().includes(q)));
 }
 
 function EventCard({
@@ -69,17 +77,34 @@ function EventCard({
 
 export default function App() {
   const { settings, loaded: settingsLoaded } = useSettings();
+
+  // Applies the light/dark theme choice to the whole document.
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", settings.theme);
+  }, [settings.theme]);
+
+  function notifyLive(e: NormalizedEvent) {
+    if (!settings.notifyOnLive) return;
+    if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
+    const meta = sportMeta(e, settings.esportsCatalog, settings.sportColorOverrides);
+    new Notification(`${e.name} is live`, { body: meta.label, tag: `${e.sport}-${e.id}` });
+  }
+
   const { events, allEvents, warnings, loading, refreshing, lastUpdated, refetch } = useEvents(
     settings.disabledCoreSources,
     settings.excludedLeagues,
-    settings.frcRegions
+    settings.frcRegions,
+    settings.favoriteTeams,
+    settings.pollIntervalSeconds * 1000,
+    notifyLive
   );
   const now = useNow();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [customEventsOpen, setCustomEventsOpen] = useState(false);
   const [dismissedWarnings, setDismissedWarnings] = useState<Set<string>>(new Set());
-  const [view, setView] = useState<"list" | "calendar">("list");
+  const [view, setView] = useState<"list" | "calendar" | "agenda">("list");
   const [selectedEvent, setSelectedEvent] = useState<NormalizedEvent | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Every sport currently enabled, in a stable order: core sources first,
   // then enabled esports titles, then "custom" if any custom events exist.
@@ -110,9 +135,13 @@ export default function App() {
     setActiveSports(new Set());
   }
 
-  const filtered = useMemo(() => events.filter((e) => isActive(e.sport)), [events, activeSports, availableSports]);
+  const filtered = useMemo(
+    () => events.filter((e) => isActive(e.sport) && matchesSearch(e, searchQuery)),
+    [events, activeSports, availableSports, searchQuery]
+  );
   const live = filtered.filter((e) => isLiveNow(e, now));
   const upcoming = filtered.filter((e) => !isLiveNow(e, now) && e.status !== "finished");
+  const today = filtered.filter((e) => sameDay(new Date(e.startTime), now) && e.status !== "finished");
 
   const visibleWarnings = warnings.filter((w) => !dismissedWarnings.has(w));
 
@@ -124,9 +153,17 @@ export default function App() {
           <button className="btn" onClick={() => setCustomEventsOpen(true)}>
             + Add Event
           </button>
-          <button className="btn" onClick={() => setView(view === "list" ? "calendar" : "list")}>
-            {view === "list" ? "Calendar" : "List"}
-          </button>
+          <div className="view-switcher">
+            <button className={`btn small ${view === "list" ? "active" : ""}`} onClick={() => setView("list")}>
+              List
+            </button>
+            <button className={`btn small ${view === "agenda" ? "active" : ""}`} onClick={() => setView("agenda")}>
+              Today
+            </button>
+            <button className={`btn small ${view === "calendar" ? "active" : ""}`} onClick={() => setView("calendar")}>
+              Calendar
+            </button>
+          </div>
           <button className="btn" onClick={refetch} disabled={refreshing}>
             {refreshing ? "Syncing…" : "Resync"}
           </button>
@@ -137,6 +174,14 @@ export default function App() {
       </header>
 
       {lastUpdated && <div className="last-updated">Last synced {lastUpdated.toLocaleTimeString()}</div>}
+
+      <input
+        className="search-input"
+        type="search"
+        placeholder="Search events, teams, leagues…"
+        value={searchQuery}
+        onChange={(e) => setSearchQuery(e.target.value)}
+      />
 
       {settingsLoaded && (
         <div className="filters">
@@ -183,6 +228,19 @@ export default function App() {
         <div className="empty">Loading…</div>
       ) : view === "calendar" ? (
         <CalendarView events={filtered} catalog={settings.esportsCatalog} overrides={settings.sportColorOverrides} now={now} onEventClick={setSelectedEvent} />
+      ) : view === "agenda" ? (
+        <section>
+          <h2>Today</h2>
+          {today.length === 0 ? (
+            <div className="empty">Nothing today.</div>
+          ) : (
+            <div className="grid">
+              {today.map((e) => (
+                <EventCard key={`${e.sport}-${e.id}`} e={e} now={now} catalog={settings.esportsCatalog} overrides={settings.sportColorOverrides} onClick={() => setSelectedEvent(e)} />
+              ))}
+            </div>
+          )}
+        </section>
       ) : (
         <>
           <section>

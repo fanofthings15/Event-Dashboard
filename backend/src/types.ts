@@ -19,6 +19,7 @@ export interface NormalizedEvent {
   name: string; // e.g. "Chiefs vs Bills" or "Monaco Grand Prix"
   startTime: string; // ISO 8601
   endTime?: string; // multi-day events (e.g. FRC) — omitted for single-day events
+  durationMinutes?: number; // known exact duration, e.g. custom events — distinct from endTime, which is for multi-day date-range display
   status: EventStatus;
   detailUrl?: string;
   streamUrl?: string;

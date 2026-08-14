@@ -21,6 +21,52 @@ export default function SettingsDrawer({ onClose, allEvents }: Props) {
     setNewPandaKey("");
   }
 
+  // --- Favorite teams (cross-sport) ---
+  const [newTeam, setNewTeam] = useState("");
+  function addFavoriteTeam() {
+    const name = newTeam.trim();
+    if (!name || settings.favoriteTeams.includes(name)) return;
+    save({ favoriteTeams: [...settings.favoriteTeams, name] });
+    setNewTeam("");
+  }
+  function removeFavoriteTeam(name: string) {
+    save({ favoriteTeams: settings.favoriteTeams.filter((t) => t !== name) });
+  }
+
+  // --- Notifications ---
+  const notificationsSupported = typeof Notification !== "undefined";
+  const [permission, setPermission] = useState(notificationsSupported ? Notification.permission : "denied");
+  async function requestPermission() {
+    const result = await Notification.requestPermission();
+    setPermission(result);
+    if (result === "granted") save({ notifyOnLive: true });
+  }
+  function toggleNotify() {
+    save({ notifyOnLive: !settings.notifyOnLive });
+  }
+
+  // --- Poll interval ---
+  const [pollSeconds, setPollSeconds] = useState(String(settings.pollIntervalSeconds));
+  function savePollInterval() {
+    const n = Number(pollSeconds);
+    if (Number.isFinite(n) && n >= 15) save({ pollIntervalSeconds: n });
+  }
+
+  // --- Theme ---
+  function setTheme(theme: "dark" | "light") {
+    save({ theme });
+  }
+
+  // --- Calendar feed ---
+  const feedUrl = `${window.location.origin}/calendar.ics`;
+  const [feedCopied, setFeedCopied] = useState(false);
+  function copyFeedUrl() {
+    navigator.clipboard.writeText(feedUrl).then(() => {
+      setFeedCopied(true);
+      setTimeout(() => setFeedCopied(false), 2000);
+    });
+  }
+
   return (
     <div className="drawer-backdrop" onClick={onClose}>
       <div className="drawer" onClick={(e) => e.stopPropagation()}>
@@ -55,6 +101,93 @@ export default function SettingsDrawer({ onClose, allEvents }: Props) {
           <span className="hint">Click a source to configure just that one.</span>
           <div style={{ marginTop: 10 }}>
             <SourceSettings allEvents={allEvents} />
+          </div>
+        </section>
+
+        <section className="settings-section">
+          <h3>Favorite teams</h3>
+          <span className="hint">Any sport — matched against team names to add the same "★ Your team" badge FRC uses.</span>
+          {settings.favoriteTeams.length > 0 && (
+            <div className="source-chip-list" style={{ marginTop: 10 }}>
+              {settings.favoriteTeams.map((team) => (
+                <button key={team} type="button" className="chip active" onClick={() => removeFavoriteTeam(team)}>
+                  {team} ×
+                </button>
+              ))}
+            </div>
+          )}
+          <div className="form-row" style={{ marginTop: 10 }}>
+            <input
+              className="text-input"
+              placeholder="e.g. Lions, Pistons"
+              value={newTeam}
+              onChange={(e) => setNewTeam(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && addFavoriteTeam()}
+            />
+            <button className="btn primary" onClick={addFavoriteTeam} disabled={!newTeam.trim()}>
+              Add
+            </button>
+          </div>
+        </section>
+
+        <section className="settings-section">
+          <h3>Notifications</h3>
+          {!notificationsSupported ? (
+            <span className="hint">Not supported in this browser.</span>
+          ) : permission !== "granted" ? (
+            <>
+              <span className="hint">Get a browser notification when a favorited or followed event goes live.</span>
+              <button className="btn primary" style={{ marginTop: 10 }} onClick={requestPermission}>
+                Enable notifications
+              </button>
+            </>
+          ) : (
+            <button type="button" className={`chip ${settings.notifyOnLive ? "active" : ""}`} onClick={toggleNotify}>
+              {settings.notifyOnLive ? "Notifying on live events" : "Notifications off"}
+            </button>
+          )}
+        </section>
+
+        <section className="settings-section">
+          <h3>Refresh interval</h3>
+          <span className="hint">How often the dashboard checks for new data, in seconds (minimum 15).</span>
+          <div className="form-row" style={{ marginTop: 10 }}>
+            <input
+              type="number"
+              className="text-input"
+              min={15}
+              value={pollSeconds}
+              onChange={(e) => setPollSeconds(e.target.value)}
+            />
+            <button className="btn primary" onClick={savePollInterval} disabled={Number(pollSeconds) === settings.pollIntervalSeconds}>
+              Save
+            </button>
+          </div>
+        </section>
+
+        <section className="settings-section">
+          <h3>Theme</h3>
+          <div className="source-chip-list">
+            <button type="button" className={`chip ${settings.theme === "dark" ? "active" : ""}`} onClick={() => setTheme("dark")}>
+              Dark
+            </button>
+            <button type="button" className={`chip ${settings.theme === "light" ? "active" : ""}`} onClick={() => setTheme("light")}>
+              Light
+            </button>
+          </div>
+        </section>
+
+        <section className="settings-section">
+          <h3>Calendar feed</h3>
+          <span className="hint">
+            Subscribe to this URL in Google Calendar, Apple Calendar, or Outlook to get every currently-shown event
+            synced automatically.
+          </span>
+          <div className="form-row" style={{ marginTop: 10 }}>
+            <input className="text-input" readOnly value={feedUrl} onClick={(e) => (e.target as HTMLInputElement).select()} />
+            <button className="btn" onClick={copyFeedUrl}>
+              {feedCopied ? "Copied!" : "Copy"}
+            </button>
           </div>
         </section>
 

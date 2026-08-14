@@ -19,6 +19,7 @@ export interface NormalizedEvent {
   name: string;
   startTime: string;
   endTime?: string; // multi-day events (e.g. FRC) — omitted for single-day events
+  durationMinutes?: number; // known exact duration, e.g. custom events
   status: EventStatus;
   detailUrl?: string;
   streamUrl?: string;

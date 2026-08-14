@@ -18,6 +18,7 @@ router.get("/", (_req, res) => {
       league: c.league,
       name: c.name,
       startTime: c.startTime,
+      durationMinutes: c.durationMinutes,
       status,
       color: c.color,
       detailUrl: c.url,

@@ -13,6 +13,10 @@ const EMPTY: SettingsState = {
   customEvents: [],
   esportsCatalog: [],
   sportColorOverrides: {},
+  favoriteTeams: [],
+  notifyOnLive: false,
+  pollIntervalSeconds: 60,
+  theme: "dark",
 };
 
 interface SettingsContextValue {

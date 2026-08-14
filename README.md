@@ -164,6 +164,30 @@ untouched. All of this is server-side state, not browser storage — it's
 what "stored locally" means here: it lives in a file on your machine, never
 sent anywhere but each service's own API and back to your own browser.
 
+## Quality-of-life features
+
+- **Favorite teams** — a Settings section, separate from any one source,
+  for team names to watch across every sport (not just FRC). Matched
+  case-insensitively against each event's team list and gives the same
+  "★ Your team" badge FRC's own follow feature uses.
+- **Notifications** — once granted, get a browser notification the moment
+  a favorited or followed event goes live (not every live event — just
+  ones you actually care about).
+- **Today / Agenda view** — a third view mode next to List and Calendar: a
+  flat chronological list of just today's events.
+- **Search** — filters every view by event name, team, or league.
+- **Calendar feed** — `/calendar.ics` on the backend aggregates every
+  currently-enabled source (respecting your saved settings — disabled
+  sources and excluded leagues) into a real subscribable calendar feed.
+  Point Google Calendar, Apple Calendar, or Outlook's "subscribe by URL" at
+  it and it stays in sync automatically, unlike the one-off "Add to Google
+  Calendar" button on individual events.
+- **Refresh interval** — how often the dashboard polls for new data,
+  configurable in Settings (minimum 15s).
+- **Light theme** — a full second color palette, toggled in Settings.
+- **PWA install** — a manifest is linked, so mobile browsers offer to add
+  it to your home screen like a native app.
+
 ## Testing status
 
 Type-checked and built successfully (frontend and backend). The
