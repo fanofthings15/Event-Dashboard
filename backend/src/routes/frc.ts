@@ -25,6 +25,37 @@ interface TbaDistrict {
   year: number;
 }
 
+// Single-state districts, plus the multi-state ones — derived from the
+// actual 2026 event lists (each district's real event keys start with
+// their member states' codes), not guessed. This is what makes off-season
+// events (which TBA doesn't tag under the district's official competition
+// series at all, e.g. MARC or Ferris State Roboday, both in Michigan) still
+// show the right region — state_prov is reliable even when TBA's own
+// district-events list doesn't include the event.
+const STATE_TO_DISTRICT: Record<string, string> = {
+  MI: "FIM",
+  TX: "FIT",
+  IN: "FIN",
+  WI: "WIN",
+  GA: "PCH",
+  SC: "FSC",
+  NC: "FNC",
+  ON: "ONT",
+  OR: "PNW",
+  WA: "PNW",
+  CT: "NE",
+  MA: "NE",
+  ME: "NE",
+  NH: "NE",
+  RI: "NE",
+  VT: "NE",
+  NJ: "FMA",
+  PA: "FMA",
+  MD: "FCH",
+  VA: "FCH",
+  CA: "CA",
+};
+
 // FRC district events (e.g. FIM = FIRST In Michigan, FIT = FIRST In Texas)
 // use the district abbreviation as the region — it's the name people
 // actually recognize. Non-districted "regional" events (most of the
@@ -36,18 +67,26 @@ interface TbaDistrict {
 async function buildDistrictMap(year: number, authHeaders: Record<string, string>): Promise<Map<string, string>> {
   return cached(`frc:district-map:${year}`, 60 * 60, async () => {
     const districtsRes = await fetch(`https://www.thebluealliance.com/api/v3/districts/${year}`, { headers: authHeaders });
-    if (!districtsRes.ok) return new Map<string, string>();
+    if (!districtsRes.ok) {
+      console.error(`[frc-districts] /districts/${year} responded ${districtsRes.status} — no district names will show this session.`);
+      return new Map<string, string>();
+    }
     const districts: TbaDistrict[] = await districtsRes.json();
+    console.log(`[frc-districts] found ${districts.length} districts for ${year}: ${districts.map((d) => d.abbreviation).join(", ")}`);
 
     const map = new Map<string, string>();
     await Promise.allSettled(
       districts.map(async (d) => {
         const r = await fetch(`https://www.thebluealliance.com/api/v3/district/${d.key}/events/keys`, { headers: authHeaders });
-        if (!r.ok) return;
+        if (!r.ok) {
+          console.error(`[frc-districts] /district/${d.key}/events/keys responded ${r.status} — ${d.abbreviation} events will show state code instead.`);
+          return;
+        }
         const eventKeys: string[] = await r.json();
         for (const key of eventKeys) map.set(key, d.abbreviation.toUpperCase());
       })
     );
+    console.log(`[frc-districts] built map with ${map.size} event->district entries total`);
     return map;
   });
 }
@@ -128,6 +167,7 @@ router.get("/", async (_req, res) => {
       .filter((e) => statusFor(e.start_date, e.end_date) !== "finished")
       .map((e) => {
         const location = [e.city, e.state_prov, e.country].filter(Boolean).join(", ");
+        const districtRegion = districtMap.get(e.key) || (e.state_prov ? STATE_TO_DISTRICT[e.state_prov] : undefined);
         return {
           id: e.key,
           sport: "frc",
@@ -140,7 +180,7 @@ router.get("/", async (_req, res) => {
           detailUrl: e.website || `https://www.thebluealliance.com/event/${e.key}`,
           extra: location ? [{ label: "Location", value: location }] : undefined,
           followed: followedKeys.has(e.key) || undefined,
-          region: districtMap.get(e.key) || e.state_prov || undefined,
+          region: districtRegion || e.state_prov || undefined,
         };
       });
 

@@ -140,7 +140,12 @@ Click **Settings** for:
   **region picker** (e.g. FIM, FIT, or a plain state code like GA for
   non-districted regionals) — an include-list, not exclude, since
   picking the 2-3 regions you actually care about is more natural than
-  excluding everywhere else; "All regions" resets it. FRC event cards also
+  excluding everywhere else; "All regions" resets it. District names are
+  applied both via TBA's own district-events data and a static
+  state-to-district table (`backend/src/routes/frc.ts`), so off-season
+  events TBA doesn't officially tag under a district's competition series
+  (e.g. MARC, an off-season Michigan event) still show the right region.
+  FRC event cards also
   show current competition status when the event is happening today — a
   qual match count ("Qual Match 23 of 40") or playoff round/match
   ("Semifinals — Match 2"), computed from TBA's match data the same way
