@@ -12,6 +12,7 @@ const EMPTY: SettingsState = {
   enabledEsportsGames: [],
   customEvents: [],
   esportsCatalog: [],
+  sportColorOverrides: {},
 };
 
 interface SettingsContextValue {

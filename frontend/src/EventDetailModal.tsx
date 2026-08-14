@@ -29,7 +29,7 @@ export default function EventDetailModal({ event, now, catalog, onClose }: Props
   const { settings, save } = useSettings();
   const [confirmingHide, setConfirmingHide] = useState(false);
 
-  const meta = sportMeta(event, catalog);
+  const meta = sportMeta(event, catalog, settings.sportColorOverrides);
   const live = isLiveNow(event, now);
   const alreadyHidden = settings.excludedLeagues.includes(event.league);
   const fallbackUrl = event.detailUrl ?? liquipediaSearchUrl(event.sport, event.teams?.map((t) => t.name).join(" ") || event.name);
@@ -41,7 +41,7 @@ export default function EventDetailModal({ event, now, catalog, onClose }: Props
 
   return (
     <div className="drawer-backdrop" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
+      <div className="modal" style={{ borderLeftColor: meta.color, borderLeftWidth: 4 }} onClick={(e) => e.stopPropagation()}>
         <div className="event-top" style={{ marginBottom: 8 }}>
           <span className="sport-tag">{meta.label}</span>
           {live ? <span className="live-badge">LIVE</span> : <span className="countdown">{formatCountdown(event.startTime, now)}</span>}

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useSettings } from "./SettingsContext";
 import { CORE_SPORT_META } from "./types";
+import { sportMeta } from "./sportMeta";
 import LeaguePicker from "./LeaguePicker";
 import type { NormalizedEvent } from "./types";
 
@@ -43,6 +44,20 @@ export default function SettingsDrawer({ onClose, allEvents }: Props) {
       : [...settings.enabledEsportsGames, slug];
     save({ enabledEsportsGames: next });
   }
+
+  // --- Color overrides — auto-saves per swatch as soon as you pick a color ---
+  function setColor(sport: string, color: string) {
+    save({ sportColorOverrides: { ...settings.sportColorOverrides, [sport]: color } });
+  }
+  function resetColor(sport: string) {
+    const next = { ...settings.sportColorOverrides };
+    delete next[sport];
+    save({ sportColorOverrides: next });
+  }
+  const allColorableSports = [
+    ...Object.entries(CORE_SPORT_META).map(([sport, meta]) => ({ sport, label: meta.label, defaultColor: meta.color })),
+    ...settings.esportsCatalog.map((g) => ({ sport: g.sport, label: g.label, defaultColor: g.color })),
+  ];
 
   return (
     <div className="drawer-backdrop" onClick={onClose}>
@@ -99,34 +114,59 @@ export default function SettingsDrawer({ onClose, allEvents }: Props) {
           <h3>Data sources</h3>
           <span className="hint">Off means skipped entirely — no requests made, nothing shown.</span>
           <div className="source-chip-list">
-            {Object.entries(CORE_SPORT_META).map(([sport, meta]) => {
+            {Object.entries(CORE_SPORT_META).map(([sport, defaultMeta]) => {
               const active = !settings.disabledCoreSources.includes(sport);
+              const color = sportMeta({ sport } as NormalizedEvent, settings.esportsCatalog, settings.sportColorOverrides).color;
               return (
                 <button
                   key={sport}
                   type="button"
                   className={`chip ${active ? "active" : ""}`}
-                  style={active ? { borderColor: meta.color, background: `${meta.color}26`, color: "#fff" } : undefined}
+                  style={active ? { borderColor: color, background: `${color}26`, color: "#fff" } : undefined}
                   onClick={() => toggleCore(sport)}
                 >
-                  <span className="dot" style={{ background: meta.color }} />
-                  {meta.label}
+                  <span className="dot" style={{ background: color }} />
+                  {defaultMeta.label}
                 </button>
               );
             })}
             {settings.esportsCatalog.map((g) => {
               const active = settings.enabledEsportsGames.includes(g.slug);
+              const color = sportMeta({ sport: g.sport } as NormalizedEvent, settings.esportsCatalog, settings.sportColorOverrides).color;
               return (
                 <button
                   key={g.slug}
                   type="button"
                   className={`chip ${active ? "active" : ""}`}
-                  style={active ? { borderColor: g.color, background: `${g.color}26`, color: "#fff" } : undefined}
+                  style={active ? { borderColor: color, background: `${color}26`, color: "#fff" } : undefined}
                   onClick={() => toggleGame(g.slug)}
                 >
-                  <span className="dot" style={{ background: g.color }} />
+                  <span className="dot" style={{ background: color }} />
                   {g.label}
                 </button>
+              );
+            })}
+          </div>
+        </section>
+
+        {/* Colors */}
+        <section className="settings-section">
+          <h3>Colors</h3>
+          <span className="hint">Pick your own color per sport if two are too close to tell apart at a glance.</span>
+          <div className="color-picker-list">
+            {allColorableSports.map(({ sport, label, defaultColor }) => {
+              const current = settings.sportColorOverrides[sport] || defaultColor;
+              const isCustom = Boolean(settings.sportColorOverrides[sport]);
+              return (
+                <div key={sport} className="color-picker-row">
+                  <input type="color" value={current} onChange={(e) => setColor(sport, e.target.value)} />
+                  <span className="color-picker-label">{label}</span>
+                  {isCustom && (
+                    <button type="button" className="btn-x-link" onClick={() => resetColor(sport)}>
+                      Reset
+                    </button>
+                  )}
+                </div>
               );
             })}
           </div>

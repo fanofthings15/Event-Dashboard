@@ -16,6 +16,7 @@ router.get("/", (_req, res) => {
     disabledCoreSources: settings.disabledCoreSources,
     enabledEsportsGames: settings.enabledEsportsGames,
     customEvents: settings.customEvents,
+    sportColorOverrides: settings.sportColorOverrides,
     esportsCatalog: ESPORTS_CATALOG,
   });
 });
@@ -47,6 +48,13 @@ router.post("/", (req, res) => {
         typeof e.startTime === "string" &&
         typeof e.durationMinutes === "number"
     );
+  }
+  if (body.sportColorOverrides && typeof body.sportColorOverrides === "object") {
+    const clean: Record<string, string> = {};
+    for (const [key, value] of Object.entries(body.sportColorOverrides)) {
+      if (typeof value === "string" && /^#[0-9a-fA-F]{6}$/.test(value)) clean[key] = value;
+    }
+    next.sportColorOverrides = clean;
   }
 
   writeSettings(next);

@@ -128,6 +128,11 @@ Click **Settings** for:
   the PandaScore slug — it's not always the obvious name, e.g. Rocket League
   is `rl`); add more ESPN-covered sports (e.g. MLB) via
   `backend/src/espnScoreboard.ts`'s router factory.
+- **Colors** — every sport's default color is spaced 30° apart around the
+  color wheel so no two are easily confused, but if you still want to
+  change one, pick your own here — saves instantly, applies everywhere
+  (cards, calendar, filter chips, detail view), and a "Reset" link brings
+  back the default.
 - **Filters** — per-sport, collapsible checkbox groups (click a sport to
   expand it; collapsed groups show a hidden-league count) built from
   whatever leagues are currently showing up in your data, so a one-off

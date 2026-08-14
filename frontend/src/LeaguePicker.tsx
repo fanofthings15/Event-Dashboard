@@ -127,7 +127,7 @@ export default function LeaguePicker({ allEvents }: Props) {
   return (
     <div>
       {[...leaguesBySport.entries()].map(([sport, leagues]) => {
-        const meta = sportMeta({ sport } as NormalizedEvent, settings.esportsCatalog);
+        const meta = sportMeta({ sport } as NormalizedEvent, settings.esportsCatalog, settings.sportColorOverrides);
         const isOpen = expanded.has(sport);
         const hiddenCount = [...leagues].filter((l) => settings.excludedLeagues.includes(l)).length;
         return (

@@ -35,11 +35,11 @@ export interface NormalizedEvent {
 // their label/color from the backend's esportsCatalog instead, since that
 // list is user-configurable.
 export const CORE_SPORT_META: Record<string, { label: string; color: string }> = {
-  nfl: { label: "NFL", color: "#3b82f6" },
-  f1: { label: "F1", color: "#f97316" },
-  nba: { label: "NBA", color: "#f59e0b" },
-  nhl: { label: "NHL", color: "#14b8a6" },
-  frc: { label: "FRC", color: "#7c3aed" },
+  f1: { label: "F1", color: "#ef4444" }, // 0°
+  nba: { label: "NBA", color: "#f97316" }, // 30°
+  nhl: { label: "NHL", color: "#14b8a6" }, // 180°
+  nfl: { label: "NFL", color: "#3b82f6" }, // 240°
+  frc: { label: "FRC", color: "#8b5cf6" }, // 270°
 };
 
 export const CUSTOM_FALLBACK_COLOR = "#94a3b8";

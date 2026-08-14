@@ -26,4 +26,5 @@ export interface SettingsState {
   enabledEsportsGames: string[];
   customEvents: CustomEvent[];
   esportsCatalog: EsportsGame[];
+  sportColorOverrides: Record<string, string>;
 }

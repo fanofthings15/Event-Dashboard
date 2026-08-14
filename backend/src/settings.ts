@@ -37,6 +37,9 @@ export interface Settings {
   // full list of what's available to enable).
   enabledEsportsGames: string[];
   customEvents: CustomEvent[];
+  // Per-sport color overrides (sport key -> hex), layered on top of the
+  // built-in defaults so a user can fix any pair they still find too close.
+  sportColorOverrides: Record<string, string>;
 }
 
 const DEFAULTS: Settings = {
@@ -49,6 +52,7 @@ const DEFAULTS: Settings = {
   disabledCoreSources: [],
   enabledEsportsGames: DEFAULT_ENABLED_SLUGS,
   customEvents: [],
+  sportColorOverrides: {},
 };
 
 export function readSettings(): Settings {

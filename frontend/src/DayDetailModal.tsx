@@ -7,12 +7,13 @@ interface Props {
   date: Date;
   events: NormalizedEvent[];
   catalog: EsportsGame[];
+  overrides: Record<string, string>;
   now: Date;
   onClose: () => void;
   onEventClick: (e: NormalizedEvent) => void;
 }
 
-export default function DayDetailModal({ date, events, catalog, now, onClose, onEventClick }: Props) {
+export default function DayDetailModal({ date, events, catalog, overrides, now, onClose, onEventClick }: Props) {
   const sorted = [...events].sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
 
   const byHour = new Map<number, NormalizedEvent[]>();
@@ -43,7 +44,7 @@ export default function DayDetailModal({ date, events, catalog, now, onClose, on
                 <div className="hour-label">{formatHour(h)}</div>
                 <div className="hour-events">
                   {byHour.get(h)!.map((e) => {
-                    const meta = sportMeta(e, catalog);
+                    const meta = sportMeta(e, catalog, overrides);
                     const live = isLiveNow(e, now);
                     const time = new Date(e.startTime).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
                     return (

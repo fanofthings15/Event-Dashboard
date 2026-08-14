@@ -25,14 +25,16 @@ function EventCard({
   e,
   now,
   catalog,
+  overrides,
   onClick,
 }: {
   e: NormalizedEvent;
   now: Date;
   catalog: ReturnType<typeof useSettings>["settings"]["esportsCatalog"];
+  overrides: Record<string, string>;
   onClick: () => void;
 }) {
-  const meta = sportMeta(e, catalog);
+  const meta = sportMeta(e, catalog, overrides);
   const live = isLiveNow(e, now);
   return (
     <button type="button" className={`event-card${live ? " is-live" : ""}`} style={{ borderLeftColor: meta.color }} onClick={onClick}>
@@ -145,7 +147,7 @@ export default function App() {
             Deselect all
           </button>
           {availableSports.map((s) => {
-            const meta = s === "custom" ? { label: "Custom", color: "#94a3b8" } : sportMeta({ sport: s } as NormalizedEvent, settings.esportsCatalog);
+            const meta = s === "custom" ? { label: "Custom", color: "#94a3b8" } : sportMeta({ sport: s } as NormalizedEvent, settings.esportsCatalog, settings.sportColorOverrides);
             return (
               <button
                 key={s}
@@ -180,7 +182,7 @@ export default function App() {
       {loading ? (
         <div className="empty">Loading…</div>
       ) : view === "calendar" ? (
-        <CalendarView events={filtered} catalog={settings.esportsCatalog} now={now} onEventClick={setSelectedEvent} />
+        <CalendarView events={filtered} catalog={settings.esportsCatalog} overrides={settings.sportColorOverrides} now={now} onEventClick={setSelectedEvent} />
       ) : (
         <>
           <section>
@@ -190,7 +192,7 @@ export default function App() {
             ) : (
               <div className="grid">
                 {live.map((e) => (
-                  <EventCard key={`${e.sport}-${e.id}`} e={e} now={now} catalog={settings.esportsCatalog} onClick={() => setSelectedEvent(e)} />
+                  <EventCard key={`${e.sport}-${e.id}`} e={e} now={now} catalog={settings.esportsCatalog} overrides={settings.sportColorOverrides} onClick={() => setSelectedEvent(e)} />
                 ))}
               </div>
             )}
@@ -203,7 +205,7 @@ export default function App() {
             ) : (
               <div className="grid">
                 {upcoming.map((e) => (
-                  <EventCard key={`${e.sport}-${e.id}`} e={e} now={now} catalog={settings.esportsCatalog} onClick={() => setSelectedEvent(e)} />
+                  <EventCard key={`${e.sport}-${e.id}`} e={e} now={now} catalog={settings.esportsCatalog} overrides={settings.sportColorOverrides} onClick={() => setSelectedEvent(e)} />
                 ))}
               </div>
             )}

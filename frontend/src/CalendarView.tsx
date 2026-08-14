@@ -12,6 +12,7 @@ const MAX_GROUPS_PER_DAY = 4;
 interface Props {
   events: NormalizedEvent[];
   catalog: EsportsGame[];
+  overrides: Record<string, string>;
   now: Date;
   onEventClick: (e: NormalizedEvent) => void;
 }
@@ -23,17 +24,17 @@ interface SportGroup {
   events: NormalizedEvent[];
 }
 
-function groupBySport(dayEvents: NormalizedEvent[], catalog: EsportsGame[]): SportGroup[] {
+function groupBySport(dayEvents: NormalizedEvent[], catalog: EsportsGame[], overrides: Record<string, string>): SportGroup[] {
   const map = new Map<string, SportGroup>();
   for (const e of dayEvents) {
-    const meta = sportMeta(e, catalog);
+    const meta = sportMeta(e, catalog, overrides);
     if (!map.has(e.sport)) map.set(e.sport, { sport: e.sport, label: meta.label, color: meta.color, events: [] });
     map.get(e.sport)!.events.push(e);
   }
   return [...map.values()];
 }
 
-export default function CalendarView({ events, catalog, now, onEventClick }: Props) {
+export default function CalendarView({ events, catalog, overrides, now, onEventClick }: Props) {
   const [viewDate, setViewDate] = useState(() => new Date());
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
   const year = viewDate.getFullYear();
@@ -61,7 +62,7 @@ export default function CalendarView({ events, catalog, now, onEventClick }: Pro
         <div className="calendar-live-strip">
           <span className="live-badge">LIVE</span>
           {liveNow.map((e) => {
-            const meta = sportMeta(e, catalog);
+            const meta = sportMeta(e, catalog, overrides);
             return (
               <button key={`${e.sport}-${e.id}`} type="button" className="calendar-live-chip" onClick={() => onEventClick(e)}>
                 <span className="dot" style={{ background: meta.color }} />
@@ -91,7 +92,7 @@ export default function CalendarView({ events, catalog, now, onEventClick }: Pro
 
         {weeks.flat().map((cell, i) => {
           const dayEvents = eventsByDay.get(cell.date.toDateString()) ?? [];
-          const groups = groupBySport(dayEvents, catalog);
+          const groups = groupBySport(dayEvents, catalog, overrides);
           const shown = groups.slice(0, MAX_GROUPS_PER_DAY);
           const extraGroups = groups.length - shown.length;
 
@@ -132,6 +133,7 @@ export default function CalendarView({ events, catalog, now, onEventClick }: Pro
           date={selectedDay}
           events={selectedDayEvents}
           catalog={catalog}
+          overrides={overrides}
           now={now}
           onClose={() => setSelectedDay(null)}
           onEventClick={onEventClick}
