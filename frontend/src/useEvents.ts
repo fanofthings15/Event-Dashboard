@@ -70,9 +70,9 @@ export function useEvents(
   frcRegions: string[],
   favoriteTeams: string[],
   followedEventIds: string[],
-  notifyLeadMinutes: number,
+  notifyLeadMinutes: number[],
   pollMs = 60_000,
-  onNotify?: (e: NormalizedEvent, reason: NotifyReason) => void
+  onNotify?: (e: NormalizedEvent, reason: NotifyReason, leadMinutes?: number) => void
 ): FeedState {
   const [events, setEvents] = useState<NormalizedEvent[]>([]);
   const [allEvents, setAllEvents] = useState<NormalizedEvent[]>([]);
@@ -114,6 +114,10 @@ export function useEvents(
     if (onNotify) {
       const nowLiveIds = new Set<string>();
       const nowMs = Date.now();
+      // 0 is a no-op here — "at start" is already always covered by the
+      // live-transition branch below, regardless of what's selected.
+      const reminderLeads = notifyLeadMinutes.filter((m) => m > 0);
+
       for (const e of merged) {
         const key = `${e.sport}-${e.id}`;
 
@@ -123,11 +127,15 @@ export function useEvents(
           continue;
         }
 
-        if (notifyLeadMinutes > 0 && e.status === "upcoming" && !notifiedUpcoming.current.has(key)) {
+        if (reminderLeads.length > 0 && e.status === "upcoming") {
           const msUntilStart = new Date(e.startTime).getTime() - nowMs;
-          if (msUntilStart > 0 && msUntilStart <= notifyLeadMinutes * 60_000) {
-            notifiedUpcoming.current.add(key);
-            onNotify(e, "upcoming");
+          for (const lead of reminderLeads) {
+            const leadKey = `${key}-${lead}`;
+            if (notifiedUpcoming.current.has(leadKey)) continue;
+            if (msUntilStart > 0 && msUntilStart <= lead * 60_000) {
+              notifiedUpcoming.current.add(leadKey);
+              onNotify(e, "upcoming", lead);
+            }
           }
         }
       }
@@ -158,7 +166,7 @@ export function useEvents(
     frcRegions.join(","),
     favoriteTeams.join(","),
     followedEventIds.join(","),
-    notifyLeadMinutes,
+    notifyLeadMinutes.join(","),
     onNotify,
   ]);
 

@@ -193,11 +193,11 @@ sent anywhere but each service's own API and back to your own browser.
   considered followed automatically, since adding one is already an
   explicit statement of interest.
 - **Notifications** — once granted, get a browser notification the moment
-  a followed event goes live. Choose in Settings between **"Followed teams
-  only"** (the default — just events matching a favorite/followed team) or
-  **"Every live event"** across every enabled source. A separate chip row
-  lets you also get a heads-up before an event starts (5/15/30/60 minutes,
-  or "At start only" for just the live notification).
+  a followed event goes live. Choose in Settings between **"Every live
+  event"** across every enabled source, or **"Followed teams only"** (the
+  default — just events matching a favorite/followed team). A separate
+  chip row lets you pick any combination of advance reminders — e.g. both
+  "30 min before" and "At start" at once, not just one.
 - **Today / Agenda view** and **Finished view** — two extra view modes
   next to List and Calendar. Today is a flat chronological list of every
   event happening today, including ones that already finished. Finished

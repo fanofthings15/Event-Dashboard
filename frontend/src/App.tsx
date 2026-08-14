@@ -116,15 +116,15 @@ export default function App() {
   }, [settings.theme]);
 
   const notifyEvent = useCallback(
-    (e: NormalizedEvent, reason: NotifyReason) => {
+    (e: NormalizedEvent, reason: NotifyReason, leadMinutes?: number) => {
       if (!settings.notifyOnLive) return;
       if (settings.notifyMode === "followed" && !e.followed && !e.manuallyFollowed) return;
       if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
       const meta = sportMeta(e, settings.esportsCatalog, settings.sportColorOverrides);
-      const title = reason === "live" ? `${e.name} is live` : `${e.name} starts in ${settings.notifyLeadMinutes} min`;
-      new Notification(title, { body: meta.label, tag: `${e.sport}-${e.id}-${reason}` });
+      const title = reason === "live" ? `${e.name} is live` : `${e.name} starts in ${leadMinutes} min`;
+      new Notification(title, { body: meta.label, tag: `${e.sport}-${e.id}-${reason}-${leadMinutes ?? ""}` });
     },
-    [settings.notifyOnLive, settings.notifyMode, settings.notifyLeadMinutes, settings.esportsCatalog, settings.sportColorOverrides]
+    [settings.notifyOnLive, settings.notifyMode, settings.esportsCatalog, settings.sportColorOverrides]
   );
 
   const { events, allEvents, warnings, loading, refreshing, lastUpdated, refetch } = useEvents(

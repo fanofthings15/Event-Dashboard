@@ -77,8 +77,10 @@ router.post("/", (req, res) => {
   if (Array.isArray(body.dismissedFinishedEventIds)) {
     next.dismissedFinishedEventIds = body.dismissedFinishedEventIds.filter((x: unknown) => typeof x === "string");
   }
-  if (typeof body.notifyLeadMinutes === "number" && body.notifyLeadMinutes >= 0) {
-    next.notifyLeadMinutes = Math.floor(body.notifyLeadMinutes);
+  if (Array.isArray(body.notifyLeadMinutes)) {
+    next.notifyLeadMinutes = body.notifyLeadMinutes
+      .filter((x: unknown) => typeof x === "number" && x >= 0)
+      .map((x: number) => Math.floor(x));
   }
 
   writeSettings(next);

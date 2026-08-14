@@ -35,5 +35,5 @@ export interface SettingsState {
   followedEventIds: string[];
   notifyMode: "followed" | "all";
   dismissedFinishedEventIds: string[];
-  notifyLeadMinutes: number;
+  notifyLeadMinutes: number[];
 }

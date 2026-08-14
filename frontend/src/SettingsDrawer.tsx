@@ -64,8 +64,11 @@ export default function SettingsDrawer({ onClose, allEvents }: Props) {
   function setNotifyMode(mode: "followed" | "all") {
     save({ notifyMode: mode });
   }
-  function setNotifyLead(minutes: number) {
-    save({ notifyLeadMinutes: minutes });
+  function toggleNotifyLead(minutes: number) {
+    const next = settings.notifyLeadMinutes.includes(minutes)
+      ? settings.notifyLeadMinutes.filter((m) => m !== minutes)
+      : [...settings.notifyLeadMinutes, minutes];
+    save({ notifyLeadMinutes: next });
   }
 
   // --- Poll interval ---
@@ -180,34 +183,34 @@ export default function SettingsDrawer({ onClose, allEvents }: Props) {
                 <div className="source-chip-list" style={{ marginTop: 10 }}>
                   <button
                     type="button"
-                    className={`chip ${settings.notifyMode === "followed" ? "active" : ""}`}
-                    onClick={() => setNotifyMode("followed")}
-                  >
-                    Followed teams only
-                  </button>
-                  <button
-                    type="button"
                     className={`chip ${settings.notifyMode === "all" ? "active" : ""}`}
                     onClick={() => setNotifyMode("all")}
                   >
                     Every live event
+                  </button>
+                  <button
+                    type="button"
+                    className={`chip ${settings.notifyMode === "followed" ? "active" : ""}`}
+                    onClick={() => setNotifyMode("followed")}
+                  >
+                    Followed teams only
                   </button>
                 </div>
               )}
               {settings.notifyOnLive && (
                 <>
                   <span className="hint" style={{ display: "block", marginTop: 12, marginBottom: 6 }}>
-                    Also get a heads-up before an event starts:
+                    Also get a heads-up before an event starts — pick any combination:
                   </span>
                   <div className="source-chip-list">
                     {[0, 5, 15, 30, 60].map((minutes) => (
                       <button
                         key={minutes}
                         type="button"
-                        className={`chip ${settings.notifyLeadMinutes === minutes ? "active" : ""}`}
-                        onClick={() => setNotifyLead(minutes)}
+                        className={`chip ${settings.notifyLeadMinutes.includes(minutes) ? "active" : ""}`}
+                        onClick={() => toggleNotifyLead(minutes)}
                       >
-                        {minutes === 0 ? "At start only" : `${minutes} min before`}
+                        {minutes === 0 ? "At start" : `${minutes} min before`}
                       </button>
                     ))}
                   </div>
