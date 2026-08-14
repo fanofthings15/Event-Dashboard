@@ -29,7 +29,9 @@ export interface NormalizedEvent {
   extra?: ExtraFact[];
   color?: string;
   followed?: boolean;
+  manuallyFollowed?: boolean; // one-off follow (detail-view button, or a custom event) — shown as a distinct tag from the team-based "followed" badge
   region?: string; // state/province code, e.g. "MI" — currently FRC only
+  liveDetail?: string; // in-progress game clock/period, e.g. "Q3 8:42"
 }
 
 // Static meta for the core (non-PandaScore) sources. Esports titles get
@@ -61,4 +63,14 @@ export function liquipediaSearchUrl(sport: string, query: string): string | unde
   const wiki = LIQUIPEDIA_WIKI[sport];
   if (!wiki) return undefined;
   return `https://liquipedia.net/${wiki}/index.php?search=${encodeURIComponent(query)}`;
+}
+
+// Liquipedia pages are titled after the league itself (e.g.
+// liquipedia.net/leagueoflegends/LCK) — going straight there is far more
+// useful than a search results page, since the league page has the actual
+// standings/schedule/context a search often doesn't surface directly.
+export function liquipediaLeagueUrl(sport: string, league: string): string | undefined {
+  const wiki = LIQUIPEDIA_WIKI[sport];
+  if (!wiki || !league) return undefined;
+  return `https://liquipedia.net/${wiki}/${encodeURIComponent(league.trim().replace(/\s+/g, "_"))}`;
 }

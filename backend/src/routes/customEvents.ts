@@ -22,6 +22,7 @@ router.get("/", (_req, res) => {
       status,
       color: c.color,
       detailUrl: c.url,
+      manuallyFollowed: true,
     };
   });
 

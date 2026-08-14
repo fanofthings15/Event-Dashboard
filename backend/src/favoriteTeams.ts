@@ -3,10 +3,10 @@
 // Mirrors frontend/src/useEvents.ts's withFavoriteTeams so both sides agree
 // on what counts as "followed."
 export function matchesFavoriteTeam(
-  event: { name: string; followed?: boolean; teams?: { name: string }[] },
+  event: { name: string; followed?: boolean; manuallyFollowed?: boolean; teams?: { name: string }[] },
   favoriteTeams: string[]
 ): boolean {
-  if (event.followed) return true;
+  if (event.followed || event.manuallyFollowed) return true;
   if (favoriteTeams.length === 0) return false;
   const haystacks = event.teams?.length ? event.teams.map((t) => t.name.toLowerCase()) : [event.name.toLowerCase()];
   return favoriteTeams.some((team) => {

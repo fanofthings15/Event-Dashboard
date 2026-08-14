@@ -54,10 +54,12 @@ function withFavoriteTeams(e: NormalizedEvent, favoriteTeams: string[]): Normali
 }
 
 // A one-off manual follow on a specific event (the detail view's "Follow
-// event" button), independent of team-name matching.
+// event" button), independent of team-name matching. Kept as a distinct
+// flag from `followed` so the UI can show a different badge for "you
+// followed this specific event" vs "a team you follow is playing."
 function withManualFollow(e: NormalizedEvent, followedEventIds: string[]): NormalizedEvent {
-  if (e.followed) return e;
-  return followedEventIds.includes(`${e.sport}-${e.id}`) ? { ...e, followed: true } : e;
+  if (e.manuallyFollowed) return e;
+  return followedEventIds.includes(`${e.sport}-${e.id}`) ? { ...e, manuallyFollowed: true } : e;
 }
 
 export function useEvents(
@@ -111,7 +113,7 @@ export function useEvents(
         if (e.status !== "live") continue;
         const key = `${e.sport}-${e.id}`;
         nowLiveIds.add(key);
-        if (e.followed && !prevLiveIds.current.has(key)) onNewlyLive(e);
+        if (!prevLiveIds.current.has(key)) onNewlyLive(e);
       }
       prevLiveIds.current = nowLiveIds;
     }

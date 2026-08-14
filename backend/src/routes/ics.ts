@@ -48,7 +48,7 @@ router.get("/", async (_req, res) => {
 
   const followedSet = new Set(settings.followedEventIds);
   for (const e of events) {
-    if (followedSet.has(`${e.sport}-${e.id}`)) e.followed = true;
+    if (followedSet.has(`${e.sport}-${e.id}`)) e.manuallyFollowed = true;
   }
 
   let filtered = events.filter((e) => e.sport === "custom" || !matchesExcluded(e.league ?? "", settings.excludedLeagues));

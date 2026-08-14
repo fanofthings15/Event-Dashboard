@@ -3,7 +3,7 @@ import type { NormalizedEvent } from "./types";
 import type { EsportsGame } from "./settingsTypes";
 import { sportMeta } from "./sportMeta";
 import { isLiveNow } from "./eventStatus";
-import { liquipediaSearchUrl } from "./types";
+import { liquipediaLeagueUrl, liquipediaSearchUrl } from "./types";
 import { googleCalendarUrl } from "./googleCalendar";
 import { useSettings } from "./SettingsContext";
 import ConfirmDialog from "./ConfirmDialog";
@@ -32,10 +32,16 @@ export default function EventDetailModal({ event, now, catalog, onClose }: Props
   const meta = sportMeta(event, catalog, settings.sportColorOverrides);
   const live = isLiveNow(event, now);
   const alreadyHidden = settings.excludedLeagues.includes(event.league);
-  const fallbackUrl = event.detailUrl ?? liquipediaSearchUrl(event.sport, event.teams?.map((t) => t.name).join(" ") || event.name);
+  // A direct league page (e.g. the LCK page) is far more useful than a
+  // search results page — fall back to search only if the league itself
+  // doesn't have a clean wiki page, then to the source's own link.
+  const fallbackUrl = event.detailUrl ?? liquipediaLeagueUrl(event.sport, event.league) ?? liquipediaSearchUrl(event.sport, event.name);
 
   const eventKey = `${event.sport}-${event.id}`;
-  const isManuallyFollowed = settings.followedEventIds.includes(eventKey);
+  // Combines the server's own computed flag (e.g. always-true for custom
+  // events) with the locally-toggled state, so the badge updates instantly
+  // on click rather than waiting for the next poll to confirm it.
+  const isManuallyFollowed = event.manuallyFollowed || settings.followedEventIds.includes(eventKey);
 
   async function toggleFollowEvent() {
     if (isManuallyFollowed) {
@@ -69,9 +75,11 @@ export default function EventDetailModal({ event, now, catalog, onClose }: Props
 
         <h2 style={{ marginTop: 0, marginBottom: 8 }}>{event.name}</h2>
         {event.followed && <span className="followed-chip">★ Your team</span>}
+        {event.manuallyFollowed && <span className="manual-follow-chip">📌 Followed event</span>}
         <div className="hint" style={{ marginBottom: 14 }}>
           {event.league} · {formatRange(event.startTime, event.endTime)}
           {event.venue ? ` · ${event.venue}` : ""}
+          {live && event.liveDetail ? ` · ${event.liveDetail}` : ""}
         </div>
 
         {event.seriesScore && (
@@ -104,9 +112,11 @@ export default function EventDetailModal({ event, now, catalog, onClose }: Props
         )}
 
         <div className="detail-actions">
-          <button type="button" className={`btn ${isManuallyFollowed ? "primary" : ""}`} onClick={toggleFollowEvent}>
-            {isManuallyFollowed ? "★ Following — notified when live" : "☆ Follow event"}
-          </button>
+          {event.sport !== "custom" && (
+            <button type="button" className={`btn ${isManuallyFollowed ? "primary" : ""}`} onClick={toggleFollowEvent}>
+              {isManuallyFollowed ? "★ Following — notified when live" : "☆ Follow event"}
+            </button>
+          )}
           {event.streamUrl && (
             <a className="btn primary" href={event.streamUrl} target="_blank" rel="noopener noreferrer">
               Watch live

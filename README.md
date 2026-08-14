@@ -89,10 +89,12 @@ release and double-click it.
   detail view: teams/players with logos and records where available, a
   "Watch live" button (prioritized YouTube, then Twitch, then anything else)
   when a stream link exists, best-of series scores (e.g. "2-1 (Bo3)"),
-  venue, and other facts. When a source (mainly PandaScore) gives no richer
-  data or link, it falls back to a Liquipedia search for that match. A
-  "Hide this league" button there adds it to your exclusions in one click —
-  no need to find and type it elsewhere.
+  venue, and other facts. When a source (mainly PandaScore) gives no direct
+  match link, it falls back to that league's own Liquipedia page (e.g. the
+  LCK page) rather than a generic search, since that's where the actual
+  standings/schedule/context live. A "Hide this league" button there adds
+  it to your exclusions in one click — no need to find and type it
+  elsewhere.
 - Team logos (next to each team's name) and the series score also show
   directly on the main-page cards, not just in the detail view.
 - **Follow event** — on the detail view, a one-click way to follow one
@@ -177,12 +179,32 @@ sent anywhere but each service's own API and back to your own browser.
 - **Favorite teams** — a Settings section, separate from any one source,
   for team names to watch across every sport (not just FRC). Matched
   case-insensitively against each event's team list and gives the same
-  "★ Your team" badge FRC's own follow feature uses.
+  "★ Your team" badge FRC's own follow feature uses. Since matching is
+  substring-based, a short nickname can span sports by accident (e.g.
+  "Falcons" would match both the Atlanta Falcons and CS's Team Falcons) —
+  type the fuller name to disambiguate (e.g. "Atlanta Falcons" vs
+  "Team Falcons").
+- **Follow event** (detail view) tags one specific event rather than a
+  whole team — shows a separate "📌 Followed event" badge from the
+  team-based "★ Your team" one, so you can tell at a glance which kind of
+  follow got something onto your radar. Custom events are always
+  considered followed automatically, since adding one is already an
+  explicit statement of interest.
 - **Notifications** — once granted, get a browser notification the moment
-  a favorited or followed event goes live (not every live event — just
-  ones you actually care about).
-- **Today / Agenda view** — a third view mode next to List and Calendar: a
-  flat chronological list of just today's events.
+  a followed event goes live. Choose in Settings between **"Followed teams
+  only"** (the default — just events matching a favorite/followed team) or
+  **"Every live event"** across every enabled source.
+- **Today / Agenda view** and **Finished view** — two extra view modes
+  next to List and Calendar. Today is a flat chronological list of just
+  today's events. Finished holds recently-completed events instead of
+  letting them vanish the instant they end — dismiss (×) the ones you're
+  done with; everything else sticks around for a while so you can catch up
+  later. (Esports matches don't currently get this shelf life — PandaScore's
+  own query only ever asks for in-progress/upcoming matches, so a finished
+  one disappears from that API entirely, not just from the display.)
+- **Live game clock** — NFL/NBA/NHL cards show the current period/clock
+  (e.g. "Q3 8:42") when a game is actually in progress, pulled from ESPN's
+  own live-status field.
 - **Search** — filters every view by event name, team, or league.
 - **Calendar feed** — `/calendar.ics` on the backend aggregates every
   currently-enabled source (respecting your saved settings — disabled
@@ -193,8 +215,8 @@ sent anywhere but each service's own API and back to your own browser.
   individual event to "push" into it; the feed itself is what controls
   what shows up. For finer control than whole sports/leagues, a
   **"favorites only"** toggle in Settings narrows the feed down to just
-  the teams you've added under Favorite teams (custom events always stay
-  included either way). The one-off "Add to Google Calendar" button on
+  the teams/events you've followed (custom events always stay included
+  either way). The one-off "Add to Google Calendar" button on
   individual events is separate — it uses Google's own unauthenticated
   "create event" link, which is why it opens a confirm page instead of
   adding silently; true one-click silent insert would need real Google

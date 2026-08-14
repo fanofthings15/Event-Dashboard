@@ -59,6 +59,14 @@ export interface Settings {
   // favoriteTeams (which matches by team name): this is a one-off follow
   // for a single event, not a standing team preference.
   followedEventIds: string[];
+  // "followed" = only notify for events matching a favorite team / manual
+  // follow (the default, avoids spam); "all" = notify for every live event
+  // across every enabled source.
+  notifyMode: "followed" | "all";
+  // Finished events the user has explicitly dismissed from the Finished
+  // view — stored as "sport-id" composite keys, same shape as
+  // followedEventIds.
+  dismissedFinishedEventIds: string[];
 }
 
 const DEFAULTS: Settings = {
@@ -78,6 +86,8 @@ const DEFAULTS: Settings = {
   theme: "dark",
   icsFavoritesOnly: false,
   followedEventIds: [],
+  notifyMode: "followed",
+  dismissedFinishedEventIds: [],
 };
 
 export function readSettings(): Settings {

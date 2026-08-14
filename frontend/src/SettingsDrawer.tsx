@@ -44,6 +44,9 @@ export default function SettingsDrawer({ onClose, allEvents }: Props) {
   function toggleNotify() {
     save({ notifyOnLive: !settings.notifyOnLive });
   }
+  function setNotifyMode(mode: "followed" | "all") {
+    save({ notifyMode: mode });
+  }
 
   // --- Poll interval ---
   const [pollSeconds, setPollSeconds] = useState(String(settings.pollIntervalSeconds));
@@ -145,9 +148,29 @@ export default function SettingsDrawer({ onClose, allEvents }: Props) {
               </button>
             </>
           ) : (
-            <button type="button" className={`chip ${settings.notifyOnLive ? "active" : ""}`} onClick={toggleNotify}>
-              {settings.notifyOnLive ? "Notifying on live events" : "Notifications off"}
-            </button>
+            <>
+              <button type="button" className={`chip ${settings.notifyOnLive ? "active" : ""}`} onClick={toggleNotify}>
+                {settings.notifyOnLive ? "Notifying on live events" : "Notifications off"}
+              </button>
+              {settings.notifyOnLive && (
+                <div className="source-chip-list" style={{ marginTop: 10 }}>
+                  <button
+                    type="button"
+                    className={`chip ${settings.notifyMode === "followed" ? "active" : ""}`}
+                    onClick={() => setNotifyMode("followed")}
+                  >
+                    Followed teams only
+                  </button>
+                  <button
+                    type="button"
+                    className={`chip ${settings.notifyMode === "all" ? "active" : ""}`}
+                    onClick={() => setNotifyMode("all")}
+                  >
+                    Every live event
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </section>
 

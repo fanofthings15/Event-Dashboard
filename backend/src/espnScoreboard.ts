@@ -43,6 +43,12 @@ export function buildEspnScoreboardRouter(espnPath: string, sport: string, leagu
           if (score && score !== "-") seriesScore = score;
         }
 
+        // Live game clock/period (e.g. "8:42 - 3rd Quarter"), when ESPN
+        // provides it — this is the field ESPN's site API conventionally
+        // uses for this, though it's not been verified against a live
+        // response from this sandbox (network-restricted).
+        const liveDetail = state === "in" ? e.status?.type?.shortDetail || e.status?.type?.detail : undefined;
+
         return {
           id: e.id,
           sport,
@@ -54,6 +60,7 @@ export function buildEspnScoreboardRouter(espnPath: string, sport: string, leagu
           venue: comp?.venue?.fullName,
           teams: teams.length ? teams : undefined,
           seriesScore,
+          liveDetail,
           extra: extra.length ? extra : undefined,
         };
       });

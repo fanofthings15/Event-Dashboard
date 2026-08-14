@@ -19,6 +19,8 @@ const EMPTY: SettingsState = {
   theme: "dark",
   icsFavoritesOnly: false,
   followedEventIds: [],
+  notifyMode: "followed",
+  dismissedFinishedEventIds: [],
 };
 
 interface SettingsContextValue {

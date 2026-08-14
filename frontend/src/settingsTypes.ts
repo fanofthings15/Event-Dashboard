@@ -33,4 +33,6 @@ export interface SettingsState {
   theme: "dark" | "light";
   icsFavoritesOnly: boolean;
   followedEventIds: string[];
+  notifyMode: "followed" | "all";
+  dismissedFinishedEventIds: string[];
 }

@@ -29,5 +29,7 @@ export interface NormalizedEvent {
   extra?: ExtraFact[];
   color?: string; // explicit override, used by custom events
   followed?: boolean; // a team the user follows is competing in this event
+  manuallyFollowed?: boolean; // this specific event was followed one-off (detail view button, or a custom event the user added) — shown as a distinct tag from the team-based "followed" badge
   region?: string; // state/province code, e.g. "MI" — currently FRC only
+  liveDetail?: string; // in-progress game clock/period, e.g. "Q3 8:42" — only set while live, when the source provides it
 }

@@ -72,7 +72,6 @@ async function buildDistrictMap(year: number, authHeaders: Record<string, string
       return new Map<string, string>();
     }
     const districts: TbaDistrict[] = await districtsRes.json();
-    console.log(`[frc-districts] found ${districts.length} districts for ${year}: ${districts.map((d) => d.abbreviation).join(", ")}`);
 
     const map = new Map<string, string>();
     await Promise.allSettled(
@@ -86,7 +85,6 @@ async function buildDistrictMap(year: number, authHeaders: Record<string, string
         for (const key of eventKeys) map.set(key, d.abbreviation.toUpperCase());
       })
     );
-    console.log(`[frc-districts] built map with ${map.size} event->district entries total`);
     return map;
   });
 }
@@ -161,10 +159,16 @@ router.get("/", async (_req, res) => {
       }
     }
 
-    // Only full events, never individual matches — and only ones that
-    // haven't already finished, so this stays a forward-looking schedule.
+    // Only full events, never individual matches — and events finished more
+    // than a week ago drop off so this doesn't grow forever, but recently-
+    // finished ones stay in so the new Finished view has something to show.
     const events: NormalizedEvent[] = data
-      .filter((e) => statusFor(e.start_date, e.end_date) !== "finished")
+      .filter((e) => {
+        const status = statusFor(e.start_date, e.end_date);
+        if (status !== "finished") return true;
+        const daysSinceEnd = (Date.now() - new Date(`${e.end_date}T23:59:59`).getTime()) / (1000 * 60 * 60 * 24);
+        return daysSinceEnd <= 7;
+      })
       .map((e) => {
         const location = [e.city, e.state_prov, e.country].filter(Boolean).join(", ");
         const districtRegion = districtMap.get(e.key) || (e.state_prov ? STATE_TO_DISTRICT[e.state_prov] : undefined);

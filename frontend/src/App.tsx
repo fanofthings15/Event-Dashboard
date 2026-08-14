@@ -35,12 +35,14 @@ function EventCard({
   catalog,
   overrides,
   onClick,
+  onDismiss,
 }: {
   e: NormalizedEvent;
   now: Date;
   catalog: ReturnType<typeof useSettings>["settings"]["esportsCatalog"];
   overrides: Record<string, string>;
   onClick: () => void;
+  onDismiss?: () => void;
 }) {
   const meta = sportMeta(e, catalog, overrides);
   const live = isLiveNow(e, now);
@@ -51,9 +53,26 @@ function EventCard({
           <span className="sport-tag">{meta.label}</span>
           {e.region && <span className="region-chip">{e.region}</span>}
         </div>
-        {live ? <span className="live-badge">LIVE</span> : <span className="countdown">{formatCountdown(e.startTime, now)}</span>}
+        {onDismiss ? (
+          <button
+            type="button"
+            className="btn-x"
+            aria-label="Dismiss"
+            onClick={(evt) => {
+              evt.stopPropagation();
+              onDismiss();
+            }}
+          >
+            ×
+          </button>
+        ) : live ? (
+          <span className="live-badge">LIVE</span>
+        ) : (
+          <span className="countdown">{formatCountdown(e.startTime, now)}</span>
+        )}
       </div>
       {e.followed && <span className="followed-chip">★ Your team</span>}
+      {e.manuallyFollowed && <span className="manual-follow-chip">📌 Followed</span>}
       {e.teams && e.teams.length > 0 ? (
         <div className="event-teams">
           {e.teams.map((t) => (
@@ -67,6 +86,7 @@ function EventCard({
         <div className="event-name">{e.name}</div>
       )}
       {e.seriesScore && <div className="event-series-score">{e.seriesScore}</div>}
+      {live && e.liveDetail && <div className="event-live-detail">{e.liveDetail}</div>}
       <div className="event-meta">
         <span>{e.league}</span>
         <span>{formatTime(e.startTime)}</span>
@@ -76,7 +96,7 @@ function EventCard({
 }
 
 export default function App() {
-  const { settings, loaded: settingsLoaded } = useSettings();
+  const { settings, loaded: settingsLoaded, save } = useSettings();
 
   // Applies the light/dark theme choice to the whole document.
   useEffect(() => {
@@ -86,11 +106,12 @@ export default function App() {
   const notifyLive = useCallback(
     (e: NormalizedEvent) => {
       if (!settings.notifyOnLive) return;
+      if (settings.notifyMode === "followed" && !e.followed && !e.manuallyFollowed) return;
       if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
       const meta = sportMeta(e, settings.esportsCatalog, settings.sportColorOverrides);
       new Notification(`${e.name} is live`, { body: meta.label, tag: `${e.sport}-${e.id}` });
     },
-    [settings.notifyOnLive, settings.esportsCatalog, settings.sportColorOverrides]
+    [settings.notifyOnLive, settings.notifyMode, settings.esportsCatalog, settings.sportColorOverrides]
   );
 
   const { events, allEvents, warnings, loading, refreshing, lastUpdated, refetch } = useEvents(
@@ -106,9 +127,15 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [customEventsOpen, setCustomEventsOpen] = useState(false);
   const [dismissedWarnings, setDismissedWarnings] = useState<Set<string>>(new Set());
-  const [view, setView] = useState<"list" | "calendar" | "agenda">("list");
+  const [view, setView] = useState<"list" | "calendar" | "agenda" | "finished">("list");
   const [selectedEvent, setSelectedEvent] = useState<NormalizedEvent | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+
+  function dismissFinished(e: NormalizedEvent) {
+    const key = `${e.sport}-${e.id}`;
+    if (settings.dismissedFinishedEventIds.includes(key)) return;
+    save({ dismissedFinishedEventIds: [...settings.dismissedFinishedEventIds, key] });
+  }
 
   // Every sport currently enabled, in a stable order: core sources first,
   // then enabled esports titles, then "custom" if any custom events exist.
@@ -146,6 +173,9 @@ export default function App() {
   const live = filtered.filter((e) => isLiveNow(e, now));
   const upcoming = filtered.filter((e) => !isLiveNow(e, now) && e.status !== "finished");
   const today = filtered.filter((e) => sameDay(new Date(e.startTime), now) && e.status !== "finished");
+  const finished = filtered.filter(
+    (e) => e.status === "finished" && !settings.dismissedFinishedEventIds.includes(`${e.sport}-${e.id}`)
+  );
 
   const visibleWarnings = warnings.filter((w) => !dismissedWarnings.has(w));
 
@@ -166,6 +196,9 @@ export default function App() {
             </button>
             <button className={`btn small ${view === "calendar" ? "active" : ""}`} onClick={() => setView("calendar")}>
               Calendar
+            </button>
+            <button className={`btn small ${view === "finished" ? "active" : ""}`} onClick={() => setView("finished")}>
+              Finished
             </button>
           </div>
           <button className="btn" onClick={refetch} disabled={refreshing}>
@@ -241,6 +274,30 @@ export default function App() {
             <div className="grid">
               {today.map((e) => (
                 <EventCard key={`${e.sport}-${e.id}`} e={e} now={now} catalog={settings.esportsCatalog} overrides={settings.sportColorOverrides} onClick={() => setSelectedEvent(e)} />
+              ))}
+            </div>
+          )}
+        </section>
+      ) : view === "finished" ? (
+        <section>
+          <h2>Finished</h2>
+          <span className="hint" style={{ display: "block", marginBottom: 12 }}>
+            Recently finished events stay here for a while so you can catch up — dismiss the ones you're done with.
+          </span>
+          {finished.length === 0 ? (
+            <div className="empty">Nothing finished recently.</div>
+          ) : (
+            <div className="grid">
+              {finished.map((e) => (
+                <EventCard
+                  key={`${e.sport}-${e.id}`}
+                  e={e}
+                  now={now}
+                  catalog={settings.esportsCatalog}
+                  overrides={settings.sportColorOverrides}
+                  onClick={() => setSelectedEvent(e)}
+                  onDismiss={() => dismissFinished(e)}
+                />
               ))}
             </div>
           )}
