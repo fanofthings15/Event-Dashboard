@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useEvents } from "./useEvents";
 import { useSettings } from "./SettingsContext";
 import { useNow, formatCountdown } from "./countdown";
@@ -83,12 +83,15 @@ export default function App() {
     document.documentElement.setAttribute("data-theme", settings.theme);
   }, [settings.theme]);
 
-  function notifyLive(e: NormalizedEvent) {
-    if (!settings.notifyOnLive) return;
-    if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
-    const meta = sportMeta(e, settings.esportsCatalog, settings.sportColorOverrides);
-    new Notification(`${e.name} is live`, { body: meta.label, tag: `${e.sport}-${e.id}` });
-  }
+  const notifyLive = useCallback(
+    (e: NormalizedEvent) => {
+      if (!settings.notifyOnLive) return;
+      if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
+      const meta = sportMeta(e, settings.esportsCatalog, settings.sportColorOverrides);
+      new Notification(`${e.name} is live`, { body: meta.label, tag: `${e.sport}-${e.id}` });
+    },
+    [settings.notifyOnLive, settings.esportsCatalog, settings.sportColorOverrides]
+  );
 
   const { events, allEvents, warnings, loading, refreshing, lastUpdated, refetch } = useEvents(
     settings.disabledCoreSources,
