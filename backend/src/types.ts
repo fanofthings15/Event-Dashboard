@@ -22,7 +22,8 @@ export interface NormalizedEvent {
   durationMinutes?: number; // known exact duration, e.g. custom events — distinct from endTime, which is for multi-day date-range display
   status: EventStatus;
   detailUrl?: string;
-  streamUrl?: string;
+  streamUrl?: string; // the top-ranked pick (YouTube preferred), for anything that just needs one link
+  streams?: { label: string; url: string }[]; // every available source, for offering the alternatives too
   venue?: string;
   teams?: EventTeam[];
   seriesScore?: string;

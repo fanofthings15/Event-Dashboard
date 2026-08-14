@@ -23,6 +23,7 @@ export interface NormalizedEvent {
   status: EventStatus;
   detailUrl?: string;
   streamUrl?: string;
+  streams?: { label: string; url: string }[];
   venue?: string;
   teams?: EventTeam[];
   seriesScore?: string; // e.g. "Bo3 — 1-0" for a best-of-N match

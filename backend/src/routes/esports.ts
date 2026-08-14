@@ -18,10 +18,21 @@ function platformRank(url: string): number {
   return 2;
 }
 
-function bestStream(streamsList: any[] | undefined): string | undefined {
-  const candidates = (streamsList ?? []).filter((s) => s.raw_url);
-  if (!candidates.length) return undefined;
+function platformLabel(url: string): string {
+  if (/youtube\.com|youtu\.be/i.test(url)) return "YouTube";
+  if (/twitch\.tv/i.test(url)) return "Twitch";
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return "Other";
+  }
+}
 
+// Every available stream, ranked YouTube-first (the preferred default) —
+// exposed in full so the frontend can offer the alternatives too, rather
+// than silently hiding everything but the top pick.
+function allStreams(streamsList: any[] | undefined): { label: string; url: string }[] {
+  const candidates = (streamsList ?? []).filter((s) => s.raw_url);
   const ranked = candidates
     .map((s) => ({
       url: s.raw_url as string,
@@ -30,8 +41,20 @@ function bestStream(streamsList: any[] | undefined): string | undefined {
     }))
     .sort((a, b) => a.platform - b.platform || a.quality - b.quality);
 
-  return ranked[0].url;
+  // A given platform can appear multiple times (different languages, VOD
+  // vs live) — keep only the first (best-ranked) URL per platform so the
+  // popup doesn't show five YouTube links.
+  const seen = new Set<string>();
+  const deduped: { label: string; url: string }[] = [];
+  for (const s of ranked) {
+    const label = platformLabel(s.url);
+    if (seen.has(label)) continue;
+    seen.add(label);
+    deduped.push({ label, url: s.url });
+  }
+  return deduped;
 }
+
 
 function seriesScore(m: any): string | undefined {
   const bestOf = m.number_of_games;
@@ -68,6 +91,7 @@ async function fetchGame(slug: string, sport: string, color: string, apiKey: str
       imageUrl: o.opponent?.image_url ?? undefined,
     }));
     const teamNames = teams.map((t: any) => t.name).join(" vs ");
+    const streams = allStreams(m.streams_list);
 
     const extra: ExtraFact[] = [];
 
@@ -80,7 +104,8 @@ async function fetchGame(slug: string, sport: string, color: string, apiKey: str
       status: mapStatus(m.status),
       color,
       teams: teams.length ? teams : undefined,
-      streamUrl: bestStream(m.streams_list),
+      streamUrl: streams[0]?.url,
+      streams: streams.length ? streams : undefined,
       seriesScore: seriesScore(m),
       extra: extra.length ? extra : undefined,
       detailUrl: m.league?.url ?? undefined,

@@ -28,6 +28,7 @@ function formatRange(startIso: string, endIso: string | undefined, timezone: str
 export default function EventDetailModal({ event, now, catalog, onClose, onTeamClick }: Props) {
   const { settings, save } = useSettings();
   const [confirmingHide, setConfirmingHide] = useState(false);
+  const [streamMenuOpen, setStreamMenuOpen] = useState(false);
 
   const meta = sportMeta(event, catalog, settings.sportColorOverrides);
   const live = isLiveNow(event, now);
@@ -126,10 +127,35 @@ export default function EventDetailModal({ event, now, catalog, onClose, onTeamC
           <button type="button" className={`btn ${isSnoozed ? "primary" : ""}`} onClick={toggleSnooze}>
             {isSnoozed ? "🔕 Snoozed — no notifications" : "🔔 Snooze notifications"}
           </button>
-          {event.streamUrl && (
-            <a className="btn primary" href={event.streamUrl} target="_blank" rel="noopener noreferrer">
-              Watch live
-            </a>
+          {event.streams && event.streams.length > 1 ? (
+            <div className="stream-picker">
+              <button type="button" className="btn primary" onClick={() => setStreamMenuOpen((o) => !o)}>
+                Watch live ▾
+              </button>
+              {streamMenuOpen && (
+                <div className="stream-menu">
+                  {event.streams.map((s, i) => (
+                    <a
+                      key={s.label}
+                      className={`stream-menu-item${i === 0 ? " preferred" : ""}`}
+                      href={s.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => setStreamMenuOpen(false)}
+                    >
+                      {s.label}
+                      {i === 0 && <span className="hint"> (preferred)</span>}
+                    </a>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            event.streamUrl && (
+              <a className="btn primary" href={event.streamUrl} target="_blank" rel="noopener noreferrer">
+                Watch live
+              </a>
+            )
           )}
           {fallbackUrl && (
             <a className="btn" href={fallbackUrl} target="_blank" rel="noopener noreferrer">

@@ -407,6 +407,33 @@ section h2 {
 .detail-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
 .detail-actions .btn { text-decoration: none; display: inline-flex; align-items: center; }
 
+.stream-picker { position: relative; }
+.stream-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 20;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 180px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+.stream-menu-item {
+  display: block;
+  padding: 8px 10px;
+  border-radius: 6px;
+  color: var(--text);
+  text-decoration: none;
+  font-size: 13px;
+}
+.stream-menu-item:hover { background: rgba(148, 163, 184, 0.12); }
+.stream-menu-item.preferred { font-weight: 700; color: var(--accent); }
+
 .btn-x-link {
   background: transparent;
   border: none;
