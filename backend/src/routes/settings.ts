@@ -25,6 +25,7 @@ router.get("/", (_req, res) => {
     followedEventIds: settings.followedEventIds,
     notifyMode: settings.notifyMode,
     dismissedFinishedEventIds: settings.dismissedFinishedEventIds,
+    notifyLeadMinutes: settings.notifyLeadMinutes,
     esportsCatalog: ESPORTS_CATALOG,
   });
 });
@@ -75,6 +76,9 @@ router.post("/", (req, res) => {
   if (body.notifyMode === "followed" || body.notifyMode === "all") next.notifyMode = body.notifyMode;
   if (Array.isArray(body.dismissedFinishedEventIds)) {
     next.dismissedFinishedEventIds = body.dismissedFinishedEventIds.filter((x: unknown) => typeof x === "string");
+  }
+  if (typeof body.notifyLeadMinutes === "number" && body.notifyLeadMinutes >= 0) {
+    next.notifyLeadMinutes = Math.floor(body.notifyLeadMinutes);
   }
 
   writeSettings(next);

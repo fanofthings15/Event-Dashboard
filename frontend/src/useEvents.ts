@@ -62,14 +62,17 @@ function withManualFollow(e: NormalizedEvent, followedEventIds: string[]): Norma
   return followedEventIds.includes(`${e.sport}-${e.id}`) ? { ...e, manuallyFollowed: true } : e;
 }
 
+export type NotifyReason = "live" | "upcoming";
+
 export function useEvents(
   disabledCoreSources: string[],
   excludedLeagues: string[],
   frcRegions: string[],
   favoriteTeams: string[],
   followedEventIds: string[],
+  notifyLeadMinutes: number,
   pollMs = 60_000,
-  onNewlyLive?: (e: NormalizedEvent) => void
+  onNotify?: (e: NormalizedEvent, reason: NotifyReason) => void
 ): FeedState {
   const [events, setEvents] = useState<NormalizedEvent[]>([]);
   const [allEvents, setAllEvents] = useState<NormalizedEvent[]>([]);
@@ -78,6 +81,7 @@ export function useEvents(
   const [refreshing, setRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const prevLiveIds = useRef<Set<string>>(new Set());
+  const notifiedUpcoming = useRef<Set<string>>(new Set());
 
   const load = useCallback(async () => {
     setRefreshing(true);
@@ -107,13 +111,25 @@ export function useEvents(
       .map((e) => withManualFollow(e, followedEventIds));
     merged.sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
 
-    if (onNewlyLive) {
+    if (onNotify) {
       const nowLiveIds = new Set<string>();
+      const nowMs = Date.now();
       for (const e of merged) {
-        if (e.status !== "live") continue;
         const key = `${e.sport}-${e.id}`;
-        nowLiveIds.add(key);
-        if (!prevLiveIds.current.has(key)) onNewlyLive(e);
+
+        if (e.status === "live") {
+          nowLiveIds.add(key);
+          if (!prevLiveIds.current.has(key)) onNotify(e, "live");
+          continue;
+        }
+
+        if (notifyLeadMinutes > 0 && e.status === "upcoming" && !notifiedUpcoming.current.has(key)) {
+          const msUntilStart = new Date(e.startTime).getTime() - nowMs;
+          if (msUntilStart > 0 && msUntilStart <= notifyLeadMinutes * 60_000) {
+            notifiedUpcoming.current.add(key);
+            onNotify(e, "upcoming");
+          }
+        }
       }
       prevLiveIds.current = nowLiveIds;
     }
@@ -136,7 +152,15 @@ export function useEvents(
     setLoading(false);
     setRefreshing(false);
     setLastUpdated(new Date());
-  }, [disabledCoreSources.join(","), excludedLeagues.join(","), frcRegions.join(","), favoriteTeams.join(","), followedEventIds.join(","), onNewlyLive]);
+  }, [
+    disabledCoreSources.join(","),
+    excludedLeagues.join(","),
+    frcRegions.join(","),
+    favoriteTeams.join(","),
+    followedEventIds.join(","),
+    notifyLeadMinutes,
+    onNotify,
+  ]);
 
   useEffect(() => {
     load();

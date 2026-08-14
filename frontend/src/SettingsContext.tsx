@@ -21,6 +21,7 @@ const EMPTY: SettingsState = {
   followedEventIds: [],
   notifyMode: "followed",
   dismissedFinishedEventIds: [],
+  notifyLeadMinutes: 0,
 };
 
 interface SettingsContextValue {

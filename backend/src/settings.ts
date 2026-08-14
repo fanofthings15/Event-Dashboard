@@ -67,6 +67,9 @@ export interface Settings {
   // view — stored as "sport-id" composite keys, same shape as
   // followedEventIds.
   dismissedFinishedEventIds: string[];
+  // Minutes before an event starts to send a heads-up notification, in
+  // addition to the at-live one. 0 = no advance reminder, just at-live.
+  notifyLeadMinutes: number;
 }
 
 const DEFAULTS: Settings = {
@@ -88,6 +91,7 @@ const DEFAULTS: Settings = {
   followedEventIds: [],
   notifyMode: "followed",
   dismissedFinishedEventIds: [],
+  notifyLeadMinutes: 0,
 };
 
 export function readSettings(): Settings {

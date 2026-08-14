@@ -22,15 +22,32 @@ export default function SettingsDrawer({ onClose, allEvents }: Props) {
   }
 
   // --- Favorite teams (cross-sport) ---
+  // A plain number or "frcNNN" entry is treated as an FRC team key too —
+  // FRC events don't carry a team roster the way other sources do, so
+  // name-matching can't work there; this keeps it to one list anyway by
+  // auto-driving the exact-match mechanism FRC actually needs under the hood.
+  function isFrcTeamEntry(name: string): boolean {
+    return /^\d+$/.test(name) || /^frc\d+$/i.test(name);
+  }
   const [newTeam, setNewTeam] = useState("");
   function addFavoriteTeam() {
     const name = newTeam.trim();
     if (!name || settings.favoriteTeams.includes(name)) return;
-    save({ favoriteTeams: [...settings.favoriteTeams, name] });
+    const next: Record<string, unknown> = { favoriteTeams: [...settings.favoriteTeams, name] };
+    if (isFrcTeamEntry(name)) {
+      next.frcTeamKey = name;
+      next.frcFollowEnabled = true;
+    }
+    save(next);
     setNewTeam("");
   }
   function removeFavoriteTeam(name: string) {
-    save({ favoriteTeams: settings.favoriteTeams.filter((t) => t !== name) });
+    const next: Record<string, unknown> = { favoriteTeams: settings.favoriteTeams.filter((t) => t !== name) };
+    if (isFrcTeamEntry(name) && name === settings.frcTeamKey) {
+      next.frcTeamKey = "";
+      next.frcFollowEnabled = false;
+    }
+    save(next);
   }
 
   // --- Notifications ---
@@ -46,6 +63,9 @@ export default function SettingsDrawer({ onClose, allEvents }: Props) {
   }
   function setNotifyMode(mode: "followed" | "all") {
     save({ notifyMode: mode });
+  }
+  function setNotifyLead(minutes: number) {
+    save({ notifyLeadMinutes: minutes });
   }
 
   // --- Poll interval ---
@@ -69,8 +89,8 @@ export default function SettingsDrawer({ onClose, allEvents }: Props) {
       setTimeout(() => setFeedCopied(false), 2000);
     });
   }
-  function toggleIcsFavoritesOnly() {
-    save({ icsFavoritesOnly: !settings.icsFavoritesOnly });
+  function setIcsMode(favoritesOnly: boolean) {
+    save({ icsFavoritesOnly: favoritesOnly });
   }
 
   return (
@@ -112,7 +132,11 @@ export default function SettingsDrawer({ onClose, allEvents }: Props) {
 
         <section className="settings-section">
           <h3>Favorite teams</h3>
-          <span className="hint">Any sport — matched against team names to add the same "★ Your team" badge FRC uses.</span>
+          <span className="hint">
+            Any sport — matched against team names for the "★ Your team" badge. For FRC, add a
+            team number instead (e.g. "254") — that's what actually follows a specific team there,
+            since FRC events don't carry team names to match against.
+          </span>
           {settings.favoriteTeams.length > 0 && (
             <div className="source-chip-list" style={{ marginTop: 10 }}>
               {settings.favoriteTeams.map((team) => (
@@ -170,6 +194,25 @@ export default function SettingsDrawer({ onClose, allEvents }: Props) {
                   </button>
                 </div>
               )}
+              {settings.notifyOnLive && (
+                <>
+                  <span className="hint" style={{ display: "block", marginTop: 12, marginBottom: 6 }}>
+                    Also get a heads-up before an event starts:
+                  </span>
+                  <div className="source-chip-list">
+                    {[0, 5, 15, 30, 60].map((minutes) => (
+                      <button
+                        key={minutes}
+                        type="button"
+                        className={`chip ${settings.notifyLeadMinutes === minutes ? "active" : ""}`}
+                        onClick={() => setNotifyLead(minutes)}
+                      >
+                        {minutes === 0 ? "At start only" : `${minutes} min before`}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
             </>
           )}
         </section>
@@ -215,14 +258,14 @@ export default function SettingsDrawer({ onClose, allEvents }: Props) {
               {feedCopied ? "Copied!" : "Copy"}
             </button>
           </div>
-          <button
-            type="button"
-            className={`chip ${settings.icsFavoritesOnly ? "active" : ""}`}
-            style={{ marginTop: 10 }}
-            onClick={toggleIcsFavoritesOnly}
-          >
-            {settings.icsFavoritesOnly ? "Only favorited/followed teams" : "Everything currently enabled"}
-          </button>
+          <div className="source-chip-list" style={{ marginTop: 10 }}>
+            <button type="button" className={`chip ${!settings.icsFavoritesOnly ? "active" : ""}`} onClick={() => setIcsMode(false)}>
+              Everything enabled
+            </button>
+            <button type="button" className={`chip ${settings.icsFavoritesOnly ? "active" : ""}`} onClick={() => setIcsMode(true)}>
+              Favorites only
+            </button>
+          </div>
           <span className="hint" style={{ display: "block", marginTop: 6 }}>
             Want just specific teams instead of whole sports/leagues? Add them under Favorite teams above, then
             flip this on — the feed narrows to just those (plus your custom events).

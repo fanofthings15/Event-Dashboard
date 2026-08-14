@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useEvents } from "./useEvents";
+import { useEvents, type NotifyReason } from "./useEvents";
 import { useSettings } from "./SettingsContext";
 import { useNow, formatCountdown } from "./countdown";
 import { sportMeta } from "./sportMeta";
@@ -115,15 +115,16 @@ export default function App() {
     document.documentElement.setAttribute("data-theme", settings.theme);
   }, [settings.theme]);
 
-  const notifyLive = useCallback(
-    (e: NormalizedEvent) => {
+  const notifyEvent = useCallback(
+    (e: NormalizedEvent, reason: NotifyReason) => {
       if (!settings.notifyOnLive) return;
       if (settings.notifyMode === "followed" && !e.followed && !e.manuallyFollowed) return;
       if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
       const meta = sportMeta(e, settings.esportsCatalog, settings.sportColorOverrides);
-      new Notification(`${e.name} is live`, { body: meta.label, tag: `${e.sport}-${e.id}` });
+      const title = reason === "live" ? `${e.name} is live` : `${e.name} starts in ${settings.notifyLeadMinutes} min`;
+      new Notification(title, { body: meta.label, tag: `${e.sport}-${e.id}-${reason}` });
     },
-    [settings.notifyOnLive, settings.notifyMode, settings.esportsCatalog, settings.sportColorOverrides]
+    [settings.notifyOnLive, settings.notifyMode, settings.notifyLeadMinutes, settings.esportsCatalog, settings.sportColorOverrides]
   );
 
   const { events, allEvents, warnings, loading, refreshing, lastUpdated, refetch } = useEvents(
@@ -132,8 +133,9 @@ export default function App() {
     settings.frcRegions,
     settings.favoriteTeams,
     settings.followedEventIds,
+    settings.notifyLeadMinutes,
     settings.pollIntervalSeconds * 1000,
-    notifyLive
+    notifyEvent
   );
   const now = useNow();
   const [settingsOpen, setSettingsOpen] = useState(false);

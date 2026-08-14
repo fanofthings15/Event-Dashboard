@@ -148,13 +148,12 @@ Click **Settings** for:
   - **League filters** — collapsible chips built from whatever leagues are
     currently showing up in your data, so a one-off tournament doesn't
     clutter this forever once it's gone.
-  - **FRC's group specifically** also holds its own Blue Alliance API key,
-    a team-to-follow field (e.g. `frc254`) plus a toggle — when on, events
-    that team is competing in get a small "★ Your team" badge on the card
-    and detail view, without hiding any other FRC events — and a
-    **region picker** (e.g. FIM, FIT, or a plain state code like GA for
-    non-districted regionals), an include-list since picking the 2-3
-    regions you care about beats excluding everywhere else. District names
+  - **FRC's group specifically** also holds its own Blue Alliance API key
+    and a **region picker** (e.g. FIM, FIT, or a plain state code like GA
+    for non-districted regionals), an include-list since picking the 2-3
+    regions you care about beats excluding everywhere else. (Following a
+    specific team lives under the main Favorite teams section now, not
+    here — see below.) District names
     come from both TBA's own district-events data and a static
     state-to-district table (`backend/src/routes/frc.ts`), so off-season
     events TBA doesn't officially tag under a district's competition series
@@ -177,13 +176,16 @@ sent anywhere but each service's own API and back to your own browser.
 ## Quality-of-life features
 
 - **Favorite teams** — a Settings section, separate from any one source,
-  for team names to watch across every sport (not just FRC). Matched
+  for team names to watch across every sport, FRC included. Matched
   case-insensitively against each event's team list and gives the same
-  "★ Your team" badge FRC's own follow feature uses. Since matching is
-  substring-based, a short nickname can span sports by accident (e.g.
-  "Falcons" would match both the Atlanta Falcons and CS's Team Falcons) —
-  type the fuller name to disambiguate (e.g. "Atlanta Falcons" vs
-  "Team Falcons").
+  "★ Your team" badge. Since matching is substring-based, a short nickname
+  can span sports by accident (e.g. "Falcons" would match both the Atlanta
+  Falcons and CS's Team Falcons) — type the fuller name to disambiguate
+  (e.g. "Atlanta Falcons" vs "Team Falcons"). For FRC specifically, add a
+  team **number** instead (e.g. "254") — FRC events don't carry a team
+  roster the way other sources do, so a numeric entry here is
+  automatically used to drive FRC's own exact-match team lookup under the
+  hood, rather than needing a second separate field.
 - **Follow event** (detail view) tags one specific event rather than a
   whole team — shows a separate "📌 Followed event" badge from the
   team-based "★ Your team" one, so you can tell at a glance which kind of
@@ -193,7 +195,9 @@ sent anywhere but each service's own API and back to your own browser.
 - **Notifications** — once granted, get a browser notification the moment
   a followed event goes live. Choose in Settings between **"Followed teams
   only"** (the default — just events matching a favorite/followed team) or
-  **"Every live event"** across every enabled source.
+  **"Every live event"** across every enabled source. A separate chip row
+  lets you also get a heads-up before an event starts (5/15/30/60 minutes,
+  or "At start only" for just the live notification).
 - **Today / Agenda view** and **Finished view** — two extra view modes
   next to List and Calendar. Today is a flat chronological list of every
   event happening today, including ones that already finished. Finished

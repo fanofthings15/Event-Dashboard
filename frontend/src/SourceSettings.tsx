@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useSettings } from "./SettingsContext";
 import { CORE_SPORT_META, type NormalizedEvent } from "./types";
 import { sportMeta } from "./sportMeta";
@@ -22,20 +22,6 @@ export default function SourceSettings({ allEvents }: Props) {
     await save({ tbaApiKey: newTbaKey });
     setTbaKeySaved(true);
     setNewTbaKey("");
-  }
-
-  const [teamKey, setTeamKey] = useState(settings.frcTeamKey);
-  const [teamKeySaved, setTeamKeySaved] = useState(false);
-  async function saveTeamKey() {
-    await save({ frcTeamKey: teamKey });
-    setTeamKeySaved(true);
-  }
-  useEffect(() => {
-    setTeamKey(settings.frcTeamKey);
-  }, [settings.frcTeamKey]);
-
-  function toggleFollowEnabled() {
-    save({ frcFollowEnabled: !settings.frcFollowEnabled });
   }
 
   function toggleRegion(region: string) {
@@ -242,35 +228,17 @@ export default function SourceSettings({ allEvents }: Props) {
                     </button>
                     {tbaKeySaved && <span className="ok-tag">Saved</span>}
 
-                    <label className="field" style={{ marginTop: 12 }}>
-                      <span>Team to follow</span>
-                      <input
-                        className="text-input"
-                        placeholder="e.g. 254 or frc254 — leave blank for none"
-                        value={teamKey}
-                        onChange={(e) => {
-                          setTeamKey(e.target.value);
-                          setTeamKeySaved(false);
-                        }}
-                      />
-                    </label>
-                    <div className="form-row" style={{ marginBottom: 10 }}>
-                      <button className="btn primary" onClick={saveTeamKey} disabled={teamKey === settings.frcTeamKey}>
-                        Save team
-                      </button>
-                      {teamKeySaved && <span className="ok-tag">Saved</span>}
-                    </div>
-                    <button
-                      type="button"
-                      className={`chip ${settings.frcFollowEnabled ? "active" : ""}`}
-                      style={settings.frcFollowEnabled ? { borderColor: meta.color, background: `${meta.color}26`, color: "#fff" } : undefined}
-                      onClick={toggleFollowEnabled}
-                      disabled={!settings.frcTeamKey}
-                    >
-                      {settings.frcFollowEnabled ? "Tagging followed team's events" : "Tag followed team's events"}
-                    </button>
-                    <span className="hint" style={{ display: "block", marginTop: 6, marginBottom: 10 }}>
-                      When on, events your team is competing in get a small badge — this never hides other FRC events.
+                    <span className="hint" style={{ display: "block", marginTop: 12, marginBottom: 10 }}>
+                      To follow a specific team, add its number under{" "}
+                      <strong>Favorite teams</strong> (e.g. "254") — FRC needs an exact team
+                      number rather than a name, so a numeric entry there is automatically used
+                      here too.
+                      {settings.frcTeamKey && (
+                        <>
+                          {" "}
+                          Currently following team <strong>{settings.frcTeamKey}</strong>.
+                        </>
+                      )}
                     </span>
 
                     <div className="field" style={{ marginBottom: 6 }}>
