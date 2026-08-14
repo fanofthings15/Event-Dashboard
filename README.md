@@ -123,16 +123,18 @@ Click **Settings** for:
   FRC, and every esports title in the catalog). Anything that only affects
   a single source lives inside that source's own group, not scattered
   across separate sections:
-  - **On/off** — saves instantly, no Save button, no reload needed (the
-    whole app shares one live settings state). Add more esports titles by
-    editing `backend/src/esportsCatalog.ts` (double-check the PandaScore
-    slug — it's not always the obvious name, e.g. Rocket League is `rl`);
-    add more ESPN-covered sports (e.g. MLB) via
+  - **On/off** — a quick chip row at the top toggles any source at a
+    glance without opening its group; saves instantly, no Save button, no
+    reload needed (the whole app shares one live settings state). Add more
+    esports titles by editing `backend/src/esportsCatalog.ts` (double-check
+    the PandaScore slug — it's not always the obvious name, e.g. Rocket
+    League is `rl`); add more ESPN-covered sports (e.g. MLB) via
     `backend/src/espnScoreboard.ts`'s router factory.
   - **Color** — every sport's default is spaced 30° apart around the color
-    wheel so no two are easily confused, but pick your own here if you
-    still want to change one — applies everywhere (cards, calendar, filter
-    chips, detail view) and a "Reset" link brings back the default.
+    wheel so no two are easily confused, but click the colored dot right
+    next to a source's name to pick your own — applies everywhere (cards,
+    calendar, filter chips, detail view), with a "Reset color to default"
+    link in that source's expanded group once you've customized it.
   - **League filters** — collapsible chips built from whatever leagues are
     currently showing up in your data, so a one-off tournament doesn't
     clutter this forever once it's gone.

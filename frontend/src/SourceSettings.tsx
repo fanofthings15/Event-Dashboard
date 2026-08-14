@@ -162,46 +162,61 @@ export default function SourceSettings({ allEvents }: Props) {
 
   return (
     <div>
-      {[...sourcesBySport.entries()].map(([sport, { esportsSlug, leagues }]) => {
+      {/* Quick toggle row — click through on/off for every source at a
+          glance, without needing to open each one's group. */}
+      <div className="source-chip-list" style={{ marginBottom: 14 }}>
+        {[...sourcesBySport.entries()].map(([sport, { esportsSlug }]) => {
+          const meta = sportMeta({ sport } as NormalizedEvent, settings.esportsCatalog, settings.sportColorOverrides);
+          const enabled = isEnabled(sport, esportsSlug);
+          return (
+            <button
+              key={sport}
+              type="button"
+              className={`chip ${enabled ? "active" : ""}`}
+              style={enabled ? { borderColor: meta.color, background: `${meta.color}26`, color: "#fff" } : undefined}
+              onClick={() => toggleEnabled(sport, esportsSlug)}
+            >
+              <span className="dot" style={{ background: meta.color }} />
+              {meta.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {[...sourcesBySport.entries()].map(([sport, { leagues }]) => {
         const meta = sportMeta({ sport } as NormalizedEvent, settings.esportsCatalog, settings.sportColorOverrides);
         const isOpen = expanded.has(sport);
-        const enabled = isEnabled(sport, esportsSlug);
-        const hiddenCount = [...leagues].filter((l) => settings.excludedLeagues.includes(l)).length;
         const isFrc = sport === "frc";
         const currentColor = settings.sportColorOverrides[sport] || meta.color;
         const isCustomColor = Boolean(settings.sportColorOverrides[sport]);
 
         return (
           <div key={sport} className="source-group">
-            <button type="button" className="league-group-title" onClick={() => toggleExpanded(sport)}>
-              <span className={`league-chevron ${isOpen ? "open" : ""}`}>›</span>
-              <span className="dot" style={{ background: meta.color }} />
-              {meta.label}
-              <span className="hint">
-                {enabled ? "on" : "off"}
-                {!isFrc && `, ${leagues.size} league${leagues.size === 1 ? "" : "s"}`}
-                {hiddenCount > 0 ? `, ${hiddenCount} hidden` : ""}
-              </span>
-            </button>
+            <div className="source-group-header">
+              <button type="button" className="league-group-title" onClick={() => toggleExpanded(sport)}>
+                <span className={`league-chevron ${isOpen ? "open" : ""}`}>›</span>
+                {meta.label}
+              </button>
+              <input
+                type="color"
+                className="source-color-bubble"
+                value={currentColor}
+                onClick={(e) => e.stopPropagation()}
+                onChange={(e) => setColor(sport, e.target.value)}
+                title="Pick a color for this source"
+              />
+            </div>
 
             {isOpen && (
-              <div style={{ marginTop: 8, marginBottom: 4 }}>
-                <button type="button" className={`chip ${enabled ? "active" : ""}`} onClick={() => toggleEnabled(sport, esportsSlug)}>
-                  {enabled ? "Enabled — showing on dashboard" : "Disabled — hidden entirely"}
-                </button>
-
-                <div className="color-picker-row" style={{ marginTop: 10 }}>
-                  <input type="color" value={currentColor} onChange={(e) => setColor(sport, e.target.value)} />
-                  <span className="color-picker-label">Color</span>
-                  {isCustomColor && (
-                    <button type="button" className="btn-x-link" onClick={() => resetColor(sport)}>
-                      Reset
-                    </button>
-                  )}
-                </div>
+              <div style={{ marginTop: 4, marginBottom: 4 }}>
+                {isCustomColor && (
+                  <button type="button" className="btn-x-link" onClick={() => resetColor(sport)}>
+                    Reset color to default
+                  </button>
+                )}
 
                 {isFrc && (
-                  <div style={{ marginTop: 14 }}>
+                  <div style={{ marginTop: 10 }}>
                     <label className="field">
                       <span>
                         Blue Alliance API key {settings.tbaApiKeySet && <span className="ok-tag">set</span>}
@@ -290,7 +305,7 @@ export default function SourceSettings({ allEvents }: Props) {
                 )}
 
                 {!isFrc && (
-                  <div className="source-chip-list" style={{ marginTop: 12 }}>
+                  <div className="source-chip-list" style={{ marginTop: 8 }}>
                     {leagues.size === 0 ? (
                       <span className="hint">No leagues seen yet.</span>
                     ) : (
