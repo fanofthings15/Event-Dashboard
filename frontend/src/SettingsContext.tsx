@@ -40,6 +40,13 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   const refetch = useCallback(async () => {
     const r = await fetch("/api/settings");
     const data = (await r.json()) as SettingsState;
+    // Defensive: the backend migrates an old single-number notifyLeadMinutes
+    // to an array, but guard here too in case anything ever slips through —
+    // a non-array here would crash every .includes()/.filter() call on it.
+    if (!Array.isArray(data.notifyLeadMinutes)) {
+      const old = data.notifyLeadMinutes as unknown as number;
+      data.notifyLeadMinutes = typeof old === "number" && old > 0 ? [old] : [];
+    }
     setSettings(data);
     setLoaded(true);
   }, []);

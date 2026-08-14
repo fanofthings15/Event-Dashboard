@@ -98,7 +98,19 @@ const DEFAULTS: Settings = {
 export function readSettings(): Settings {
   try {
     const raw = fs.readFileSync(SETTINGS_FILE, "utf-8");
-    return { ...DEFAULTS, ...JSON.parse(raw) };
+    const parsed = JSON.parse(raw);
+    const merged: Settings = { ...DEFAULTS, ...parsed };
+
+    // notifyLeadMinutes used to be a single number before it became a
+    // multi-select array — an old settings.json on disk still has that
+    // shape, and without this the frontend would crash calling array
+    // methods on what's actually still a number.
+    if (typeof (merged as any).notifyLeadMinutes === "number") {
+      const old = (merged as any).notifyLeadMinutes as number;
+      merged.notifyLeadMinutes = old > 0 ? [old] : [];
+    }
+
+    return merged;
   } catch {
     return DEFAULTS;
   }
