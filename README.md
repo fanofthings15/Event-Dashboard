@@ -195,13 +195,15 @@ sent anywhere but each service's own API and back to your own browser.
   only"** (the default — just events matching a favorite/followed team) or
   **"Every live event"** across every enabled source.
 - **Today / Agenda view** and **Finished view** — two extra view modes
-  next to List and Calendar. Today is a flat chronological list of just
-  today's events. Finished holds recently-completed events instead of
-  letting them vanish the instant they end — dismiss (×) the ones you're
-  done with; everything else sticks around for a while so you can catch up
-  later. (Esports matches don't currently get this shelf life — PandaScore's
-  own query only ever asks for in-progress/upcoming matches, so a finished
-  one disappears from that API entirely, not just from the display.)
+  next to List and Calendar. Today is a flat chronological list of every
+  event happening today, including ones that already finished. Finished
+  holds recently-completed events (a uniform 7-day shelf life across every
+  source) instead of letting them vanish the instant they end — dismiss
+  (×) the ones you're done with; everything else sticks around for a
+  while so you can catch up later. (Esports matches don't currently get
+  this shelf life — PandaScore's own query only ever asks for
+  in-progress/upcoming matches, so a finished one disappears from that API
+  entirely, not just from the display.)
 - **Live game clock** — NFL/NBA/NHL cards show the current period/clock
   (e.g. "Q3 8:42") when a game is actually in progress, pulled from ESPN's
   own live-status field.

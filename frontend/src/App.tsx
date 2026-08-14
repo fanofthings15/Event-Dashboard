@@ -29,6 +29,18 @@ function matchesSearch(e: NormalizedEvent, query: string): boolean {
   return Boolean(e.teams?.some((t) => t.name.toLowerCase().includes(q)));
 }
 
+const FINISHED_SHELF_LIFE_DAYS = 7;
+
+// Same shelf life for every source, regardless of how far back each
+// backend's own API happens to let old data linger — a finished event
+// older than this just isn't worth surfacing in the Finished tab anymore.
+function withinShelfLife(e: NormalizedEvent, now: Date): boolean {
+  if (e.status !== "finished") return true;
+  const reference = new Date(e.endTime ?? e.startTime);
+  const daysSince = (now.getTime() - reference.getTime()) / (1000 * 60 * 60 * 24);
+  return daysSince <= FINISHED_SHELF_LIFE_DAYS;
+}
+
 function EventCard({
   e,
   now,
@@ -172,9 +184,9 @@ export default function App() {
   );
   const live = filtered.filter((e) => isLiveNow(e, now));
   const upcoming = filtered.filter((e) => !isLiveNow(e, now) && e.status !== "finished");
-  const today = filtered.filter((e) => sameDay(new Date(e.startTime), now) && e.status !== "finished");
+  const today = filtered.filter((e) => sameDay(new Date(e.startTime), now));
   const finished = filtered.filter(
-    (e) => e.status === "finished" && !settings.dismissedFinishedEventIds.includes(`${e.sport}-${e.id}`)
+    (e) => e.status === "finished" && withinShelfLife(e, now) && !settings.dismissedFinishedEventIds.includes(`${e.sport}-${e.id}`)
   );
 
   const visibleWarnings = warnings.filter((w) => !dismissedWarnings.has(w));
