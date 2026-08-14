@@ -117,48 +117,44 @@ release and double-click it.
 ## Settings menu
 
 Click **Settings** for:
-- **PandaScore API key** — needed for esports data.
-- **Blue Alliance API key** — needed for FRC data. Free key at
-  thebluealliance.com/account.
-- **Data sources** — toggle chips for NFL, NBA, NHL, F1, FRC, and every
-  esports title in the catalog. Off means skipped entirely — no request
-  made, nothing shown, and it saves the instant you click (no Save button,
-  no reload needed — the whole app shares one live settings state). Add more
-  esports titles by editing `backend/src/esportsCatalog.ts` (double-check
-  the PandaScore slug — it's not always the obvious name, e.g. Rocket League
-  is `rl`); add more ESPN-covered sports (e.g. MLB) via
-  `backend/src/espnScoreboard.ts`'s router factory.
-- **Colors** — every sport's default color is spaced 30° apart around the
-  color wheel so no two are easily confused, but if you still want to
-  change one, pick your own here — saves instantly, applies everywhere
-  (cards, calendar, filter chips, detail view), and a "Reset" link brings
-  back the default.
-- **Filters** — per-sport, collapsible checkbox groups (click a sport to
-  expand it; collapsed groups show a hidden-league count) built from
-  whatever leagues are currently showing up in your data, so a one-off
-  tournament doesn't clutter this list forever once it's gone. The **FRC**
-  group holds its own team-to-follow field (e.g. `frc254`) plus a toggle —
-  when on, events that team is competing in get a small "★ Your team" badge
-  on the card and detail view. This never hides other FRC events; it's
-  purely a tag, using a lightweight lookup of just that team's event keys
-  rather than fetching every event's roster. The same FRC group also has a
-  **region picker** (e.g. FIM, FIT, or a plain state code like GA for
-  non-districted regionals) — an include-list, not exclude, since
-  picking the 2-3 regions you actually care about is more natural than
-  excluding everywhere else; "All regions" resets it. District names are
-  applied both via TBA's own district-events data and a static
-  state-to-district table (`backend/src/routes/frc.ts`), so off-season
-  events TBA doesn't officially tag under a district's competition series
-  (e.g. MARC, an off-season Michigan event) still show the right region.
-  FRC event cards also
-  show current competition status when the event is happening today — a
-  qual match count ("Qual Match 23 of 40") or playoff round/match
-  ("Semifinals — Match 2"), computed from TBA's match data the same way
-  the FRC Commentary Dashboard project does it.
-  **Export/Import** at the bottom move all of this to a new machine — import
-  shows an in-app confirmation before overwriting anything, never a browser
-  popup. Export deliberately leaves out your API keys for safety, so those
-  need re-entering once after an import.
+- **PandaScore API key** — shared across every esports title, so it lives
+  here rather than in any one source's group. Free key at pandascore.co.
+- **Data sources** — one collapsible group per source (NFL, NBA, NHL, F1,
+  FRC, and every esports title in the catalog). Anything that only affects
+  a single source lives inside that source's own group, not scattered
+  across separate sections:
+  - **On/off** — saves instantly, no Save button, no reload needed (the
+    whole app shares one live settings state). Add more esports titles by
+    editing `backend/src/esportsCatalog.ts` (double-check the PandaScore
+    slug — it's not always the obvious name, e.g. Rocket League is `rl`);
+    add more ESPN-covered sports (e.g. MLB) via
+    `backend/src/espnScoreboard.ts`'s router factory.
+  - **Color** — every sport's default is spaced 30° apart around the color
+    wheel so no two are easily confused, but pick your own here if you
+    still want to change one — applies everywhere (cards, calendar, filter
+    chips, detail view) and a "Reset" link brings back the default.
+  - **League filters** — collapsible chips built from whatever leagues are
+    currently showing up in your data, so a one-off tournament doesn't
+    clutter this forever once it's gone.
+  - **FRC's group specifically** also holds its own Blue Alliance API key,
+    a team-to-follow field (e.g. `frc254`) plus a toggle — when on, events
+    that team is competing in get a small "★ Your team" badge on the card
+    and detail view, without hiding any other FRC events — and a
+    **region picker** (e.g. FIM, FIT, or a plain state code like GA for
+    non-districted regionals), an include-list since picking the 2-3
+    regions you care about beats excluding everywhere else. District names
+    come from both TBA's own district-events data and a static
+    state-to-district table (`backend/src/routes/frc.ts`), so off-season
+    events TBA doesn't officially tag under a district's competition series
+    (e.g. MARC, an off-season Michigan event) still show the right region.
+    FRC cards also show current competition status when the event is
+    happening today — a qual match count ("Qual Match 23 of 40") or
+    playoff round/match ("Semifinals — Match 2"), computed from TBA's match
+    data the same way the FRC Commentary Dashboard project does it.
+  - **Export/Import** at the bottom move all of this to a new machine —
+    import shows an in-app confirmation before overwriting anything, never
+    a browser popup. Export deliberately leaves out your API keys for
+    safety, so those need re-entering once after an import.
 
 Custom events and all settings are saved to `~/.event-dashboard/settings.json`,
 **outside the git repo**, so they survive every future code sync/deploy

@@ -358,7 +358,8 @@ section h2 {
   margin-top: 4px;
 }
 
-.league-group { margin-bottom: 10px; }
+.source-group { margin-bottom: 4px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+.source-group:last-of-type { border-bottom: none; }
 .league-group-title {
   display: flex;
   align-items: center;

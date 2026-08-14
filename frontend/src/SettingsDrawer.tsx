@@ -1,8 +1,6 @@
 import { useState } from "react";
 import { useSettings } from "./SettingsContext";
-import { CORE_SPORT_META } from "./types";
-import { sportMeta } from "./sportMeta";
-import LeaguePicker from "./LeaguePicker";
+import SourceSettings from "./SourceSettings";
 import type { NormalizedEvent } from "./types";
 
 interface Props {
@@ -13,8 +11,8 @@ interface Props {
 export default function SettingsDrawer({ onClose, allEvents }: Props) {
   const { settings, save } = useSettings();
 
-  // --- API keys (text fields still need an explicit save — auto-saving on
-  // every keystroke would write partial keys) ---
+  // PandaScore's key is shared across several esports sources at once, so it
+  // stays here rather than in any one source's own settings group.
   const [newPandaKey, setNewPandaKey] = useState("");
   const [pandaKeySaved, setPandaKeySaved] = useState(false);
   async function savePandaKey() {
@@ -23,48 +21,11 @@ export default function SettingsDrawer({ onClose, allEvents }: Props) {
     setNewPandaKey("");
   }
 
-  const [newTbaKey, setNewTbaKey] = useState("");
-  const [tbaKeySaved, setTbaKeySaved] = useState(false);
-  async function saveTbaKey() {
-    await save({ tbaApiKey: newTbaKey });
-    setTbaKeySaved(true);
-    setNewTbaKey("");
-  }
-
-  // --- Data sources — every click saves immediately, no Save button ---
-  function toggleCore(sport: string) {
-    const next = settings.disabledCoreSources.includes(sport)
-      ? settings.disabledCoreSources.filter((s) => s !== sport)
-      : [...settings.disabledCoreSources, sport];
-    save({ disabledCoreSources: next });
-  }
-  function toggleGame(slug: string) {
-    const next = settings.enabledEsportsGames.includes(slug)
-      ? settings.enabledEsportsGames.filter((s) => s !== slug)
-      : [...settings.enabledEsportsGames, slug];
-    save({ enabledEsportsGames: next });
-  }
-
-  // --- Color overrides — auto-saves per swatch as soon as you pick a color ---
-  function setColor(sport: string, color: string) {
-    save({ sportColorOverrides: { ...settings.sportColorOverrides, [sport]: color } });
-  }
-  function resetColor(sport: string) {
-    const next = { ...settings.sportColorOverrides };
-    delete next[sport];
-    save({ sportColorOverrides: next });
-  }
-  const allColorableSports = [
-    ...Object.entries(CORE_SPORT_META).map(([sport, meta]) => ({ sport, label: meta.label, defaultColor: meta.color })),
-    ...settings.esportsCatalog.map((g) => ({ sport: g.sport, label: g.label, defaultColor: g.color })),
-  ];
-
   return (
     <div className="drawer-backdrop" onClick={onClose}>
       <div className="drawer" onClick={(e) => e.stopPropagation()}>
         <h2>Settings</h2>
 
-        {/* API keys */}
         <section className="settings-section">
           <h3>PandaScore API key</h3>
           <label className="field">
@@ -78,7 +39,7 @@ export default function SettingsDrawer({ onClose, allEvents }: Props) {
                 setPandaKeySaved(false);
               }}
             />
-            <span className="hint">Free key at pandascore.co — needed for esports data.</span>
+            <span className="hint">Free key at pandascore.co — shared across every esports title below.</span>
           </label>
           <button className="btn primary" onClick={savePandaKey} disabled={!newPandaKey}>
             Save key
@@ -86,98 +47,14 @@ export default function SettingsDrawer({ onClose, allEvents }: Props) {
           {pandaKeySaved && <span className="ok-tag">Saved</span>}
         </section>
 
-        <section className="settings-section">
-          <h3>FRC — The Blue Alliance</h3>
-          <label className="field">
-            <span>{settings.tbaApiKeySet && <span className="ok-tag">set</span>}</span>
-            <input
-              type="password"
-              placeholder={settings.tbaApiKeySet ? "•••••••• (set — enter to replace)" : "Paste your free TBA Read API key"}
-              value={newTbaKey}
-              onChange={(e) => {
-                setNewTbaKey(e.target.value);
-                setTbaKeySaved(false);
-              }}
-            />
-            <span className="hint">
-              Free key at thebluealliance.com/account — only full events are shown, not individual matches.
-            </span>
-          </label>
-          <button className="btn primary" onClick={saveTbaKey} disabled={!newTbaKey}>
-            Save key
-          </button>
-          {tbaKeySaved && <span className="ok-tag">Saved</span>}
-        </section>
-
-        {/* Data sources */}
+        {/* Everything that only affects one source — on/off, color, league
+            filters, and (for FRC) its own API key/team/regions — lives in
+            its own collapsible group here. */}
         <section className="settings-section">
           <h3>Data sources</h3>
-          <span className="hint">Off means skipped entirely — no requests made, nothing shown.</span>
-          <div className="source-chip-list">
-            {Object.entries(CORE_SPORT_META).map(([sport, defaultMeta]) => {
-              const active = !settings.disabledCoreSources.includes(sport);
-              const color = sportMeta({ sport } as NormalizedEvent, settings.esportsCatalog, settings.sportColorOverrides).color;
-              return (
-                <button
-                  key={sport}
-                  type="button"
-                  className={`chip ${active ? "active" : ""}`}
-                  style={active ? { borderColor: color, background: `${color}26`, color: "#fff" } : undefined}
-                  onClick={() => toggleCore(sport)}
-                >
-                  <span className="dot" style={{ background: color }} />
-                  {defaultMeta.label}
-                </button>
-              );
-            })}
-            {settings.esportsCatalog.map((g) => {
-              const active = settings.enabledEsportsGames.includes(g.slug);
-              const color = sportMeta({ sport: g.sport } as NormalizedEvent, settings.esportsCatalog, settings.sportColorOverrides).color;
-              return (
-                <button
-                  key={g.slug}
-                  type="button"
-                  className={`chip ${active ? "active" : ""}`}
-                  style={active ? { borderColor: color, background: `${color}26`, color: "#fff" } : undefined}
-                  onClick={() => toggleGame(g.slug)}
-                >
-                  <span className="dot" style={{ background: color }} />
-                  {g.label}
-                </button>
-              );
-            })}
-          </div>
-        </section>
-
-        {/* Colors */}
-        <section className="settings-section">
-          <h3>Colors</h3>
-          <span className="hint">Pick your own color per sport if two are too close to tell apart at a glance.</span>
-          <div className="color-picker-list">
-            {allColorableSports.map(({ sport, label, defaultColor }) => {
-              const current = settings.sportColorOverrides[sport] || defaultColor;
-              const isCustom = Boolean(settings.sportColorOverrides[sport]);
-              return (
-                <div key={sport} className="color-picker-row">
-                  <input type="color" value={current} onChange={(e) => setColor(sport, e.target.value)} />
-                  <span className="color-picker-label">{label}</span>
-                  {isCustom && (
-                    <button type="button" className="btn-x-link" onClick={() => resetColor(sport)}>
-                      Reset
-                    </button>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </section>
-
-        {/* League filtering + FRC team filter */}
-        <section className="settings-section">
-          <h3>Filters</h3>
-          <span className="hint">Highlighted leagues are shown; click to hide one. Only leagues currently in your data appear here.</span>
+          <span className="hint">Click a source to configure just that one.</span>
           <div style={{ marginTop: 10 }}>
-            <LeaguePicker allEvents={allEvents} />
+            <SourceSettings allEvents={allEvents} />
           </div>
         </section>
 
