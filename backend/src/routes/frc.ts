@@ -171,7 +171,13 @@ router.get("/", async (_req, res) => {
       })
       .map((e) => {
         const location = [e.city, e.state_prov, e.country].filter(Boolean).join(", ");
-        const districtRegion = districtMap.get(e.key) || (e.state_prov ? STATE_TO_DISTRICT[e.state_prov] : undefined);
+        // state_prov codes aren't globally unique — e.g. "WA" is both
+        // Washington (USA) and Western Australia — so the fallback table
+        // (built from US/Canada district data) only applies within those
+        // countries. Confirmed via a real TBA collision: 2026auwarp (Perth,
+        // WA, Australia) was mislabeled region "PNW" before this check.
+        const isDistrictCountry = e.country === "USA" || e.country === "United States" || e.country === "Canada";
+        const districtRegion = districtMap.get(e.key) || (e.state_prov && isDistrictCountry ? STATE_TO_DISTRICT[e.state_prov] : undefined);
         return {
           id: e.key,
           sport: "frc",

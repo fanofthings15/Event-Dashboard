@@ -109,15 +109,30 @@ calling array methods on what was actually still a number.
 ## Known unverified areas (worth checking first)
 
 - `backend/src/espnScoreboard.ts`'s `liveDetail` field (current game
-  clock/period, e.g. "Q3 8:42") — built from ESPN's conventional
-  `status.type.shortDetail`/`detail` fields based on general knowledge of
-  their site API, never confirmed against a real in-progress game.
-- The stream-source popup in `EventDetailModal.tsx` — the ranking/dedup
-  logic was verified with synthetic PandaScore-shaped data, not a real
-  match response.
-- Anything in `frc.ts`'s district-matching logic beyond what was directly
-  confirmed via real `curl` output the user provided mid-conversation —
-  that data is now a season old by the time this reads it.
+  clock/period, e.g. "Q3 8:42") — **still not directly confirmed** as of
+  2026-08-15. No NFL/NBA/NHL game was live anywhere on ESPN's site API
+  during a real-network check that swept ~20 leagues (only golf was "in
+  progress", which has no clock/period). Indirect evidence is strong
+  though: a real NFL response showed `status.type` reliably carries
+  populated `shortDetail`/`detail` for both "pre" (`"8/15 - 1:00 PM EDT"`)
+  and "post" (`"Final"`) states, so the same fields existing for "in" is
+  a safe bet — just not yet witnessed directly. Re-check next time a
+  tracked game is actually live.
+- The stream-source popup in `EventDetailModal.tsx` — **confirmed** against
+  a real live PandaScore match (LEC, SK Gaming vs Fnatic, 2026-08-15).
+  Real `streams_list` had 5 entries across 4 languages with the official
+  English Twitch stream marked `"main": true`; the app correctly still
+  ranked YouTube first and picked the official Twitch link over the other
+  language duplicates.
+- FRC district-matching — **a real bug was found and fixed** 2026-08-15:
+  `state_prov` codes aren't globally unique (`"WA"` is both Washington,
+  USA and Western Australia), so the `STATE_TO_DISTRICT` fallback in
+  `frc.ts` mislabeled a real Australian event ("West Australian Robotics
+  Playoffs", key `2026auwarp`) as region "PNW" (a US Pacific Northwest
+  district). Fixed by gating the fallback on `e.country` being
+  USA/United States/Canada. Verified against live 2026 TBA data that this
+  was the only such collision this season, and that real PNW events
+  (Oregon/Washington, USA) still resolve correctly.
 
 ## Notable past bugs (avoid repeating)
 
@@ -137,3 +152,12 @@ calling array methods on what was actually still a number.
 - Frontend's `tsconfig.json` uses project references (`"files": []`) — a
   bare `npx tsc --noEmit` in `frontend/` silently checks nothing. Use
   `npm run build` or `npx tsc -b --noEmit` for a real type-check.
+- **`EventCard` in `App.tsx` used to render as a `<button>` with a second
+  `<button>` (the Finished tab's Dismiss ×) nested inside it** — invalid
+  HTML, only reachable once a finished event actually had the dismiss
+  button rendered, so it never showed up in earlier synthetic testing.
+  Found via a real React console warning while running the dev server.
+  Fixed by making the outer element a `<div role="button" tabIndex={0}>`
+  with an `onKeyDown` handler for Enter/Space, keeping the inner Dismiss
+  as a real `<button>` with `stopPropagation()`. If `EventCard` needs
+  another interactive child in the future, keep the outer non-button.

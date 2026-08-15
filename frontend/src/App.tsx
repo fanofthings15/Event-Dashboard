@@ -55,7 +55,19 @@ function EventCard({
   const meta = sportMeta(e, catalog, overrides);
   const live = isLiveNow(e, now);
   return (
-    <button type="button" className={`event-card${live ? " is-live" : ""}`} style={{ borderLeftColor: meta.color }} onClick={onClick}>
+    <div
+      role="button"
+      tabIndex={0}
+      className={`event-card${live ? " is-live" : ""}`}
+      style={{ borderLeftColor: meta.color }}
+      onClick={onClick}
+      onKeyDown={(evt) => {
+        if (evt.key === "Enter" || evt.key === " ") {
+          evt.preventDefault();
+          onClick();
+        }
+      }}
+    >
       <div className="event-top">
         <div className="event-top-left">
           <span className="sport-tag">{meta.label}</span>
@@ -100,7 +112,7 @@ function EventCard({
         <span>{e.league}</span>
         <span>{formatEventTime(e.startTime, timezone)}</span>
       </div>
-    </button>
+    </div>
   );
 }
 
