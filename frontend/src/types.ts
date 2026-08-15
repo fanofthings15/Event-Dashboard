@@ -35,6 +35,24 @@ export interface NormalizedEvent {
   liveDetail?: string; // in-progress game clock/period, e.g. "Q3 8:42"
 }
 
+export interface StandingsRow {
+  team: string;
+  imageUrl?: string;
+  rank?: string;
+  summary?: string;
+  extra?: ExtraFact[];
+}
+
+export interface StandingsGroup {
+  name: string;
+  rows: StandingsRow[];
+}
+
+export interface StandingsResponse {
+  groups: StandingsGroup[];
+  source?: string;
+}
+
 // Static meta for the core (non-PandaScore) sources. Esports titles get
 // their label/color from the backend's esportsCatalog instead, since that
 // list is user-configurable.

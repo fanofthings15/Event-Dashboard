@@ -502,6 +502,16 @@ section h2 {
 [data-density="compact"] .grid { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; }
 [data-density="compact"] .event-card { padding: 8px 10px; }
 [data-density="compact"] .event-top { margin-bottom: 4px; }
+
+.standings-table-wrap { margin-bottom: 24px; overflow-x: auto; }
+.standings-group-title { font-size: 14px; color: var(--muted); margin: 0 0 8px; text-transform: uppercase; letter-spacing: 0.06em; }
+.standings-table { width: 100%; border-collapse: collapse; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; font-size: 13px; }
+.standings-table th, .standings-table td { padding: 8px 12px; text-align: left; white-space: nowrap; }
+.standings-table th { color: var(--muted); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; border-bottom: 1px solid var(--border); }
+.standings-table tbody tr:not(:last-child) td { border-bottom: 1px solid var(--border); }
+.standings-rank-col { width: 32px; color: var(--muted); }
+.standings-team-cell { display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+.standings-team-logo { width: 18px; height: 18px; object-fit: contain; }
 [data-density="compact"] .event-teams { gap: 2px; }
 [data-density="compact"] .event-team-row { font-size: 12px; }
 [data-density="compact"] .event-team-logo { width: 16px; height: 16px; }

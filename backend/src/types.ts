@@ -34,3 +34,21 @@ export interface NormalizedEvent {
   region?: string; // state/province code, e.g. "MI" — currently FRC only
   liveDetail?: string; // in-progress game clock/period, e.g. "Q3 8:42" — only set while live, when the source provides it
 }
+
+export interface StandingsRow {
+  team: string;
+  imageUrl?: string;
+  rank?: string; // ESPN playoffSeed / Jolpica position — string since ESPN's can be "-"
+  summary?: string; // compact fallback, e.g. "12-5" or "219 pts"
+  extra?: ExtraFact[]; // W/L/T, PCT, GB, STRK for team sports; points/wins for F1
+}
+
+export interface StandingsGroup {
+  name: string; // e.g. "AFC East", "Drivers", "Constructors"
+  rows: StandingsRow[];
+}
+
+export interface StandingsResponse {
+  groups: StandingsGroup[];
+  source?: string;
+}

@@ -1,11 +1,55 @@
 import { Router } from "express";
 import { cached } from "./cache.js";
-import type { NormalizedEvent, ExtraFact } from "./types.js";
+import type { NormalizedEvent, ExtraFact, StandingsGroup, StandingsRow } from "./types.js";
 
 function mapStatus(state: string): NormalizedEvent["status"] {
   if (state === "in") return "live";
   if (state === "post") return "finished";
   return "upcoming";
+}
+
+// Order (and inclusion) of stat columns shown per standings row. Confirmed
+// against a real NFL standings response — "ties" simply won't be found for
+// NBA/NHL entries and is skipped there, same mechanism.
+const STANDINGS_STAT_ORDER = ["wins", "losses", "ties", "winPercent", "gamesBehind", "streak"];
+
+interface EspnStandingsNode {
+  name: string;
+  standings?: { entries?: any[] };
+  children?: EspnStandingsNode[];
+}
+
+// ESPN's standings tree nests groups (conference, and possibly division)
+// to a depth that isn't guaranteed consistent across sports/seasons — walk
+// recursively for the first node carrying real entries rather than
+// assuming a fixed depth.
+function collectStandingsGroups(node: EspnStandingsNode): StandingsGroup[] {
+  const entries = node.standings?.entries;
+  if (entries && entries.length > 0) {
+    return [{ name: node.name, rows: entries.map(mapStandingsEntry) }];
+  }
+  return (node.children ?? []).flatMap(collectStandingsGroups);
+}
+
+function mapStandingsEntry(entry: any): StandingsRow {
+  const statByName = new Map<string, any>((entry.stats ?? []).map((s: any) => [s.name, s]));
+  const extra: ExtraFact[] = [];
+  for (const name of STANDINGS_STAT_ORDER) {
+    const stat = statByName.get(name);
+    if (stat) extra.push({ label: stat.shortDisplayName, value: stat.displayValue });
+  }
+  const wins = statByName.get("wins")?.displayValue;
+  const losses = statByName.get("losses")?.displayValue;
+  const ties = statByName.get("ties")?.displayValue;
+  const summary = wins != null && losses != null ? `${wins}-${losses}${ties && ties !== "0" ? `-${ties}` : ""}` : undefined;
+
+  return {
+    team: entry.team?.displayName ?? entry.team?.name,
+    imageUrl: entry.team?.logos?.[0]?.href,
+    rank: statByName.get("playoffSeed")?.displayValue,
+    summary,
+    extra: extra.length ? extra : undefined,
+  };
 }
 
 // espnPath e.g. "football/nfl", "basketball/nba", "hockey/nhl"
@@ -68,6 +112,21 @@ export function buildEspnScoreboardRouter(espnPath: string, sport: string, leagu
       res.json({ events, source: "espn (unofficial)" });
     } catch (err) {
       res.status(502).json({ error: `Failed to fetch ${league} data`, detail: String(err) });
+    }
+  });
+
+  router.get("/standings", async (_req, res) => {
+    try {
+      const data: any = await cached(`espn:${sport}:standings`, 30 * 60, async () => {
+        const r = await fetch(`https://site.api.espn.com/apis/v2/sports/${espnPath}/standings`);
+        if (!r.ok) throw new Error(`ESPN responded ${r.status}`);
+        return r.json();
+      });
+
+      const groups = collectStandingsGroups(data);
+      res.json({ groups, source: "espn (unofficial)" });
+    } catch (err) {
+      res.status(502).json({ error: `Failed to fetch ${league} standings`, detail: String(err) });
     }
   });
 

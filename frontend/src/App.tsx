@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useEvents, type NotifyReason } from "./useEvents";
+import { useStandings } from "./useStandings";
 import { useSettings } from "./SettingsContext";
 import { useNow, formatCountdown } from "./countdown";
 import { sportMeta } from "./sportMeta";
@@ -13,6 +14,7 @@ import SettingsDrawer from "./SettingsDrawer";
 import CalendarView from "./CalendarView";
 import CustomEventsPanel from "./CustomEventsPanel";
 import EventDetailModal from "./EventDetailModal";
+import StandingsView from "./StandingsView";
 
 function matchesSearch(e: NormalizedEvent, query: string): boolean {
   if (!query.trim()) return true;
@@ -153,11 +155,12 @@ export default function App() {
     settings.pollIntervalSeconds * 1000,
     notifyEvent
   );
+  const standings = useStandings(settings.disabledCoreSources);
   const now = useNow();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [customEventsOpen, setCustomEventsOpen] = useState(false);
   const [dismissedWarnings, setDismissedWarnings] = useState<Set<string>>(new Set());
-  const [view, setView] = useState<"list" | "calendar" | "agenda" | "finished">("list");
+  const [view, setView] = useState<"list" | "calendar" | "agenda" | "finished" | "standings">("list");
   const [selectedEvent, setSelectedEvent] = useState<NormalizedEvent | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const newKeys = useNewlySeen(events);
@@ -237,6 +240,9 @@ export default function App() {
             <button className={`btn small ${view === "finished" ? "active" : ""}`} onClick={() => setView("finished")}>
               Finished
             </button>
+            <button className={`btn small ${view === "standings" ? "active" : ""}`} onClick={() => setView("standings")}>
+              Standings
+            </button>
           </div>
           <button className="btn" onClick={refetch} disabled={refreshing}>
             {refreshing ? "Syncing…" : "Resync"}
@@ -305,6 +311,13 @@ export default function App() {
 
       {loading ? (
         <div className="empty">Loading…</div>
+      ) : view === "standings" ? (
+        <StandingsView
+          standingsBySport={standings.standingsBySport}
+          loading={standings.loading}
+          loaded={standings.loaded}
+          onRefresh={standings.refetch}
+        />
       ) : view === "calendar" ? (
         <CalendarView events={filtered} catalog={settings.esportsCatalog} overrides={settings.sportColorOverrides} timezone={settings.timezone} now={now} onEventClick={setSelectedEvent} />
       ) : view === "agenda" ? (
