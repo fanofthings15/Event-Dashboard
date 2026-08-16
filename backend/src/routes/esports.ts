@@ -95,14 +95,24 @@ async function fetchGame(slug: string, sport: string, color: string, apiKey: str
   // Two separate calls, sorted in opposite directions: a single query
   // covering "finished" too and sorted by begin_at would put every finished
   // match ever (oldest first) ahead of what's live/upcoming now, since
-  // finished matches' begin_at values are always in the past.
+  // finished matches' begin_at values are always in the past. The finished
+  // half sorts by scheduled_at rather than begin_at — PandaScore leaves
+  // begin_at null on some finished matches (all CS2 forfeits/walkovers seen
+  // in practice), which breaks -begin_at ordering entirely (returns an
+  // effectively unsorted slice spanning many months instead of the most
+  // recent matches).
   const [active, finishedRaw] = await Promise.all([
     fetchMatches(slug, apiKey, "running,not_started", "begin_at", 25),
-    fetchMatches(slug, apiKey, "finished", "-begin_at", 15),
+    fetchMatches(slug, apiKey, "finished", "-scheduled_at", 15),
   ]);
 
   const cutoff = Date.now() - FINISHED_SHELF_LIFE_DAYS * 24 * 60 * 60 * 1000;
-  const finished = finishedRaw.filter((m) => new Date(m.end_at ?? m.begin_at).getTime() >= cutoff);
+  // PandaScore leaves begin_at/end_at null on some finished CS2 matches
+  // (forfeits/walkovers seen in practice) even though scheduled_at is
+  // always populated — matches the fallback the mapper below uses for
+  // startTime. Without this, those matches' timestamp resolves to the
+  // Unix epoch and gets cut as "too old" even though they just finished.
+  const finished = finishedRaw.filter((m) => new Date(m.end_at ?? m.begin_at ?? m.scheduled_at).getTime() >= cutoff);
 
   // A match could in theory show up in both calls if it transitioned status
   // between the two nearly-simultaneous requests — keep the active copy.
