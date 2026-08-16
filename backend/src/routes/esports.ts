@@ -76,14 +76,45 @@ function seriesScore(m: any): string | undefined {
   return bestOf > 1 ? `${winsA}-${winsB} (Bo${bestOf})` : `${winsA}-${winsB}`;
 }
 
-async function fetchGame(slug: string, sport: string, color: string, apiKey: string): Promise<NormalizedEvent[]> {
-  const url = `https://api.pandascore.co/${slug}/matches?filter[status]=running,not_started&sort=begin_at&page[size]=25`;
+// Keep in sync with the frontend's own FINISHED_SHELF_LIFE_DAYS (App.tsx) —
+// mirrors frc.ts's server-side finished-event cutoff so old matches don't
+// pile up in every poll's response forever.
+const FINISHED_SHELF_LIFE_DAYS = 7;
+
+async function fetchMatches(slug: string, apiKey: string, filterStatus: string, sort: string, pageSize: number): Promise<any[]> {
+  const url = `https://api.pandascore.co/${slug}/matches?filter[status]=${filterStatus}&sort=${sort}&page[size]=${pageSize}`;
   const r = await fetch(url, { headers: { Authorization: `Bearer ${apiKey}` } });
   if (!r.ok) {
     const body = await r.text().catch(() => "");
     throw new Error(`${slug} responded ${r.status}${body ? `: ${body.slice(0, 200)}` : ""}`);
   }
-  const matches: any[] = await r.json();
+  return r.json();
+}
+
+async function fetchGame(slug: string, sport: string, color: string, apiKey: string): Promise<NormalizedEvent[]> {
+  // Two separate calls, sorted in opposite directions: a single query
+  // covering "finished" too and sorted by begin_at would put every finished
+  // match ever (oldest first) ahead of what's live/upcoming now, since
+  // finished matches' begin_at values are always in the past.
+  const [active, finishedRaw] = await Promise.all([
+    fetchMatches(slug, apiKey, "running,not_started", "begin_at", 25),
+    fetchMatches(slug, apiKey, "finished", "-begin_at", 15),
+  ]);
+
+  const cutoff = Date.now() - FINISHED_SHELF_LIFE_DAYS * 24 * 60 * 60 * 1000;
+  const finished = finishedRaw.filter((m) => new Date(m.end_at ?? m.begin_at).getTime() >= cutoff);
+
+  // A match could in theory show up in both calls if it transitioned status
+  // between the two nearly-simultaneous requests — keep the active copy.
+  const seen = new Set<string>();
+  const matches: any[] = [];
+  for (const m of [...active, ...finished]) {
+    const id = String(m.id);
+    if (seen.has(id)) continue;
+    seen.add(id);
+    matches.push(m);
+  }
+
   return matches.map((m) => {
     const opponents = m.opponents ?? [];
     const teams = opponents.map((o: any) => ({
@@ -101,6 +132,7 @@ async function fetchGame(slug: string, sport: string, color: string, apiKey: str
       league: m.league?.name ?? slug,
       name: teamNames || m.name,
       startTime: m.begin_at ?? m.scheduled_at,
+      endTime: m.end_at ?? undefined,
       status: mapStatus(m.status),
       color,
       teams: teams.length ? teams : undefined,
