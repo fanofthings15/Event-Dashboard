@@ -213,9 +213,11 @@ export default function App() {
   const live = filtered.filter((e) => isLiveNow(e, now));
   const upcoming = filtered.filter((e) => !isLiveNow(e, now) && e.status !== "finished");
   const today = filtered.filter((e) => sameDay(new Date(e.startTime), now));
-  const finished = filtered.filter(
-    (e) => e.status === "finished" && withinShelfLife(e, now) && !settings.dismissedFinishedEventIds.includes(`${e.sport}-${e.id}`)
-  );
+  const finished = filtered
+    .filter(
+      (e) => e.status === "finished" && withinShelfLife(e, now) && !settings.dismissedFinishedEventIds.includes(`${e.sport}-${e.id}`)
+    )
+    .sort((a, b) => new Date(b.endTime ?? b.startTime).getTime() - new Date(a.endTime ?? a.startTime).getTime());
 
   const visibleWarnings = warnings.filter((w) => !dismissedWarnings.has(w));
 
