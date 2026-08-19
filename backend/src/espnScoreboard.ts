@@ -2,6 +2,29 @@ import { Router } from "express";
 import { cached } from "./cache.js";
 import type { NormalizedEvent, ExtraFact, StandingsGroup, StandingsRow } from "./types.js";
 
+// ESPN's site API sits behind Akamai bot protection that 403s Bun's (and
+// Node's) fetch() based on TLS/HTTP client fingerprint alone — headers don't
+// matter, curl from the same box gets a clean 200. Shelling out to curl
+// works around it.
+async function curlGetJson(url: string): Promise<any> {
+  const proc = Bun.spawn(["curl", "-s", "--max-time", "10", "-w", "\n%{http_code}", url], {
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+  const [output, stderr, exitCode] = await Promise.all([
+    new Response(proc.stdout).text(),
+    new Response(proc.stderr).text(),
+    proc.exited,
+  ]);
+  if (exitCode !== 0) throw new Error(`curl failed (exit ${exitCode}): ${stderr.trim()}`);
+
+  const splitAt = output.lastIndexOf("\n");
+  const body = output.slice(0, splitAt);
+  const status = Number(output.slice(splitAt + 1).trim());
+  if (status < 200 || status >= 300) throw new Error(`ESPN responded ${status}`);
+  return JSON.parse(body);
+}
+
 function mapStatus(state: string): NormalizedEvent["status"] {
   if (state === "in") return "live";
   if (state === "post") return "finished";
@@ -59,11 +82,7 @@ export function buildEspnScoreboardRouter(espnPath: string, sport: string, leagu
 
   router.get("/", async (_req, res) => {
     try {
-      const data: any = await cached(`espn:${sport}:scoreboard`, 60, async () => {
-        const r = await fetch(url);
-        if (!r.ok) throw new Error(`ESPN responded ${r.status}`);
-        return r.json();
-      });
+      const data: any = await cached(`espn:${sport}:scoreboard`, 60, () => curlGetJson(url));
 
       const events: NormalizedEvent[] = (data.events ?? []).map((e: any) => {
         const comp = e.competitions?.[0];
@@ -117,11 +136,9 @@ export function buildEspnScoreboardRouter(espnPath: string, sport: string, leagu
 
   router.get("/standings", async (_req, res) => {
     try {
-      const data: any = await cached(`espn:${sport}:standings`, 30 * 60, async () => {
-        const r = await fetch(`https://site.api.espn.com/apis/v2/sports/${espnPath}/standings`);
-        if (!r.ok) throw new Error(`ESPN responded ${r.status}`);
-        return r.json();
-      });
+      const data: any = await cached(`espn:${sport}:standings`, 30 * 60, () =>
+        curlGetJson(`https://site.api.espn.com/apis/v2/sports/${espnPath}/standings`)
+      );
 
       const groups = collectStandingsGroups(data);
       res.json({ groups, source: "espn (unofficial)" });
