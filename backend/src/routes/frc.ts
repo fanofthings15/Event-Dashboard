@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { cached } from "../cache.js";
-import { readSettings } from "../settings.js";
+import { readGlobalSettings, readUserSettings } from "../settings.js";
+import { getUserId } from "../userContext.js";
 import { computeMatchProgress } from "../frcMatchProgress.js";
 import type { NormalizedEvent } from "../types.js";
 
@@ -105,8 +106,9 @@ function normalizeTeamKey(input: string): string {
   return /^\d+$/.test(trimmed) ? `frc${trimmed}` : trimmed;
 }
 
-router.get("/", async (_req, res) => {
-  const { tbaApiKey, frcTeamKey, frcFollowEnabled } = readSettings();
+router.get("/", async (req, res) => {
+  const { tbaApiKey } = readGlobalSettings();
+  const { frcTeamKey, frcFollowEnabled } = readUserSettings(getUserId(req));
   if (!tbaApiKey) {
     return res.status(200).json({
       events: [],

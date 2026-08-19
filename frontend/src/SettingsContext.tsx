@@ -42,8 +42,18 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   const [loaded, setLoaded] = useState(false);
 
   const refetch = useCallback(async () => {
-    const r = await fetch("/api/settings");
-    const data = (await r.json()) as SettingsState;
+    // Two separate backend stores as of the per-user settings split: the
+    // bulk of this state is scoped to the requesting user (via the
+    // X-authentik-uid header Traefik sets, handled entirely server-side —
+    // this fetch doesn't need to know its own identity). The two API keys
+    // live behind /api/global-settings instead, admin-gated — a non-admin
+    // friend gets a 403 there, which just means the "is a key set" flags
+    // fall back to false rather than breaking the rest of settings loading.
+    const [userRes, globalRes] = await Promise.all([fetch("/api/settings"), fetch("/api/global-settings")]);
+    const userData = await userRes.json();
+    const globalData = globalRes.ok ? await globalRes.json() : { pandaScoreApiKeySet: false, tbaApiKeySet: false };
+    const data = { ...userData, ...globalData } as SettingsState;
+
     // Defensive: the backend migrates an old single-number notifyLeadMinutes
     // to an array, but guard here too in case anything ever slips through —
     // a non-array here would crash every .includes()/.filter() call on it.
@@ -61,11 +71,39 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
 
   const save = useCallback(
     async (partial: Record<string, unknown>) => {
-      await fetch("/api/settings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(partial),
-      });
+      // pandaScoreApiKey/tbaApiKey are the only two fields that belong to
+      // the global (admin-only) store — route them to /api/global-settings
+      // and everything else to the per-user /api/settings, so a caller can
+      // keep calling save({ pandaScoreApiKey: ... }) or save({ theme: ... })
+      // the same way regardless of which store actually owns the field.
+      const { pandaScoreApiKey, tbaApiKey, ...userPartial } = partial as Record<string, unknown> & {
+        pandaScoreApiKey?: unknown;
+        tbaApiKey?: unknown;
+      };
+      const globalPartial: Record<string, unknown> = {};
+      if (pandaScoreApiKey !== undefined) globalPartial.pandaScoreApiKey = pandaScoreApiKey;
+      if (tbaApiKey !== undefined) globalPartial.tbaApiKey = tbaApiKey;
+
+      const requests: Promise<Response>[] = [];
+      if (Object.keys(userPartial).length > 0) {
+        requests.push(
+          fetch("/api/settings", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(userPartial),
+          })
+        );
+      }
+      if (Object.keys(globalPartial).length > 0) {
+        requests.push(
+          fetch("/api/global-settings", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(globalPartial),
+          })
+        );
+      }
+      await Promise.all(requests);
       await refetch();
     },
     [refetch]

@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { cached } from "../cache.js";
-import { readSettings } from "../settings.js";
+import { readGlobalSettings, readUserSettings } from "../settings.js";
+import { getUserId } from "../userContext.js";
 import { catalogEntry } from "../esportsCatalog.js";
 import type { NormalizedEvent, ExtraFact } from "../types.js";
 
@@ -155,8 +156,9 @@ async function fetchGame(slug: string, sport: string, color: string, apiKey: str
   });
 }
 
-router.get("/", async (_req, res) => {
-  const { pandaScoreApiKey, enabledEsportsGames } = readSettings();
+router.get("/", async (req, res) => {
+  const { pandaScoreApiKey } = readGlobalSettings();
+  const { enabledEsportsGames } = readUserSettings(getUserId(req));
   if (!pandaScoreApiKey) {
     return res.status(200).json({
       events: [],

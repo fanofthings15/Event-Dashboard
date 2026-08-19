@@ -1,11 +1,12 @@
 import { Router } from "express";
-import { readSettings } from "../settings.js";
+import { readUserSettings } from "../settings.js";
+import { getUserId } from "../userContext.js";
 import type { NormalizedEvent } from "../types.js";
 
 const router = Router();
 
-router.get("/", (_req, res) => {
-  const { customEvents } = readSettings();
+router.get("/", (req, res) => {
+  const { customEvents } = readUserSettings(getUserId(req));
   const now = Date.now();
 
   const events: NormalizedEvent[] = customEvents.map((c) => {

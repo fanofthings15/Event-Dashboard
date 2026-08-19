@@ -12,6 +12,7 @@ import f1 from "./routes/f1.js";
 import frc from "./routes/frc.js";
 import esports from "./routes/esports.js";
 import settings from "./routes/settings.js";
+import globalSettings from "./routes/globalSettings.js";
 import customEvents from "./routes/customEvents.js";
 import ics from "./routes/ics.js";
 
@@ -93,6 +94,7 @@ app.use("/api/f1", f1);
 app.use("/api/frc", frc);
 app.use("/api/esports", esports);
 app.use("/api/settings", settings);
+app.use("/api/global-settings", globalSettings);
 app.use("/api/custom-events", customEvents);
 app.use("/calendar.ics", ics);
 

@@ -1,5 +1,6 @@
 import { Router } from "express";
-import { readSettings } from "../settings.js";
+import { readUserSettings } from "../settings.js";
+import { getUserId } from "../userContext.js";
 import { matchesFavoriteTeam } from "../favoriteTeams.js";
 
 const router = Router();
@@ -25,8 +26,9 @@ function matchesExcluded(league: string, excludedLeagues: string[]): boolean {
   return excludedLeagues.some((ex) => ex.trim() && l.includes(ex.trim().toLowerCase()));
 }
 
-router.get("/", async (_req, res) => {
-  const settings = readSettings();
+router.get("/", async (req, res) => {
+  const userId = getUserId(req);
+  const settings = readUserSettings(userId);
   const port = process.env.PORT ? Number(process.env.PORT) : 3020;
   const base = `http://localhost:${port}`;
 
@@ -40,7 +42,14 @@ router.get("/", async (_req, res) => {
     "/api/custom-events",
   ];
 
-  const results = await Promise.allSettled(endpoints.map((p) => fetch(base + p).then((r) => r.json())));
+  // These are self-fetches back into this same backend — forward the acting
+  // user's identity explicitly so the downstream routes (esports' enabled
+  // games, FRC's followed-team tagging, custom events) resolve the same
+  // per-user settings this request is scoped to, instead of silently
+  // falling back to the default/no-header user.
+  const results = await Promise.allSettled(
+    endpoints.map((p) => fetch(base + p, { headers: { "X-authentik-uid": userId } }).then((r) => r.json()))
+  );
   const events: any[] = [];
   for (const r of results) {
     if (r.status === "fulfilled" && Array.isArray(r.value?.events)) events.push(...r.value.events);

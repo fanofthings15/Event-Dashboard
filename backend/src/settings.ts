@@ -3,8 +3,32 @@ import path from "path";
 import os from "os";
 import { DEFAULT_ENABLED_SLUGS } from "./esportsCatalog.js";
 
-const SETTINGS_DIR = path.join(os.homedir(), ".event-dashboard");
-const SETTINGS_FILE = path.join(SETTINGS_DIR, "settings.json");
+const APP_DIR = path.join(os.homedir(), ".event-dashboard");
+// Global, admin-only file — unchanged path from the pre-multi-user app, but
+// now holds only the two API keys (see GlobalSettings below). Everything
+// else that used to live here moved to a per-user file under USERS_DIR.
+const GLOBAL_SETTINGS_FILE = path.join(APP_DIR, "settings.json");
+const USERS_DIR = path.join(APP_DIR, "users");
+
+// Fallback identity used both when a request carries no X-authentik-uid
+// header at all (e.g. `bun run dev` without Traefik/Authentik in front of
+// it) and as the migration target for the old single-user settings.json's
+// per-user fields (see migrateLegacySettingsIfNeeded below) — so a solo
+// `bun run dev` still sees the real pre-existing data without needing
+// Authentik running at all.
+export const DEFAULT_USER_ID = "local";
+
+const SAFE_USER_ID = /^[A-Za-z0-9_.-]+$/;
+
+// Authentik uids are expected to be simple opaque ids, but this value comes
+// from an HTTP header — don't trust it blindly as a filesystem directory
+// name (path traversal, empty string, etc.). Anything that doesn't look
+// like a plain id falls back to DEFAULT_USER_ID.
+export function sanitizeUserId(rawUserId: string | undefined | null): string {
+  const trimmed = rawUserId?.trim();
+  if (!trimmed) return DEFAULT_USER_ID;
+  return SAFE_USER_ID.test(trimmed) ? trimmed : DEFAULT_USER_ID;
+}
 
 export interface CustomEvent {
   id: string;
@@ -16,9 +40,19 @@ export interface CustomEvent {
   url?: string;
 }
 
-export interface Settings {
+// Global, admin-only: the owner's own paid/rate-limited external API
+// credentials. One shared file — every user's requests use the same keys
+// (and share the same rate limit either way), but only an admin uid can
+// see whether a key is set or change it. See userContext.ts's isAdmin().
+export interface GlobalSettings {
   pandaScoreApiKey: string;
   tbaApiKey: string; // The Blue Alliance Read API key, for FRC events
+}
+
+// Per-user: everything else that used to live in the single shared
+// Settings object — one JSON file per Authentik user, at
+// ~/.event-dashboard/users/<uid>/settings.json.
+export interface UserSettings {
   frcTeamKey: string; // e.g. "frc254"
   // Whether to actually tag events where frcTeamKey is competing — lets the
   // team key be saved without immediately turning tagging on/off.
@@ -83,9 +117,12 @@ export interface Settings {
   timezone: string;
 }
 
-const DEFAULTS: Settings = {
+const GLOBAL_DEFAULTS: GlobalSettings = {
   pandaScoreApiKey: "",
   tbaApiKey: "",
+};
+
+const USER_DEFAULTS: UserSettings = {
   frcTeamKey: "",
   frcFollowEnabled: false,
   frcRegions: [],
@@ -109,11 +146,118 @@ const DEFAULTS: Settings = {
   timezone: "",
 };
 
-export function readSettings(): Settings {
+function userSettingsFile(userId: string): string {
+  return path.join(USERS_DIR, sanitizeUserId(userId), "settings.json");
+}
+
+function writeMigrationNote(userId: string): void {
+  const notePath = path.join(USERS_DIR, userId, "MIGRATION-NOTE.txt");
+  const note = `This settings.json was auto-migrated on first run after Event Dashboard
+split its old single shared settings.json into per-user + global-only files
+(for Authentik multi-user support).
+
+Your old preferences (favorite teams, colors, notification settings, etc.)
+were moved here, into the "${userId}" user slot — the same slot \`bun run dev\`
+uses when a request carries no X-authentik-uid header (i.e. no
+Traefik/Authentik in front of it), since the real Authentik uid couldn't be
+determined without a live server to ask.
+
+If you're the owner and your real Authentik uid (the X-authentik-uid header
+Traefik forwards) is different from "${userId}", either:
+  - rename this directory (~/.event-dashboard/users/${userId}) to
+    ~/.event-dashboard/users/<your-real-authentik-uid>, or
+  - set the ADMIN_UID env var to "${userId}" (or to your real uid, and move
+    this folder to match) when running the backend, so admin-only access to
+    the API key settings keeps working as intended.
+
+Your PandaScore/TBA API keys were moved to the global, admin-only file at
+~/.event-dashboard/settings.json (which now holds only those two keys).
+
+Delete this file once you've confirmed everything looks right — it's just a
+one-time note, not read by the app.
+`;
+  fs.mkdirSync(path.dirname(notePath), { recursive: true });
+  fs.writeFileSync(notePath, note, "utf-8");
+}
+
+// One-time, best-effort split of the old combined ~/.event-dashboard/settings.json
+// (API keys + every user-facing preference, all in one file) into the new
+// shape: the global file trimmed down to just the two API keys, and
+// everything else saved as the first per-user record under DEFAULT_USER_ID.
+// Runs once at module load — see the file-level comment on DEFAULT_USER_ID
+// for why that's the right migration target even though it's a guess at the
+// real Authentik uid.
+function migrateLegacySettingsIfNeeded(): void {
   try {
-    const raw = fs.readFileSync(SETTINGS_FILE, "utf-8");
+    if (!fs.existsSync(GLOBAL_SETTINGS_FILE)) return;
+    const raw = fs.readFileSync(GLOBAL_SETTINGS_FILE, "utf-8");
     const parsed = JSON.parse(raw);
-    const merged: Settings = { ...DEFAULTS, ...parsed };
+    if (!parsed || typeof parsed !== "object") return;
+
+    // A global file that's already been split down only ever has these two
+    // keys — anything else present means this is still the old combined
+    // shape and needs migrating.
+    const knownGlobalKeys = new Set(["pandaScoreApiKey", "tbaApiKey"]);
+    const hasLegacyFields = Object.keys(parsed).some((k) => !knownGlobalKeys.has(k));
+    if (!hasLegacyFields) return;
+
+    const targetFile = userSettingsFile(DEFAULT_USER_ID);
+    if (fs.existsSync(targetFile)) return; // don't clobber an existing per-user file
+
+    const { pandaScoreApiKey, tbaApiKey, ...rest } = parsed as Record<string, unknown>;
+
+    fs.mkdirSync(path.dirname(targetFile), { recursive: true });
+    fs.writeFileSync(targetFile, JSON.stringify(rest, null, 2), "utf-8");
+    writeMigrationNote(DEFAULT_USER_ID);
+
+    fs.writeFileSync(
+      GLOBAL_SETTINGS_FILE,
+      JSON.stringify(
+        { pandaScoreApiKey: typeof pandaScoreApiKey === "string" ? pandaScoreApiKey : "", tbaApiKey: typeof tbaApiKey === "string" ? tbaApiKey : "" },
+        null,
+        2
+      ),
+      "utf-8"
+    );
+
+    console.warn(
+      `[settings] Migrated legacy ~/.event-dashboard/settings.json: API keys kept in the global file, ` +
+        `everything else moved to ~/.event-dashboard/users/${DEFAULT_USER_ID}/settings.json. ` +
+        `See MIGRATION-NOTE.txt in that folder if your Authentik uid differs from "${DEFAULT_USER_ID}".`
+    );
+  } catch (err) {
+    console.error("[settings] legacy settings.json migration failed:", err);
+  }
+}
+
+migrateLegacySettingsIfNeeded();
+
+export function readGlobalSettings(): GlobalSettings {
+  try {
+    const raw = fs.readFileSync(GLOBAL_SETTINGS_FILE, "utf-8");
+    const parsed = JSON.parse(raw);
+    return {
+      pandaScoreApiKey: typeof parsed.pandaScoreApiKey === "string" ? parsed.pandaScoreApiKey : "",
+      tbaApiKey: typeof parsed.tbaApiKey === "string" ? parsed.tbaApiKey : "",
+    };
+  } catch {
+    return { ...GLOBAL_DEFAULTS };
+  }
+}
+
+export function writeGlobalSettings(next: Partial<GlobalSettings>): GlobalSettings {
+  const merged = { ...readGlobalSettings(), ...next };
+  fs.mkdirSync(APP_DIR, { recursive: true });
+  fs.writeFileSync(GLOBAL_SETTINGS_FILE, JSON.stringify(merged, null, 2), "utf-8");
+  return merged;
+}
+
+export function readUserSettings(userId: string): UserSettings {
+  const file = userSettingsFile(userId);
+  try {
+    const raw = fs.readFileSync(file, "utf-8");
+    const parsed = JSON.parse(raw);
+    const merged: UserSettings = { ...USER_DEFAULTS, ...parsed };
 
     // notifyLeadMinutes used to be a single number before it became a
     // multi-select array — an old settings.json on disk still has that
@@ -126,13 +270,14 @@ export function readSettings(): Settings {
 
     return merged;
   } catch {
-    return DEFAULTS;
+    return { ...USER_DEFAULTS };
   }
 }
 
-export function writeSettings(next: Partial<Settings>): Settings {
-  const merged = { ...readSettings(), ...next };
-  fs.mkdirSync(SETTINGS_DIR, { recursive: true });
-  fs.writeFileSync(SETTINGS_FILE, JSON.stringify(merged, null, 2), "utf-8");
+export function writeUserSettings(userId: string, next: Partial<UserSettings>): UserSettings {
+  const merged = { ...readUserSettings(userId), ...next };
+  const file = userSettingsFile(userId);
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, JSON.stringify(merged, null, 2), "utf-8");
   return merged;
 }

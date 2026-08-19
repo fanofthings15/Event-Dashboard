@@ -1,14 +1,20 @@
 import { Router } from "express";
-import { readSettings, writeSettings, type Settings } from "../settings.js";
+import { readUserSettings, writeUserSettings, type UserSettings } from "../settings.js";
+import { getUserId } from "../userContext.js";
 import { ESPORTS_CATALOG } from "../esportsCatalog.js";
 
 const router = Router();
 
-router.get("/", (_req, res) => {
-  const settings = readSettings();
+// Per-user preferences only — scoped by the requesting user's Authentik uid
+// (X-authentik-uid, see userContext.ts). The two global API keys
+// (pandaScoreApiKey/tbaApiKey) intentionally never appear on this router at
+// all, in either direction — they live behind /api/global-settings
+// (routes/globalSettings.ts), which is admin-gated. Don't add them back
+// here even as a convenience — that's exactly the "any friend can overwrite
+// the shared API key" bug this split exists to fix.
+router.get("/", (req, res) => {
+  const settings = readUserSettings(getUserId(req));
   res.json({
-    pandaScoreApiKeySet: Boolean(settings.pandaScoreApiKey),
-    tbaApiKeySet: Boolean(settings.tbaApiKey),
     frcTeamKey: settings.frcTeamKey,
     frcFollowEnabled: settings.frcFollowEnabled,
     frcRegions: settings.frcRegions,
@@ -36,14 +42,8 @@ router.get("/", (_req, res) => {
 
 router.post("/", (req, res) => {
   const body = req.body ?? {};
-  const next: Partial<Settings> = {};
+  const next: Partial<UserSettings> = {};
 
-  if (typeof body.pandaScoreApiKey === "string" && body.pandaScoreApiKey.length > 0) {
-    next.pandaScoreApiKey = body.pandaScoreApiKey;
-  }
-  if (typeof body.tbaApiKey === "string" && body.tbaApiKey.length > 0) {
-    next.tbaApiKey = body.tbaApiKey;
-  }
   if (typeof body.frcTeamKey === "string") next.frcTeamKey = body.frcTeamKey;
   if (typeof body.frcFollowEnabled === "boolean") next.frcFollowEnabled = body.frcFollowEnabled;
   if (Array.isArray(body.frcRegions)) next.frcRegions = body.frcRegions.filter((x: unknown) => typeof x === "string");
@@ -105,7 +105,7 @@ router.post("/", (req, res) => {
     }
   }
 
-  writeSettings(next);
+  writeUserSettings(getUserId(req), next);
   res.json({ ok: true });
 });
 

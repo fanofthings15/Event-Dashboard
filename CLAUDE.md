@@ -67,15 +67,52 @@ was derived from real 2026 season data, not guessed.
 
 ## Settings model
 
-Everything lives in one `Settings` object (`backend/src/settings.ts`),
-persisted to `~/.event-dashboard/settings.json` — **outside the repo**, so
-it survives every deploy. `SettingsContext.tsx` on the frontend mirrors
-this via GET/POST `/api/settings` and is the single source of truth the
-whole app reads from.
+Two tiers, both in `backend/src/settings.ts`, both persisted **outside the
+repo** under `~/.event-dashboard/` so they survive every deploy:
 
-**When adding a new settings field:** always give it a sensible default in
-`DEFAULTS`, and if the *type* of an existing field ever changes (e.g.
-number → array), add a migration step in `readSettings()`. A real
+- **Global (admin-only)** — just the two external API credentials
+  (`pandaScoreApiKey`, `tbaApiKey`), in `GlobalSettings`, persisted to
+  `~/.event-dashboard/settings.json`. One shared file — everyone hits the
+  same rate limit either way, but only an admin uid (see `ADMIN_UID` below)
+  can see whether a key is set or change it. Served by
+  `routes/globalSettings.ts` at `/api/global-settings`; never touched by
+  `routes/settings.ts`.
+- **Per-user** — everything else (favorite teams, source filters, theme,
+  notification prefs, FRC team follow, etc.), in `UserSettings`, persisted
+  one file per Authentik user at
+  `~/.event-dashboard/users/<uid>/settings.json`. Served by
+  `routes/settings.ts` at `/api/settings`, scoped to the requesting user via
+  `userContext.ts`'s `getUserId()`, which reads the `X-authentik-uid` header
+  Traefik/Authentik forwards on every request. No header (e.g. bare
+  `bun run dev` without Traefik in front) falls back to a fixed `"local"`
+  user (`DEFAULT_USER_ID` in `settings.ts`) so local iteration still works.
+
+`ADMIN_UID` (env var, comma-separated for multiple) controls who can hit
+`/api/global-settings` — defaults to just `"local"`, so it works out of the
+box for bare `bun run dev` but needs to be set to the owner's real Authentik
+uid once actually deployed behind Traefik.
+
+Any route that reads user-facing prefs must call `readUserSettings(getUserId(req))`,
+never a global read — and any route making an internal self-fetch back into
+this backend (see `routes/ics.ts`) must forward `X-authentik-uid` explicitly,
+since that header isn't otherwise present on a server-to-server `fetch()`.
+
+`SettingsContext.tsx` on the frontend fetches both `/api/settings` and
+`/api/global-settings` and merges them into one client-side state object —
+`save()` routes `pandaScoreApiKey`/`tbaApiKey` to the global endpoint and
+everything else to the per-user one, so callers don't need to care which
+store actually owns a given field.
+
+The old single shared `settings.json` (one file, no per-user concept) is
+auto-migrated on first run of the new code — see the comment on
+`migrateLegacySettingsIfNeeded()` in `settings.ts` for exactly how the split
+happens and where the pre-existing data ends up.
+
+**When adding a new settings field:** decide which tier it belongs in (almost
+certainly per-user — the global tier is deliberately just the two API keys),
+give it a sensible default in `USER_DEFAULTS` or `GLOBAL_DEFAULTS`, and if
+the *type* of an existing field ever changes (e.g. number → array), add a
+migration step in `readUserSettings()`/`readGlobalSettings()`. A real
 production bug happened once from skipping this — an existing
 `settings.json` on disk still had the old shape, and the frontend crashed
 calling array methods on what was actually still a number.
