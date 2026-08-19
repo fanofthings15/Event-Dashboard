@@ -205,6 +205,12 @@ export default function App() {
   function deselectAll() {
     setActiveSports(new Set());
   }
+  function showAll() {
+    setActiveSports(null);
+    setSearchQuery("");
+  }
+
+  const hasActiveFilter = searchQuery.trim() !== "" || (activeSports !== null && activeSports.size < availableSports.length);
 
   const filtered = useMemo(
     () => events.filter((e) => isActive(e.sport) && matchesSearch(e, searchQuery)),
@@ -272,6 +278,11 @@ export default function App() {
 
       {settingsLoaded && (
         <div className="filters">
+          {hasActiveFilter && (
+            <button className="btn small" onClick={showAll}>
+              Show all
+            </button>
+          )}
           <button className="btn small" onClick={selectAll}>
             Select all
           </button>
