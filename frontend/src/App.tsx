@@ -205,14 +205,16 @@ export default function App() {
   function deselectAll() {
     setActiveSports(new Set());
   }
-  function showAllLeagues() {
-    save({ excludedLeagues: [] });
-  }
 
-  const filtered = useMemo(
-    () => events.filter((e) => isActive(e.sport) && matchesSearch(e, searchQuery)),
-    [events, activeSports, availableSports, searchQuery]
-  );
+  // Temporary peek at everything — ignores sport chips and league/region
+  // exclusions without touching them, so flicking it back off restores
+  // exactly the filters the user had set.
+  const [showAllOverride, setShowAllOverride] = useState(false);
+
+  const filtered = useMemo(() => {
+    const source = showAllOverride ? allEvents : events;
+    return source.filter((e) => (showAllOverride || isActive(e.sport)) && matchesSearch(e, searchQuery));
+  }, [events, allEvents, showAllOverride, activeSports, availableSports, searchQuery]);
   const live = filtered.filter((e) => isLiveNow(e, now));
   const upcoming = filtered.filter((e) => !isLiveNow(e, now) && e.status !== "finished");
   const today = filtered.filter((e) => sameDay(new Date(e.startTime), now));
@@ -275,11 +277,14 @@ export default function App() {
 
       {settingsLoaded && (
         <div className="filters">
-          {settings.excludedLeagues.length > 0 && (
-            <button className="btn small" onClick={showAllLeagues}>
-              Show all leagues
-            </button>
-          )}
+          <button
+            type="button"
+            className={`chip ${showAllOverride ? "active" : ""}`}
+            title="Temporarily show everything, ignoring your sport and league filters"
+            onClick={() => setShowAllOverride((v) => !v)}
+          >
+            Show all
+          </button>
           <button className="btn small" onClick={selectAll}>
             Select all
           </button>
