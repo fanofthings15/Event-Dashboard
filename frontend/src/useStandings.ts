@@ -1,4 +1,5 @@
 import { useCallback, useState } from "react";
+import { reauthAwareFetch } from "./authFetch";
 import type { StandingsGroup } from "./types";
 
 export const STANDINGS_SPORTS = ["nfl", "nba", "nhl", "f1"] as const;
@@ -32,7 +33,8 @@ export function useStandings(disabledCoreSources: string[]): StandingsState {
     const results = await Promise.all(
       sports.map(async (sport) => {
         try {
-          const r = await fetch(STANDINGS_ENDPOINTS[sport]);
+          const r = await reauthAwareFetch(STANDINGS_ENDPOINTS[sport]);
+          if (!r) return [sport, [] as StandingsGroup[]] as const;
           const data = await r.json();
           return [sport, (data.groups ?? []) as StandingsGroup[]] as const;
         } catch {

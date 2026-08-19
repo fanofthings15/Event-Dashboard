@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { reauthAwareFetch } from "./authFetch";
 import type { NormalizedEvent } from "./types";
 
 interface SourceResult {
@@ -119,7 +120,8 @@ export function useEvents(
     const results = await Promise.all(
       endpoints.map(async (url) => {
         try {
-          const r = await fetch(url);
+          const r = await reauthAwareFetch(url);
+          if (!r) return { events: [], error: `Session expired, reloading… (${url})` } as SourceResult;
           return (await r.json()) as SourceResult;
         } catch {
           return { events: [], error: `Could not reach ${url}` } as SourceResult;
