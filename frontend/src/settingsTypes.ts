@@ -40,4 +40,5 @@ export interface SettingsState {
   snoozedEventIds: string[];
   compactCards: boolean;
   timezone: string;
+  icsToken: string;
 }

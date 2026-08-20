@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import os from "os";
+import crypto from "crypto";
 import { DEFAULT_ENABLED_SLUGS } from "./esportsCatalog.js";
 
 const APP_DIR = path.join(os.homedir(), ".event-dashboard");
@@ -115,6 +116,15 @@ export interface UserSettings {
   // IANA timezone (e.g. "America/New_York") to display all times in,
   // overriding the browser's local timezone. Empty string = use local.
   timezone: string;
+  // Opaque per-user secret for the /calendar.ics feed. That endpoint is
+  // fetched by external calendar apps (Google/Apple/Outlook), which can't
+  // complete an interactive Authentik login the way a browser tab does —
+  // so it can't rely on X-authentik-uid like every other route. This token,
+  // passed as a query param, is what identifies the subscriber instead. See
+  // findUserIdByIcsToken below. Lazily generated on first read (empty until
+  // then) rather than at settings-creation time, so existing users get one
+  // the next time anything reads their settings.
+  icsToken: string;
 }
 
 const GLOBAL_DEFAULTS: GlobalSettings = {
@@ -144,6 +154,7 @@ const USER_DEFAULTS: UserSettings = {
   snoozedEventIds: [],
   compactCards: false,
   timezone: "",
+  icsToken: "",
 };
 
 function userSettingsFile(userId: string): string {
@@ -268,9 +279,14 @@ export function readUserSettings(userId: string): UserSettings {
       merged.notifyLeadMinutes = old > 0 ? [old] : [];
     }
 
+    if (!merged.icsToken) return writeUserSettings(userId, { icsToken: crypto.randomBytes(24).toString("hex") });
+
     return merged;
   } catch {
-    return { ...USER_DEFAULTS };
+    const fresh = { ...USER_DEFAULTS, icsToken: crypto.randomBytes(24).toString("hex") };
+    fs.mkdirSync(path.dirname(userSettingsFile(userId)), { recursive: true });
+    fs.writeFileSync(userSettingsFile(userId), JSON.stringify(fresh, null, 2), "utf-8");
+    return fresh;
   }
 }
 
@@ -280,4 +296,30 @@ export function writeUserSettings(userId: string, next: Partial<UserSettings>): 
   fs.mkdirSync(path.dirname(file), { recursive: true });
   fs.writeFileSync(file, JSON.stringify(merged, null, 2), "utf-8");
   return merged;
+}
+
+export function regenerateIcsToken(userId: string): string {
+  const token = crypto.randomBytes(24).toString("hex");
+  writeUserSettings(userId, { icsToken: token });
+  return token;
+}
+
+// Resolves the calendar feed's ?token= query param back to the owning
+// uid. Small friend-group scale — a linear scan of each user's settings
+// file is simpler than maintaining a separate token->uid index and fast
+// enough for the handful of users this app will ever have. Constant-time
+// compare so a partial-match timing side-channel can't help guess a token.
+export function findUserIdByIcsToken(token: string): string | null {
+  if (!token) return null;
+  const tokenBuf = Buffer.from(token, "utf-8");
+  try {
+    for (const userId of fs.readdirSync(USERS_DIR)) {
+      const candidate = readUserSettings(userId).icsToken;
+      const candidateBuf = Buffer.from(candidate, "utf-8");
+      if (candidateBuf.length === tokenBuf.length && crypto.timingSafeEqual(candidateBuf, tokenBuf)) return userId;
+    }
+  } catch {
+    // USERS_DIR doesn't exist yet (no users have ever loaded settings) — no match.
+  }
+  return null;
 }

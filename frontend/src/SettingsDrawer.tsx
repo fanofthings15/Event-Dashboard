@@ -10,7 +10,7 @@ interface Props {
 }
 
 export default function SettingsDrawer({ onClose, allEvents }: Props) {
-  const { settings, save } = useSettings();
+  const { settings, save, refetch } = useSettings();
 
   // PandaScore's key is shared across several esports sources at once, so it
   // stays here rather than in any one source's own settings group.
@@ -88,13 +88,27 @@ export default function SettingsDrawer({ onClose, allEvents }: Props) {
   }
 
   // --- Calendar feed ---
-  const feedUrl = `${window.location.origin}/calendar.ics`;
+  // Token-scoped per user (settings.icsToken) rather than a bare
+  // /calendar.ics — that endpoint is fetched by external calendar apps,
+  // which can't share this browser's Authentik session, so the token in
+  // the URL is what ties the feed to this person's own events/settings.
+  const feedUrl = settings.icsToken ? `${window.location.origin}/calendar.ics?token=${settings.icsToken}` : "";
   const [feedCopied, setFeedCopied] = useState(false);
+  const [regeneratingFeed, setRegeneratingFeed] = useState(false);
   function copyFeedUrl() {
     navigator.clipboard.writeText(feedUrl).then(() => {
       setFeedCopied(true);
       setTimeout(() => setFeedCopied(false), 2000);
     });
+  }
+  async function regenerateFeedUrl() {
+    setRegeneratingFeed(true);
+    try {
+      await fetch("/api/settings/regenerate-ics-token", { method: "POST" });
+      await refetch();
+    } finally {
+      setRegeneratingFeed(false);
+    }
   }
   function setIcsMode(favoritesOnly: boolean) {
     save({ icsFavoritesOnly: favoritesOnly });
@@ -295,10 +309,19 @@ export default function SettingsDrawer({ onClose, allEvents }: Props) {
           </span>
           <div className="form-row" style={{ marginTop: 10 }}>
             <input className="text-input" readOnly value={feedUrl} onClick={(e) => (e.target as HTMLInputElement).select()} />
-            <button className="btn" onClick={copyFeedUrl}>
+            <button className="btn" onClick={copyFeedUrl} disabled={!feedUrl}>
               {feedCopied ? "Copied!" : "Copy"}
             </button>
           </div>
+          <div className="form-row" style={{ marginTop: 6 }}>
+            <button className="btn" onClick={regenerateFeedUrl} disabled={regeneratingFeed}>
+              {regeneratingFeed ? "Regenerating…" : "Regenerate link"}
+            </button>
+          </div>
+          <span className="hint" style={{ display: "block", marginTop: 6 }}>
+            This link is yours alone — anyone who has it can see your feed, so regenerate it if it's ever shared
+            somewhere it shouldn't be. Regenerating breaks the old link.
+          </span>
           <div className="source-chip-list" style={{ marginTop: 10 }}>
             <button type="button" className={`chip ${!settings.icsFavoritesOnly ? "active" : ""}`} onClick={() => setIcsMode(false)}>
               Everything enabled

@@ -1,6 +1,5 @@
 import { Router } from "express";
-import { readUserSettings } from "../settings.js";
-import { getUserId } from "../userContext.js";
+import { readUserSettings, findUserIdByIcsToken } from "../settings.js";
 import { matchesFavoriteTeam } from "../favoriteTeams.js";
 
 const router = Router();
@@ -27,7 +26,20 @@ function matchesExcluded(league: string, excludedLeagues: string[]): boolean {
 }
 
 router.get("/", async (req, res) => {
-  const userId = getUserId(req);
+  // Unlike every other route, this one is fetched directly by external
+  // calendar apps (Google/Apple/Outlook) polling on their own schedule —
+  // they can't complete an interactive Authentik login the way a browser
+  // does, so this path has to sit outside Authentik's forward-auth (an
+  // infra-side config, not something this file controls) and can't trust
+  // X-authentik-uid at all here. The ?token= query param — a per-user
+  // secret from Settings, see settings.ts's icsToken — is the only identity
+  // this route accepts.
+  const token = typeof req.query.token === "string" ? req.query.token : "";
+  const userId = findUserIdByIcsToken(token);
+  if (!userId) {
+    res.status(401).send("Missing or invalid calendar token — copy the link again from Settings.");
+    return;
+  }
   const settings = readUserSettings(userId);
   const port = process.env.PORT ? Number(process.env.PORT) : 3020;
   const base = `http://localhost:${port}`;

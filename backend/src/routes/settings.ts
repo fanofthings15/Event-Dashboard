@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { readUserSettings, writeUserSettings, type UserSettings } from "../settings.js";
+import { readUserSettings, writeUserSettings, regenerateIcsToken, type UserSettings } from "../settings.js";
 import { getUserId } from "../userContext.js";
 import { ESPORTS_CATALOG } from "../esportsCatalog.js";
 
@@ -36,8 +36,16 @@ router.get("/", (req, res) => {
     snoozedEventIds: settings.snoozedEventIds,
     compactCards: settings.compactCards,
     timezone: settings.timezone,
+    icsToken: settings.icsToken,
     esportsCatalog: ESPORTS_CATALOG,
   });
+});
+
+// Rotates the calendar feed's secret token — for when a link has leaked or
+// been shared somewhere it shouldn't. Deliberately not part of the regular
+// POST / merge below: this is a server-generated value, never client-set.
+router.post("/regenerate-ics-token", (req, res) => {
+  res.json({ icsToken: regenerateIcsToken(getUserId(req)) });
 });
 
 router.post("/", (req, res) => {

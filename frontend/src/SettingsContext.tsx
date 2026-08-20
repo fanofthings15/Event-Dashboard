@@ -26,6 +26,7 @@ const EMPTY: SettingsState = {
   snoozedEventIds: [],
   compactCards: false,
   timezone: "",
+  icsToken: "",
 };
 
 interface SettingsContextValue {
