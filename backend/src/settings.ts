@@ -279,13 +279,26 @@ export function readUserSettings(userId: string): UserSettings {
       merged.notifyLeadMinutes = old > 0 ? [old] : [];
     }
 
-    if (!merged.icsToken) return writeUserSettings(userId, { icsToken: crypto.randomBytes(24).toString("hex") });
+    // Lazily backfill icsToken for a pre-existing user's file (every real
+    // user's file, the first time this ran, since the field is brand new)
+    // by writing the merged object we already have in hand — NOT via
+    // writeUserSettings, which itself calls readUserSettings and would
+    // recurse right back into this same branch (the file on disk still
+    // lacks icsToken until this write happens), overflowing the stack. That
+    // actually happened once — the resulting RangeError was swallowed by
+    // the catch below, whose recovery path writes USER_DEFAULTS, silently
+    // wiping a real user's saved preferences. Never call writeUserSettings
+    // from inside readUserSettings.
+    if (!merged.icsToken) {
+      merged.icsToken = crypto.randomBytes(24).toString("hex");
+      fs.writeFileSync(file, JSON.stringify(merged, null, 2), "utf-8");
+    }
 
     return merged;
   } catch {
     const fresh = { ...USER_DEFAULTS, icsToken: crypto.randomBytes(24).toString("hex") };
-    fs.mkdirSync(path.dirname(userSettingsFile(userId)), { recursive: true });
-    fs.writeFileSync(userSettingsFile(userId), JSON.stringify(fresh, null, 2), "utf-8");
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, JSON.stringify(fresh, null, 2), "utf-8");
     return fresh;
   }
 }
