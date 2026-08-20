@@ -32,7 +32,7 @@ body {
 .app {
   max-width: 960px;
   margin: 0 auto;
-  padding: 24px 16px 64px;
+  padding: max(24px, env(safe-area-inset-top)) 16px 64px;
 }
 
 .header {
