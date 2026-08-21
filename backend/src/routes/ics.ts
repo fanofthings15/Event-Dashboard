@@ -72,7 +72,15 @@ router.get("/", async (req, res) => {
     if (followedSet.has(`${e.sport}-${e.id}`)) e.manuallyFollowed = true;
   }
 
-  let filtered = events.filter((e) => e.sport === "custom" || !matchesExcluded(e.league ?? "", settings.excludedLeagues));
+  // Once a finished event is dismissed from the Finished tab, it's done —
+  // drop it here too, or it'd keep reappearing in the synced calendar every
+  // time the subscription refreshes even though the dashboard itself has
+  // moved on. Applies before the favorites-only narrowing below so a
+  // dismissed event can't sneak back in for matching a favorite team either.
+  const dismissedSet = new Set(settings.dismissedFinishedEventIds);
+  let filtered = events.filter(
+    (e) => !dismissedSet.has(`${e.sport}-${e.id}`) && (e.sport === "custom" || !matchesExcluded(e.league ?? "", settings.excludedLeagues))
+  );
 
   // When on, narrow the feed down to just favorited/followed teams instead
   // of everything currently enabled — for someone who wants their synced
