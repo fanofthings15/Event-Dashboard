@@ -123,6 +123,20 @@ section h2 {
 
 .event-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
 .event-top-left { display: flex; align-items: center; gap: 6px; }
+.event-top-right { display: flex; align-items: center; gap: 8px; }
+
+.follow-star {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font-size: 19px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+}
+.follow-star:hover { color: #facc15; }
+.follow-star.is-followed { color: #facc15; }
 .sport-tag { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
 .region-chip {
   font-size: 10px;
@@ -212,18 +226,6 @@ section h2 {
   border-radius: 999px;
   margin-bottom: 6px;
   margin-right: 6px;
-}
-
-.manual-follow-chip {
-  display: inline-block;
-  background: rgba(79, 141, 253, 0.15);
-  border: 1px solid rgba(79, 141, 253, 0.4);
-  color: var(--accent);
-  font-size: 11px;
-  font-weight: 700;
-  padding: 3px 8px;
-  border-radius: 999px;
-  margin-bottom: 6px;
 }
 
 .new-chip {
@@ -404,8 +406,16 @@ section h2 {
 .detail-fact { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; padding: 6px 0; border-bottom: 1px solid var(--border); }
 .detail-fact:last-child { border-bottom: none; }
 
-.detail-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
-.detail-actions .btn { text-decoration: none; display: inline-flex; align-items: center; }
+.detail-actions { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 12px; }
+.detail-actions .btn {
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  width: 100%;
+}
+.detail-actions .stream-picker .btn { width: 100%; }
 
 .stream-picker { position: relative; }
 .stream-menu {

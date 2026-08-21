@@ -7,6 +7,7 @@ import { liquipediaLeagueUrl, liquipediaSearchUrl } from "./types";
 import { googleCalendarUrl } from "./googleCalendar";
 import { useSettings } from "./SettingsContext";
 import ConfirmDialog from "./ConfirmDialog";
+import FollowStar from "./FollowStar";
 import { formatCountdown } from "./countdown";
 import { formatEventDate, formatEventTime } from "./dateFormat";
 
@@ -45,23 +46,6 @@ export default function EventDetailModal({ event, now, catalog, onClose, onTeamC
   const isManuallyFollowed = event.manuallyFollowed || settings.followedEventIds.includes(eventKey);
   const isSnoozed = settings.snoozedEventIds.includes(eventKey);
 
-  async function toggleFollowEvent() {
-    if (isManuallyFollowed) {
-      await save({ followedEventIds: settings.followedEventIds.filter((k) => k !== eventKey) });
-      return;
-    }
-    // Following implies wanting a heads-up when it goes live — request
-    // permission if we don't have it yet, and make sure the global
-    // notify-on-live setting is actually on.
-    if (typeof Notification !== "undefined" && Notification.permission === "default") {
-      await Notification.requestPermission();
-    }
-    await save({
-      followedEventIds: [...settings.followedEventIds, eventKey],
-      notifyOnLive: true,
-    });
-  }
-
   async function toggleSnooze() {
     const next = isSnoozed ? settings.snoozedEventIds.filter((k) => k !== eventKey) : [...settings.snoozedEventIds, eventKey];
     await save({ snoozedEventIds: next });
@@ -77,12 +61,14 @@ export default function EventDetailModal({ event, now, catalog, onClose, onTeamC
       <div className="modal" style={{ borderLeftColor: meta.color, borderLeftWidth: 4 }} onClick={(e) => e.stopPropagation()}>
         <div className="event-top" style={{ marginBottom: 8 }}>
           <span className="sport-tag">{meta.label}</span>
-          {live ? <span className="live-badge">LIVE</span> : <span className="countdown">{formatCountdown(event.startTime, now)}</span>}
+          <div className="event-top-right">
+            <FollowStar event={event} />
+            {live ? <span className="live-badge">LIVE</span> : <span className="countdown">{formatCountdown(event.startTime, now)}</span>}
+          </div>
         </div>
 
         <h2 style={{ marginTop: 0, marginBottom: 8 }}>{event.name}</h2>
         {event.followed && <span className="followed-chip">★ Your team</span>}
-        {event.manuallyFollowed && <span className="manual-follow-chip">📌 Followed event</span>}
         <div className="hint" style={{ marginBottom: 14 }}>
           {event.league} · {formatRange(event.startTime, event.endTime, settings.timezone)}
           {event.venue ? ` · ${event.venue}` : ""}
@@ -119,11 +105,6 @@ export default function EventDetailModal({ event, now, catalog, onClose, onTeamC
         )}
 
         <div className="detail-actions">
-          {event.sport !== "custom" && (
-            <button type="button" className={`btn ${isManuallyFollowed ? "primary" : ""}`} onClick={toggleFollowEvent}>
-              {isManuallyFollowed ? "★ Following — notified when live" : "☆ Follow event"}
-            </button>
-          )}
           <button type="button" className={`btn ${isSnoozed ? "primary" : ""}`} onClick={toggleSnooze}>
             {isSnoozed ? "🔕 Snoozed — no notifications" : "🔔 Snooze notifications"}
           </button>

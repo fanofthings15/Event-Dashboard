@@ -112,6 +112,19 @@ export function buildEspnScoreboardRouter(espnPath: string, sport: string, leagu
         // response from this sandbox (network-restricted).
         const liveDetail = state === "in" ? e.status?.type?.shortDetail || e.status?.type?.detail : undefined;
 
+        // ESPN's own `comp.links` array is inconsistent — sometimes a recap
+        // or boxscore link, sometimes missing outright — which was leaving
+        // some games (NFL in particular) with no "More info"/"Watch live"
+        // buttons at all while others on the same card grid had both,
+        // making the row of action buttons ragged. ESPN's gamecast URL
+        // pattern is stable and needs only the sport slug + game id, so
+        // build it directly instead of trusting the API's link data. There's
+        // no real video stream to link to (ESPN+/cable, not something we
+        // can construct a URL for), so both buttons point at the gamecast
+        // page — it's the closest thing to a "watch this game" page ESPN
+        // has, live score/plays included.
+        const gamecastUrl = `https://www.espn.com/${sport}/game/_/gameId/${e.id}`;
+
         return {
           id: e.id,
           sport,
@@ -119,7 +132,8 @@ export function buildEspnScoreboardRouter(espnPath: string, sport: string, leagu
           name: teamNames || e.name,
           startTime: e.date,
           status: mapStatus(state),
-          detailUrl: comp?.links?.[0]?.href,
+          detailUrl: gamecastUrl,
+          streamUrl: gamecastUrl,
           venue: comp?.venue?.fullName,
           teams: teams.length ? teams : undefined,
           seriesScore,

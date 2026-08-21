@@ -15,6 +15,7 @@ import CalendarView from "./CalendarView";
 import CustomEventsPanel from "./CustomEventsPanel";
 import EventDetailModal from "./EventDetailModal";
 import StandingsView from "./StandingsView";
+import FollowStar from "./FollowStar";
 
 function matchesSearch(e: NormalizedEvent, query: string): boolean {
   if (!query.trim()) return true;
@@ -76,26 +77,28 @@ function EventCard({
           {e.region && <span className="region-chip">{e.region}</span>}
           {isNew && <span className="new-chip">NEW</span>}
         </div>
-        {onDismiss ? (
-          <button
-            type="button"
-            className="btn-x"
-            aria-label="Dismiss"
-            onClick={(evt) => {
-              evt.stopPropagation();
-              onDismiss();
-            }}
-          >
-            ×
-          </button>
-        ) : live ? (
-          <span className="live-badge">LIVE</span>
-        ) : (
-          <span className="countdown">{formatCountdown(e.startTime, now)}</span>
-        )}
+        <div className="event-top-right">
+          <FollowStar event={e} />
+          {onDismiss ? (
+            <button
+              type="button"
+              className="btn-x"
+              aria-label="Dismiss"
+              onClick={(evt) => {
+                evt.stopPropagation();
+                onDismiss();
+              }}
+            >
+              ×
+            </button>
+          ) : live ? (
+            <span className="live-badge">LIVE</span>
+          ) : (
+            <span className="countdown">{formatCountdown(e.startTime, now)}</span>
+          )}
+        </div>
       </div>
       {e.followed && <span className="followed-chip">★ Your team</span>}
-      {e.manuallyFollowed && <span className="manual-follow-chip">📌 Followed</span>}
       {e.teams && e.teams.length > 0 ? (
         <div className="event-teams">
           {e.teams.map((t) => (
