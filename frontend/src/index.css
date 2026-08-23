@@ -444,6 +444,13 @@ section h2 {
 .stream-menu-item:hover { background: rgba(148, 163, 184, 0.12); }
 .stream-menu-item.preferred { font-weight: 700; color: var(--accent); }
 
+.stream-frame-wrap { position: relative; width: 100%; aspect-ratio: 16 / 9; background: #000; border-radius: 8px; overflow: hidden; }
+.stream-frame-wrap iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+.stream-slot-bar { display: flex; align-items: center; gap: 8px; padding: 6px 2px; font-size: 13px; color: var(--muted); }
+.stream-slot-bar span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.stream-main { margin-bottom: 20px; }
+.stream-minor-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; }
+
 .btn-x-link {
   background: transparent;
   border: none;

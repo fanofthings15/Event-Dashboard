@@ -15,6 +15,12 @@ export interface CustomEvent {
   url?: string;
 }
 
+export interface StreamSlot {
+  id: string;
+  label: string;
+  url: string;
+}
+
 export interface SettingsState {
   pandaScoreApiKeySet: boolean;
   tbaApiKeySet: boolean;
@@ -41,4 +47,6 @@ export interface SettingsState {
   compactCards: boolean;
   timezone: string;
   icsToken: string;
+  streamSlots: StreamSlot[];
+  streamMainSlotId: string | null;
 }

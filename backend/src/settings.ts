@@ -41,6 +41,17 @@ export interface CustomEvent {
   url?: string;
 }
 
+// A single embeddable stream, added by pasting a link (YouTube watch/live
+// URL, or any other page that allows framing) — there's no live-stream
+// discovery API wired up here, the user finds the stream themselves and
+// drops the link in. See frontend/src/StreamsView.tsx for the URL -> embed
+// conversion.
+export interface StreamSlot {
+  id: string;
+  label: string;
+  url: string;
+}
+
 // Global, admin-only: the owner's own paid/rate-limited external API
 // credentials. One shared file — every user's requests use the same keys
 // (and share the same rate limit either way), but only an admin uid can
@@ -125,6 +136,13 @@ export interface UserSettings {
   // then) rather than at settings-creation time, so existing users get one
   // the next time anything reads their settings.
   icsToken: string;
+  // Streams tab: user-curated embeddable links (always-on TV / multiview
+  // use case), not tied to any specific event.
+  streamSlots: StreamSlot[];
+  // Which streamSlots entry (by id) renders large in the main pane; the
+  // rest render small in the minor grid. null once no slots exist yet, or
+  // if the previously-main slot was removed.
+  streamMainSlotId: string | null;
 }
 
 const GLOBAL_DEFAULTS: GlobalSettings = {
@@ -155,6 +173,8 @@ const USER_DEFAULTS: UserSettings = {
   compactCards: false,
   timezone: "",
   icsToken: "",
+  streamSlots: [],
+  streamMainSlotId: null,
 };
 
 function userSettingsFile(userId: string): string {

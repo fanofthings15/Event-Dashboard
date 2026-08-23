@@ -27,6 +27,8 @@ const EMPTY: SettingsState = {
   compactCards: false,
   timezone: "",
   icsToken: "",
+  streamSlots: [],
+  streamMainSlotId: null,
 };
 
 interface SettingsContextValue {

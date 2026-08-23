@@ -37,6 +37,8 @@ router.get("/", (req, res) => {
     compactCards: settings.compactCards,
     timezone: settings.timezone,
     icsToken: settings.icsToken,
+    streamSlots: settings.streamSlots,
+    streamMainSlotId: settings.streamMainSlotId,
     esportsCatalog: ESPORTS_CATALOG,
   });
 });
@@ -111,6 +113,15 @@ router.post("/", (req, res) => {
         // Silently ignored — invalid zone, keep whatever was set before.
       }
     }
+  }
+
+  if (Array.isArray(body.streamSlots)) {
+    next.streamSlots = body.streamSlots.filter(
+      (s: any) => s && typeof s.id === "string" && typeof s.label === "string" && typeof s.url === "string"
+    );
+  }
+  if (typeof body.streamMainSlotId === "string" || body.streamMainSlotId === null) {
+    next.streamMainSlotId = body.streamMainSlotId;
   }
 
   writeUserSettings(getUserId(req), next);

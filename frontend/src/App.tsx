@@ -16,6 +16,7 @@ import CustomEventsPanel from "./CustomEventsPanel";
 import EventDetailModal from "./EventDetailModal";
 import StandingsView from "./StandingsView";
 import FollowStar from "./FollowStar";
+import StreamsView from "./StreamsView";
 
 function matchesSearch(e: NormalizedEvent, query: string): boolean {
   if (!query.trim()) return true;
@@ -163,7 +164,7 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [customEventsOpen, setCustomEventsOpen] = useState(false);
   const [dismissedWarnings, setDismissedWarnings] = useState<Set<string>>(new Set());
-  const [view, setView] = useState<"list" | "calendar" | "agenda" | "finished" | "standings">("list");
+  const [view, setView] = useState<"list" | "calendar" | "agenda" | "finished" | "standings" | "streams">("list");
   const [selectedEvent, setSelectedEvent] = useState<NormalizedEvent | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const newKeys = useNewlySeen(events);
@@ -253,6 +254,9 @@ export default function App() {
             <button className={`btn small ${view === "standings" ? "active" : ""}`} onClick={() => setView("standings")}>
               Standings
             </button>
+            <button className={`btn small ${view === "streams" ? "active" : ""}`} onClick={() => setView("streams")}>
+              Streams
+            </button>
           </div>
           <button className="btn" onClick={refetch} disabled={refreshing}>
             {refreshing ? "Syncing…" : "Resync"}
@@ -329,6 +333,8 @@ export default function App() {
 
       {loading ? (
         <div className="empty">Loading…</div>
+      ) : view === "streams" ? (
+        <StreamsView />
       ) : view === "standings" ? (
         <StandingsView
           standingsBySport={standings.standingsBySport}
