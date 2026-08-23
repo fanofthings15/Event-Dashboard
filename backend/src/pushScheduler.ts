@@ -24,17 +24,28 @@ interface SourceResult {
   events?: NormalizedEvent[];
 }
 
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+// Whole-word/phrase match, not a raw substring — see the identical helper in
+// frontend/src/useEvents.ts for why: a favorite like "lions" or "spirit"
+// must match "Detroit Lions" as a distinct word, not as a fragment buried in
+// an unrelated name like "Galions Sharks" or "HyperSpirit".
+function matchesFavoriteTeamName(haystack: string, favorite: string): boolean {
+  const t = favorite.trim();
+  if (!t) return false;
+  return new RegExp(`\\b${escapeRegExp(t)}\\b`, "i").test(haystack);
+}
+
 // Mirrors frontend/src/useEvents.ts's withFavoriteTeams — the raw per-source
 // API responses don't know about a user's favoriteTeams list (that matching
 // happens client-side today), so it's replicated here for the push path to
 // gate on the same "followed" definition the in-page notifications use.
 function matchesFavoriteTeam(e: NormalizedEvent, favoriteTeams: string[]): boolean {
   if (e.followed || favoriteTeams.length === 0) return false;
-  const haystacks = e.teams?.length ? e.teams.map((t) => t.name.toLowerCase()) : [e.name.toLowerCase()];
-  return favoriteTeams.some((team) => {
-    const t = team.trim().toLowerCase();
-    return t.length > 0 && haystacks.some((h) => h.includes(t));
-  });
+  const haystacks = e.teams?.length ? e.teams.map((t) => t.name) : [e.name];
+  return favoriteTeams.some((team) => haystacks.some((h) => matchesFavoriteTeamName(h, team)));
 }
 
 // Per-user memory of what's already been notified, so a live game doesn't

@@ -60,17 +60,29 @@ function matchesRegion(e: NormalizedEvent, frcRegions: string[]): boolean {
   return frcRegions.includes(e.region);
 }
 
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+// Whole-word/phrase match, not a raw substring — a saved favorite like
+// "lions" or "T1" must match "Detroit Lions" or "T1" as a distinct word, not
+// as a fragment buried inside an unrelated name like "Galions Sharks" or
+// "HyperSpirit". Confirmed against real PandaScore data: naive .includes()
+// was tagging exactly those two as "followed" for a "lions"/"spirit" entry.
+function matchesFavoriteTeamName(haystack: string, favorite: string): boolean {
+  const t = favorite.trim();
+  if (!t) return false;
+  return new RegExp(`\\b${escapeRegExp(t)}\\b`, "i").test(haystack);
+}
+
 // Cross-sport favorite-team tagging: matches a saved team name against an
 // event's team list (or its combined name, for sources without a teams
 // array) case-insensitively. Reuses the same "followed" flag FRC's
 // team-follow feature already uses, so every existing badge/UI just works.
 function withFavoriteTeams(e: NormalizedEvent, favoriteTeams: string[]): NormalizedEvent {
   if (e.followed || favoriteTeams.length === 0) return e;
-  const haystacks = e.teams?.length ? e.teams.map((t) => t.name.toLowerCase()) : [e.name.toLowerCase()];
-  const matched = favoriteTeams.some((team) => {
-    const t = team.trim().toLowerCase();
-    return t && haystacks.some((h) => h.includes(t));
-  });
+  const haystacks = e.teams?.length ? e.teams.map((t) => t.name) : [e.name];
+  const matched = favoriteTeams.some((team) => haystacks.some((h) => matchesFavoriteTeamName(h, team)));
   return matched ? { ...e, followed: true } : e;
 }
 
