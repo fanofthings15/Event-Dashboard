@@ -458,6 +458,9 @@ section h2 {
 .streams-mode {
   display: flex;
   flex-direction: column;
+  max-width: none;
+  width: 100%;
+  margin: 0;
   height: 100vh;
   padding: max(8px, env(safe-area-inset-top)) 8px 8px;
   box-sizing: border-box;
