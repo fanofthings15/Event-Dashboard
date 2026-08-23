@@ -60,19 +60,26 @@ function matchesRegion(e: NormalizedEvent, frcRegions: string[]): boolean {
   return frcRegions.includes(e.region);
 }
 
-function escapeRegExp(s: string): string {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+// Anything hidden by a league/region filter shouldn't be able to notify
+// either, even if a favorite team happens to be playing in it — hiding a
+// league is a stronger signal than "I follow this team," not one this
+// bypasses. Custom events are the user's own and are never league/region-
+// filtered at all.
+function isHiddenByFilters(e: NormalizedEvent, excludedLeagues: string[], frcRegions: string[]): boolean {
+  if (e.sport === "custom") return false;
+  return matchesExcluded(e.league, excludedLeagues) || !matchesRegion(e, frcRegions);
 }
 
-// Whole-word/phrase match, not a raw substring — a saved favorite like
-// "lions" or "T1" must match "Detroit Lions" or "T1" as a distinct word, not
-// as a fragment buried inside an unrelated name like "Galions Sharks" or
-// "HyperSpirit". Confirmed against real PandaScore data: naive .includes()
-// was tagging exactly those two as "followed" for a "lions"/"spirit" entry.
+// Exact match (case-insensitive), not a substring or word-boundary match —
+// a saved favorite has to equal a team's full name. Word-boundary matching
+// still let a generic word like "spirit" false-match an unrelated team
+// ("HyperSpirit"); exact match closes that off entirely. The detail view's
+// per-team ☆ button (EventDetailModal.tsx) is what makes this practical —
+// it saves the team's name exactly as the source reports it, so there's no
+// need to guess the right spelling by hand.
 function matchesFavoriteTeamName(haystack: string, favorite: string): boolean {
-  const t = favorite.trim();
-  if (!t) return false;
-  return new RegExp(`\\b${escapeRegExp(t)}\\b`, "i").test(haystack);
+  const t = favorite.trim().toLowerCase();
+  return t.length > 0 && haystack.trim().toLowerCase() === t;
 }
 
 // Cross-sport favorite-team tagging: matches a saved team name against an
@@ -174,7 +181,7 @@ export function useEvents(
 
       for (const e of merged) {
         const key = `${e.sport}-${e.id}`;
-        if (snoozedEventIds.includes(key)) continue;
+        if (snoozedEventIds.includes(key) || isHiddenByFilters(e, excludedLeagues, frcRegions)) continue;
 
         if (e.status === "live") {
           nowLiveIds.add(key);
@@ -197,10 +204,7 @@ export function useEvents(
       prevLiveIds.current = nowLiveIds;
     }
 
-    // Custom events are the user's own — never league-filtered.
-    const filtered = merged.filter(
-      (e) => (e.sport === "custom" || !matchesExcluded(e.league, excludedLeagues)) && matchesRegion(e, frcRegions)
-    );
+    const filtered = merged.filter((e) => !isHiddenByFilters(e, excludedLeagues, frcRegions));
 
     const nextWarnings = results.flatMap((r) => {
       if (r.warnings) return r.warnings;

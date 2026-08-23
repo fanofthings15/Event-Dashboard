@@ -24,18 +24,12 @@ interface SourceResult {
   events?: NormalizedEvent[];
 }
 
-function escapeRegExp(s: string): string {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-// Whole-word/phrase match, not a raw substring — see the identical helper in
-// frontend/src/useEvents.ts for why: a favorite like "lions" or "spirit"
-// must match "Detroit Lions" as a distinct word, not as a fragment buried in
-// an unrelated name like "Galions Sharks" or "HyperSpirit".
+// Exact match (case-insensitive) — see the identical helper in
+// frontend/src/useEvents.ts for why this isn't a substring/word-boundary
+// match: a saved favorite has to equal a team's full name.
 function matchesFavoriteTeamName(haystack: string, favorite: string): boolean {
-  const t = favorite.trim();
-  if (!t) return false;
-  return new RegExp(`\\b${escapeRegExp(t)}\\b`, "i").test(haystack);
+  const t = favorite.trim().toLowerCase();
+  return t.length > 0 && haystack.trim().toLowerCase() === t;
 }
 
 // Mirrors frontend/src/useEvents.ts's withFavoriteTeams — the raw per-source
@@ -46,6 +40,18 @@ function matchesFavoriteTeam(e: NormalizedEvent, favoriteTeams: string[]): boole
   if (e.followed || favoriteTeams.length === 0) return false;
   const haystacks = e.teams?.length ? e.teams.map((t) => t.name) : [e.name];
   return favoriteTeams.some((team) => haystacks.some((h) => matchesFavoriteTeamName(h, team)));
+}
+
+// Mirrors frontend/src/useEvents.ts's matchesExcluded/matchesRegion — a
+// league or FRC region the user has hidden shouldn't be able to notify
+// either, even if a favorite team happens to be playing in it. Custom events
+// are the user's own and are never league/region-filtered.
+function isHiddenByFilters(e: NormalizedEvent, excludedLeagues: string[], frcRegions: string[]): boolean {
+  if (e.sport === "custom") return false;
+  const l = e.league.toLowerCase();
+  const leagueExcluded = excludedLeagues.some((ex) => ex.trim() && l.includes(ex.trim().toLowerCase()));
+  const regionExcluded = Boolean(e.region) && frcRegions.length > 0 && !frcRegions.includes(e.region!);
+  return leagueExcluded || regionExcluded;
 }
 
 // Per-user memory of what's already been notified, so a live game doesn't
@@ -99,7 +105,7 @@ async function tickUser(baseUrl: string, userId: string): Promise<void> {
 
   for (const e of events) {
     const key = `${e.sport}-${e.id}`;
-    if (settings.snoozedEventIds.includes(key)) continue;
+    if (settings.snoozedEventIds.includes(key) || isHiddenByFilters(e, settings.excludedLeagues, settings.frcRegions)) continue;
 
     const isFollowed =
       Boolean(e.followed) ||

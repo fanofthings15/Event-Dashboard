@@ -58,6 +58,20 @@ export default function EventDetailModal({ event, now, catalog, onClose, onTeamC
     setConfirmingHide(false);
   }
 
+  function isFavoriteTeam(teamName: string): boolean {
+    return settings.favoriteTeams.some((t) => t.trim().toLowerCase() === teamName.trim().toLowerCase());
+  }
+
+  // Saves the team's name exactly as this source reports it — favorite-team
+  // matching is now exact (see useEvents.ts), so this is the reliable way to
+  // add one instead of guessing the right spelling in Settings by hand.
+  async function toggleFavoriteTeam(teamName: string) {
+    const next = isFavoriteTeam(teamName)
+      ? settings.favoriteTeams.filter((t) => t.trim().toLowerCase() !== teamName.trim().toLowerCase())
+      : [...settings.favoriteTeams, teamName];
+    await save({ favoriteTeams: next });
+  }
+
   return (
     <div className="drawer-backdrop" onClick={onClose}>
       <div className="modal" style={{ borderLeftColor: meta.color, borderLeftWidth: 4 }} onClick={(e) => e.stopPropagation()}>
@@ -85,13 +99,27 @@ export default function EventDetailModal({ event, now, catalog, onClose, onTeamC
 
         {event.teams && event.teams.length > 0 && (
           <div className="detail-teams">
-            {event.teams.map((t) => (
-              <button type="button" key={t.name} className="detail-team detail-team-clickable" onClick={() => onTeamClick(t.name)}>
-                {t.imageUrl && <img src={t.imageUrl} alt="" className="detail-team-logo" />}
-                <span>{t.name}</span>
-                {t.record && <span className="hint">{t.record}</span>}
-              </button>
-            ))}
+            {event.teams.map((t) => {
+              const isFavorite = isFavoriteTeam(t.name);
+              return (
+                <div key={t.name} className="detail-team">
+                  <button type="button" className="detail-team-clickable" onClick={() => onTeamClick(t.name)}>
+                    {t.imageUrl && <img src={t.imageUrl} alt="" className="detail-team-logo" />}
+                    <span>{t.name}</span>
+                    {t.record && <span className="hint">{t.record}</span>}
+                  </button>
+                  <button
+                    type="button"
+                    className={`follow-star${isFavorite ? " is-followed" : ""}`}
+                    aria-label={isFavorite ? `Remove ${t.name} from favorite teams` : `Add ${t.name} to favorite teams`}
+                    aria-pressed={isFavorite}
+                    onClick={() => toggleFavoriteTeam(t.name)}
+                  >
+                    {isFavorite ? "★" : "☆"}
+                  </button>
+                </div>
+              );
+            })}
           </div>
         )}
 

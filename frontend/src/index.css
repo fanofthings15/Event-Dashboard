@@ -380,7 +380,11 @@ section h2 {
   font-family: inherit;
   cursor: pointer;
   text-align: left;
-  width: 100%;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   border-radius: 6px;
 }
 .detail-team-clickable:hover { background: rgba(148, 163, 184, 0.08); }

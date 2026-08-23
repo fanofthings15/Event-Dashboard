@@ -186,9 +186,10 @@ export default function SettingsDrawer({ onClose, allEvents }: Props) {
         <section className="settings-section">
           <h3>Favorite teams</h3>
           <span className="hint">
-            Any sport — matched against team names for the "★ Your team" badge. For FRC, add a
-            team number instead (e.g. "254") — that's what actually follows a specific team there,
-            since FRC events don't carry team names to match against.
+            Matched exactly against a team's full name (not case-sensitive) — open an event and tap
+            ☆ next to a team there instead of typing it here, so the spelling is always right. For
+            FRC, add a team number instead (e.g. "254") — that's what actually follows a specific
+            team there, since FRC events don't carry team names to match against.
           </span>
           {settings.favoriteTeams.length > 0 && (
             <div className="source-chip-list" style={{ marginTop: 10 }}>
@@ -202,7 +203,7 @@ export default function SettingsDrawer({ onClose, allEvents }: Props) {
           <div className="form-row" style={{ marginTop: 10 }}>
             <input
               className="text-input"
-              placeholder="e.g. Lions, Pistons"
+              placeholder="Team's exact name, e.g. Detroit Lions"
               value={newTeam}
               onChange={(e) => setNewTeam(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && addFavoriteTeam()}
