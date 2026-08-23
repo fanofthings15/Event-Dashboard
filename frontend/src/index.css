@@ -467,6 +467,20 @@ section h2 {
 .streams-controls-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
 .streams-controls-row .btn.small { padding: 3px 9px; min-height: 22px; font-size: 11px; }
 .layout-switcher { display: flex; gap: 4px; }
+/* Collapsed: pulled out of the flex column entirely (not just emptied — a
+   flex row's height is set by its tallest child regardless of how many
+   children it has, so hiding buttons alone left the row exactly as tall as
+   before and freed no space) and floated over the stream content instead,
+   so the video area actually gets that row's height back. */
+.streams-controls-row.collapsed {
+  position: absolute;
+  top: max(8px, env(safe-area-inset-top));
+  left: 8px;
+  z-index: 5;
+  margin-bottom: 0;
+}
+.streams-controls-row.collapsed .controls-toggle { opacity: 0.5; }
+.streams-controls-row.collapsed .controls-toggle:hover { opacity: 1; }
 
 /* Kiosk layout for the Streams tab: no dashboard header/search/filters, just
    a small way back and the stream(s) filling the rest of the viewport — the
@@ -474,6 +488,7 @@ section h2 {
    controls row (back/add/layout) can also collapse down to just its toggle
    for even more room, since none of it is needed once streams are set up. */
 .streams-mode {
+  position: relative;
   display: flex;
   flex-direction: column;
   max-width: none;

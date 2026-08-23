@@ -109,7 +109,7 @@ export default function StreamsView({ onBack }: { onBack: () => void }) {
 
   return (
     <section className="streams-view">
-      <div className="streams-controls-row">
+      <div className={`streams-controls-row ${controlsHidden ? "collapsed" : ""}`}>
         <button
           className="btn small controls-toggle"
           onClick={() => setControlsHidden((v) => !v)}
