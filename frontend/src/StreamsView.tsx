@@ -13,6 +13,7 @@ export default function StreamsView() {
   const [label, setLabel] = useState("");
   const [url, setUrl] = useState("");
   const [pendingDelete, setPendingDelete] = useState<StreamSlot | null>(null);
+  const [showForm, setShowForm] = useState(false);
 
   const slots = settings.streamSlots;
   const mainSlot = slots.find((s) => s.id === settings.streamMainSlotId) ?? slots[0] ?? null;
@@ -28,6 +29,7 @@ export default function StreamsView() {
     });
     setLabel("");
     setUrl("");
+    setShowForm(false);
   }
 
   async function removeSlot(slot: StreamSlot) {
@@ -43,28 +45,36 @@ export default function StreamsView() {
 
   return (
     <section className="streams-view">
-      <div className="form-row" style={{ marginBottom: 16, flexWrap: "wrap" }}>
-        <input
-          type="text"
-          placeholder="Label (e.g. F1 Qualifying)"
-          value={label}
-          onChange={(e) => setLabel(e.target.value)}
-          style={{ maxWidth: 220 }}
-        />
-        <input
-          type="text"
-          placeholder="Paste a YouTube (or other embeddable) stream link…"
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
-          style={{ flex: 1, minWidth: 260 }}
-        />
-        <button className="btn primary" onClick={addSlot} disabled={!url.trim()}>
-          Add stream
+      <div className="streams-view-bar">
+        <button className="btn small" onClick={() => setShowForm((v) => !v)}>
+          {showForm ? "Close" : "+ Add stream"}
         </button>
       </div>
 
+      {showForm && (
+        <div className="form-row" style={{ marginBottom: 16, flexWrap: "wrap" }}>
+          <input
+            type="text"
+            placeholder="Label (e.g. F1 Qualifying)"
+            value={label}
+            onChange={(e) => setLabel(e.target.value)}
+            style={{ maxWidth: 220 }}
+          />
+          <input
+            type="text"
+            placeholder="Paste a stream link (YouTube, or anything else that allows embedding)…"
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            style={{ flex: 1, minWidth: 260 }}
+          />
+          <button className="btn primary" onClick={addSlot} disabled={!url.trim()}>
+            Add stream
+          </button>
+        </div>
+      )}
+
       {slots.length === 0 ? (
-        <div className="empty">No streams yet — paste a link above to get started.</div>
+        !showForm && <div className="empty">No streams yet — click "+ Add stream" above to get started.</div>
       ) : (
         <>
           {mainSlot && (

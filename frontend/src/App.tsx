@@ -230,6 +230,22 @@ export default function App() {
 
   const visibleWarnings = warnings.filter((w) => !dismissedWarnings.has(w));
 
+  // Kiosk-style layout: no header/search/filters to fight for space when
+  // this tab is F11'd on an always-on TV — just the streams and a small way
+  // back to the real dashboard.
+  if (view === "streams") {
+    return (
+      <div className="app streams-mode">
+        <div className="streams-topbar">
+          <button className="btn small" onClick={() => setView("list")}>
+            ‹ Back
+          </button>
+        </div>
+        <StreamsView />
+      </div>
+    );
+  }
+
   return (
     <div className="app">
       <header className="header">
@@ -254,7 +270,7 @@ export default function App() {
             <button className={`btn small ${view === "standings" ? "active" : ""}`} onClick={() => setView("standings")}>
               Standings
             </button>
-            <button className={`btn small ${view === "streams" ? "active" : ""}`} onClick={() => setView("streams")}>
+            <button className="btn small" onClick={() => setView("streams")}>
               Streams
             </button>
           </div>
@@ -333,8 +349,6 @@ export default function App() {
 
       {loading ? (
         <div className="empty">Loading…</div>
-      ) : view === "streams" ? (
-        <StreamsView />
       ) : view === "standings" ? (
         <StandingsView
           standingsBySport={standings.standingsBySport}

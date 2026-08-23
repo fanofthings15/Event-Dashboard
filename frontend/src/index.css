@@ -450,6 +450,23 @@ section h2 {
 .stream-slot-bar span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .stream-main { margin-bottom: 20px; }
 .stream-minor-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; }
+.streams-view-bar { margin-bottom: 12px; }
+
+/* Kiosk layout for the Streams tab: no dashboard header/search/filters, just
+   a small way back and the stream(s) filling the rest of the viewport — the
+   point of the tab is to F11 it on a TV and not look at it again. */
+.streams-mode {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  padding: max(8px, env(safe-area-inset-top)) 8px 8px;
+  box-sizing: border-box;
+}
+.streams-topbar { flex-shrink: 0; margin-bottom: 8px; }
+.streams-mode .streams-view { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+.streams-mode .stream-main { flex: 1; display: flex; flex-direction: column; min-height: 0; margin-bottom: 8px; }
+.streams-mode .stream-main .stream-frame-wrap { flex: 1; aspect-ratio: auto; min-height: 0; }
+.streams-mode .stream-minor-grid { flex-shrink: 0; max-height: 180px; overflow-y: auto; }
 
 .btn-x-link {
   background: transparent;
