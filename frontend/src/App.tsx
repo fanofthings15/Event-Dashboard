@@ -17,6 +17,7 @@ import EventDetailModal from "./EventDetailModal";
 import StandingsView from "./StandingsView";
 import FollowStar from "./FollowStar";
 import StreamsView from "./StreamsView";
+import { eventStreamSlotId, withEventStreamSlot } from "./eventStreamSlots";
 
 function matchesSearch(e: NormalizedEvent, query: string): boolean {
   if (!query.trim()) return true;
@@ -179,6 +180,14 @@ export default function App() {
     const key = `${e.sport}-${e.id}`;
     if (settings.dismissedFinishedEventIds.includes(key)) return;
     save({ dismissedFinishedEventIds: [...settings.dismissedFinishedEventIds, key] });
+  }
+
+  // "Watch live" from the detail view — plays right in the Streams tab
+  // instead of opening a new tab, for anything with a real broadcast link.
+  async function watchLiveInApp(e: NormalizedEvent, url: string) {
+    await save({ streamSlots: withEventStreamSlot(settings.streamSlots, e, url), streamMainSlotId: eventStreamSlotId(e) });
+    setSelectedEvent(null);
+    setView("streams");
   }
 
   // Every sport currently enabled, in a stable order: core sources first,
@@ -456,7 +465,14 @@ export default function App() {
       {settingsOpen && <SettingsDrawer onClose={() => setSettingsOpen(false)} allEvents={allEvents} />}
       {customEventsOpen && <CustomEventsPanel onClose={() => setCustomEventsOpen(false)} />}
       {selectedEvent && (
-        <EventDetailModal event={selectedEvent} now={now} catalog={settings.esportsCatalog} onClose={() => setSelectedEvent(null)} onTeamClick={goToTeam} />
+        <EventDetailModal
+          event={selectedEvent}
+          now={now}
+          catalog={settings.esportsCatalog}
+          onClose={() => setSelectedEvent(null)}
+          onTeamClick={goToTeam}
+          onWatchLive={watchLiveInApp}
+        />
       )}
     </div>
   );

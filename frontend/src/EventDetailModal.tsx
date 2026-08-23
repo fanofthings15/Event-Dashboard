@@ -10,6 +10,7 @@ import ConfirmDialog from "./ConfirmDialog";
 import FollowStar from "./FollowStar";
 import { formatCountdown } from "./countdown";
 import { formatEventDate, formatEventTime } from "./dateFormat";
+import { hasWatchableStream } from "./eventStreamSlots";
 
 interface Props {
   event: NormalizedEvent;
@@ -17,6 +18,7 @@ interface Props {
   catalog: EsportsGame[];
   onClose: () => void;
   onTeamClick: (teamName: string) => void;
+  onWatchLive: (event: NormalizedEvent, url: string) => void;
 }
 
 function formatRange(startIso: string, endIso: string | undefined, timezone: string) {
@@ -26,7 +28,7 @@ function formatRange(startIso: string, endIso: string | undefined, timezone: str
   return `${formatEventDate(startIso, timezone)} – ${endStr}`;
 }
 
-export default function EventDetailModal({ event, now, catalog, onClose, onTeamClick }: Props) {
+export default function EventDetailModal({ event, now, catalog, onClose, onTeamClick, onWatchLive }: Props) {
   const { settings, save } = useSettings();
   const [confirmingHide, setConfirmingHide] = useState(false);
   const [streamMenuOpen, setStreamMenuOpen] = useState(false);
@@ -116,21 +118,26 @@ export default function EventDetailModal({ event, now, catalog, onClose, onTeamC
               {streamMenuOpen && (
                 <div className="stream-menu">
                   {event.streams.map((s, i) => (
-                    <a
+                    <button
+                      type="button"
                       key={s.label}
                       className={`stream-menu-item${i === 0 ? " preferred" : ""}`}
-                      href={s.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={() => setStreamMenuOpen(false)}
+                      onClick={() => {
+                        setStreamMenuOpen(false);
+                        onWatchLive(event, s.url);
+                      }}
                     >
                       {s.label}
                       {i === 0 && <span className="hint"> (preferred)</span>}
-                    </a>
+                    </button>
                   ))}
                 </div>
               )}
             </div>
+          ) : event.streamUrl && hasWatchableStream(event) ? (
+            <button type="button" className="btn primary" onClick={() => onWatchLive(event, event.streamUrl!)}>
+              Watch live
+            </button>
           ) : (
             event.streamUrl && (
               <a className="btn primary" href={event.streamUrl} target="_blank" rel="noopener noreferrer">

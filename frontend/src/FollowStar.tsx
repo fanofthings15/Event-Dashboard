@@ -1,5 +1,6 @@
 import type { NormalizedEvent } from "./types";
 import { useSettings } from "./SettingsContext";
+import { hasWatchableStream, withEventStreamSlot, withoutEventStreamSlot } from "./eventStreamSlots";
 
 interface Props {
   event: NormalizedEvent;
@@ -19,7 +20,12 @@ export default function FollowStar({ event }: Props) {
   async function toggle(evt: React.MouseEvent) {
     evt.stopPropagation();
     if (isFollowed) {
-      await save({ followedEventIds: settings.followedEventIds.filter((k) => k !== eventKey) });
+      const { slots, mainId } = withoutEventStreamSlot(settings.streamSlots, settings.streamMainSlotId, event);
+      await save({
+        followedEventIds: settings.followedEventIds.filter((k) => k !== eventKey),
+        streamSlots: slots,
+        streamMainSlotId: mainId,
+      });
       return;
     }
     // Following implies wanting a heads-up when it goes live — request
@@ -28,7 +34,15 @@ export default function FollowStar({ event }: Props) {
     if (typeof Notification !== "undefined" && Notification.permission === "default") {
       await Notification.requestPermission();
     }
-    await save({ followedEventIds: [...settings.followedEventIds, eventKey], notifyOnLive: true });
+    const followedEventIds = [...settings.followedEventIds, eventKey];
+    // Anything with a real broadcast link (currently: esports matches, via
+    // PandaScore's official stream) also lands in the Streams tab — not
+    // ESPN/F1/FRC's own detail-page links, which aren't actual streams.
+    if (hasWatchableStream(event)) {
+      await save({ followedEventIds, notifyOnLive: true, streamSlots: withEventStreamSlot(settings.streamSlots, event, event.streamUrl!) });
+    } else {
+      await save({ followedEventIds, notifyOnLive: true });
+    }
   }
 
   return (

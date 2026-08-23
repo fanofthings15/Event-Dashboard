@@ -435,11 +435,17 @@ section h2 {
 }
 .stream-menu-item {
   display: block;
+  width: 100%;
   padding: 8px 10px;
   border-radius: 6px;
+  border: none;
+  background: transparent;
   color: var(--text);
   text-decoration: none;
+  text-align: left;
   font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
 }
 .stream-menu-item:hover { background: rgba(148, 163, 184, 0.12); }
 .stream-menu-item.preferred { font-weight: 700; color: var(--accent); }
