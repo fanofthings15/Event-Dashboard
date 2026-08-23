@@ -1,11 +1,55 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useSettings } from "./SettingsContext";
-import type { StreamSlot } from "./settingsTypes";
+import type { StreamLayout, StreamSlot } from "./settingsTypes";
 import { toEmbedUrl } from "./streamEmbed";
 import ConfirmDialog from "./ConfirmDialog";
 
 function uid() {
   return crypto.randomUUID ? crypto.randomUUID() : `stream-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+const LAYOUTS: { id: StreamLayout; label: string }[] = [
+  { id: "grid", label: "Grid" },
+  { id: "solo", label: "Solo" },
+  { id: "duo", label: "Duo" },
+  { id: "quad", label: "Quad" },
+];
+
+function StreamTile({
+  slot,
+  isMain,
+  onMakeMain,
+  onRemove,
+}: {
+  slot: StreamSlot;
+  isMain: boolean;
+  onMakeMain: () => void;
+  onRemove: () => void;
+}): ReactNode {
+  return (
+    <div className="stream-tile">
+      <div className="stream-frame-wrap">
+        <iframe
+          key={slot.id}
+          src={toEmbedUrl(slot.url)}
+          title={slot.label}
+          allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+          allowFullScreen
+        />
+      </div>
+      <div className="stream-slot-bar">
+        <span>{slot.label}</span>
+        {!isMain && (
+          <button className="btn small" onClick={onMakeMain}>
+            Make main
+          </button>
+        )}
+        <button className="btn-x" aria-label="Remove" onClick={onRemove}>
+          ×
+        </button>
+      </div>
+    </div>
+  );
 }
 
 export default function StreamsView() {
@@ -16,8 +60,12 @@ export default function StreamsView() {
   const [showForm, setShowForm] = useState(false);
 
   const slots = settings.streamSlots;
+  const layout = settings.streamLayout;
   const mainSlot = slots.find((s) => s.id === settings.streamMainSlotId) ?? slots[0] ?? null;
   const minorSlots = slots.filter((s) => s.id !== mainSlot?.id);
+  // Main first, then the rest in their existing order — what "duo"/"quad"
+  // slice from and what "grid" uses for its minor row.
+  const orderedSlots = mainSlot ? [mainSlot, ...minorSlots] : slots;
 
   async function addSlot() {
     if (!url.trim()) return;
@@ -43,12 +91,37 @@ export default function StreamsView() {
     await save({ streamMainSlotId: slot.id });
   }
 
+  function tile(slot: StreamSlot) {
+    return (
+      <StreamTile
+        key={slot.id}
+        slot={slot}
+        isMain={slot.id === mainSlot?.id}
+        onMakeMain={() => makeMain(slot)}
+        onRemove={() => setPendingDelete(slot)}
+      />
+    );
+  }
+
   return (
     <section className="streams-view">
       <div className="streams-view-bar">
         <button className="btn small" onClick={() => setShowForm((v) => !v)}>
           {showForm ? "Close" : "+ Add stream"}
         </button>
+        {slots.length > 1 && (
+          <div className="layout-switcher">
+            {LAYOUTS.map((l) => (
+              <button
+                key={l.id}
+                className={`btn small ${layout === l.id ? "active" : ""}`}
+                onClick={() => save({ streamLayout: l.id })}
+              >
+                {l.label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {showForm && (
@@ -75,53 +148,19 @@ export default function StreamsView() {
 
       {slots.length === 0 ? (
         !showForm && <div className="empty">No streams yet — click "+ Add stream" above to get started.</div>
+      ) : layout === "solo" || slots.length === 1 ? (
+        mainSlot && <div className="stream-solo">{tile(mainSlot)}</div>
+      ) : layout === "duo" ? (
+        <div className="stream-duo">
+          <div className="stream-duo-primary">{tile(orderedSlots[0])}</div>
+          {orderedSlots[1] && <div className="stream-duo-secondary">{tile(orderedSlots[1])}</div>}
+        </div>
+      ) : layout === "quad" ? (
+        <div className="stream-quad-grid">{orderedSlots.slice(0, 4).map(tile)}</div>
       ) : (
         <>
-          {mainSlot && (
-            <div className="stream-main">
-              <div className="stream-frame-wrap">
-                <iframe
-                  key={mainSlot.id}
-                  src={toEmbedUrl(mainSlot.url)}
-                  title={mainSlot.label}
-                  allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
-                  allowFullScreen
-                />
-              </div>
-              <div className="stream-slot-bar">
-                <span>{mainSlot.label}</span>
-                <button className="btn-x" aria-label="Remove" onClick={() => setPendingDelete(mainSlot)}>
-                  ×
-                </button>
-              </div>
-            </div>
-          )}
-
-          {minorSlots.length > 0 && (
-            <div className="stream-minor-grid">
-              {minorSlots.map((slot) => (
-                <div key={slot.id} className="stream-minor">
-                  <div className="stream-frame-wrap">
-                    <iframe
-                      src={toEmbedUrl(slot.url)}
-                      title={slot.label}
-                      allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
-                      allowFullScreen
-                    />
-                  </div>
-                  <div className="stream-slot-bar">
-                    <span>{slot.label}</span>
-                    <button className="btn small" onClick={() => makeMain(slot)}>
-                      Make main
-                    </button>
-                    <button className="btn-x" aria-label="Remove" onClick={() => setPendingDelete(slot)}>
-                      ×
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+          {mainSlot && <div className="stream-main">{tile(mainSlot)}</div>}
+          {minorSlots.length > 0 && <div className="stream-minor-grid">{minorSlots.map(tile)}</div>}
         </>
       )}
 

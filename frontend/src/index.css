@@ -454,9 +454,15 @@ section h2 {
 .stream-frame-wrap iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
 .stream-slot-bar { display: flex; align-items: center; gap: 8px; padding: 6px 2px; font-size: 13px; color: var(--muted); }
 .stream-slot-bar span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.stream-tile { display: flex; flex-direction: column; }
 .stream-main { margin-bottom: 20px; }
 .stream-minor-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; }
-.streams-view-bar { margin-bottom: 12px; }
+.stream-duo { display: flex; gap: 16px; flex-wrap: wrap; }
+.stream-duo-primary { flex: 3 1 480px; min-width: 0; }
+.stream-duo-secondary { flex: 1 1 240px; min-width: 0; }
+.stream-quad-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+.streams-view-bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+.layout-switcher { display: flex; gap: 4px; }
 
 /* Kiosk layout for the Streams tab: no dashboard header/search/filters, just
    a small way back and the stream(s) filling the rest of the viewport — the
@@ -473,8 +479,24 @@ section h2 {
 }
 .streams-topbar { flex-shrink: 0; margin-bottom: 8px; }
 .streams-mode .streams-view { flex: 1; display: flex; flex-direction: column; min-height: 0; }
-.streams-mode .stream-main { flex: 1; display: flex; flex-direction: column; min-height: 0; margin-bottom: 8px; }
-.streams-mode .stream-main .stream-frame-wrap { flex: 1; aspect-ratio: auto; min-height: 0; }
+.streams-mode .stream-main,
+.streams-mode .stream-solo,
+.streams-mode .stream-duo,
+.streams-mode .stream-quad-grid {
+  flex: 1;
+  min-height: 0;
+}
+.streams-mode .stream-main { display: flex; flex-direction: column; margin-bottom: 8px; }
+.streams-mode .stream-solo { display: flex; flex-direction: column; }
+.streams-mode .stream-duo-primary,
+.streams-mode .stream-duo-secondary {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.streams-mode .stream-quad-grid { grid-template-rows: repeat(2, 1fr); }
+.streams-mode .stream-tile { flex: 1; min-height: 0; }
+.streams-mode .stream-tile .stream-frame-wrap { flex: 1; aspect-ratio: auto; min-height: 0; }
 .streams-mode .stream-minor-grid { flex-shrink: 0; max-height: 180px; overflow-y: auto; }
 
 .btn-x-link {

@@ -29,6 +29,7 @@ const EMPTY: SettingsState = {
   icsToken: "",
   streamSlots: [],
   streamMainSlotId: null,
+  streamLayout: "grid",
 };
 
 interface SettingsContextValue {

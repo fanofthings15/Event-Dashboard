@@ -39,6 +39,7 @@ router.get("/", (req, res) => {
     icsToken: settings.icsToken,
     streamSlots: settings.streamSlots,
     streamMainSlotId: settings.streamMainSlotId,
+    streamLayout: settings.streamLayout,
     esportsCatalog: ESPORTS_CATALOG,
   });
 });
@@ -122,6 +123,9 @@ router.post("/", (req, res) => {
   }
   if (typeof body.streamMainSlotId === "string" || body.streamMainSlotId === null) {
     next.streamMainSlotId = body.streamMainSlotId;
+  }
+  if (body.streamLayout === "grid" || body.streamLayout === "solo" || body.streamLayout === "duo" || body.streamLayout === "quad") {
+    next.streamLayout = body.streamLayout;
   }
 
   writeUserSettings(getUserId(req), next);

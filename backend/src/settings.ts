@@ -52,6 +52,12 @@ export interface StreamSlot {
   url: string;
 }
 
+// How the Streams tab arranges whatever slots exist, independent of how many
+// there are: "grid" (default) is 1 big + the rest small underneath, "solo"
+// shows only the main slot full-size, "duo" is main + one secondary side by
+// side, "quad" is an even 2x2 of the first 4 slots (main first).
+export type StreamLayout = "grid" | "solo" | "duo" | "quad";
+
 // Global, admin-only: the owner's own paid/rate-limited external API
 // credentials. One shared file — every user's requests use the same keys
 // (and share the same rate limit either way), but only an admin uid can
@@ -143,6 +149,8 @@ export interface UserSettings {
   // rest render small in the minor grid. null once no slots exist yet, or
   // if the previously-main slot was removed.
   streamMainSlotId: string | null;
+  // Arrangement for the Streams tab — see StreamLayout above.
+  streamLayout: StreamLayout;
 }
 
 const GLOBAL_DEFAULTS: GlobalSettings = {
@@ -175,6 +183,7 @@ const USER_DEFAULTS: UserSettings = {
   icsToken: "",
   streamSlots: [],
   streamMainSlotId: null,
+  streamLayout: "grid",
 };
 
 function userSettingsFile(userId: string): string {
