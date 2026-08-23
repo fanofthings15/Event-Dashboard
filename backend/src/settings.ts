@@ -66,6 +66,12 @@ export type StreamLayout = "grid" | "solo" | "duo" | "spotlight" | "quad";
 export interface GlobalSettings {
   pandaScoreApiKey: string;
   tbaApiKey: string; // The Blue Alliance Read API key, for FRC events
+  // Web Push identity for this server install — one keypair shared by every
+  // user's subscriptions (that's how VAPID works; it identifies the sending
+  // server, not the subscriber). Generated once, lazily, by push.ts on first
+  // use rather than here, to keep this file free of the web-push dependency.
+  vapidPublicKey: string;
+  vapidPrivateKey: string;
 }
 
 // Per-user: everything else that used to live in the single shared
@@ -152,11 +158,24 @@ export interface UserSettings {
   streamMainSlotId: string | null;
   // Arrangement for the Streams tab — see StreamLayout above.
   streamLayout: StreamLayout;
+  // Web Push endpoints this user has subscribed from (one per browser/device
+  // that hit "Enable push notifications" — a user can have several). Lets
+  // notifyOnLive/notifyMode/notifyLeadMinutes/snoozedEventIds keep driving
+  // push the same way they already drive the in-page Notification API,
+  // without a separate set of push-only preferences.
+  pushSubscriptions: PushSubscriptionRecord[];
+}
+
+export interface PushSubscriptionRecord {
+  endpoint: string;
+  keys: { p256dh: string; auth: string };
 }
 
 const GLOBAL_DEFAULTS: GlobalSettings = {
   pandaScoreApiKey: "",
   tbaApiKey: "",
+  vapidPublicKey: "",
+  vapidPrivateKey: "",
 };
 
 const USER_DEFAULTS: UserSettings = {
@@ -185,6 +204,7 @@ const USER_DEFAULTS: UserSettings = {
   streamSlots: [],
   streamMainSlotId: null,
   streamLayout: "grid",
+  pushSubscriptions: [],
 };
 
 function userSettingsFile(userId: string): string {
@@ -280,6 +300,8 @@ export function readGlobalSettings(): GlobalSettings {
     return {
       pandaScoreApiKey: typeof parsed.pandaScoreApiKey === "string" ? parsed.pandaScoreApiKey : "",
       tbaApiKey: typeof parsed.tbaApiKey === "string" ? parsed.tbaApiKey : "",
+      vapidPublicKey: typeof parsed.vapidPublicKey === "string" ? parsed.vapidPublicKey : "",
+      vapidPrivateKey: typeof parsed.vapidPrivateKey === "string" ? parsed.vapidPrivateKey : "",
     };
   } catch {
     return { ...GLOBAL_DEFAULTS };

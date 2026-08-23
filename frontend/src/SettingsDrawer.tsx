@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useSettings } from "./SettingsContext";
 import SourceSettings from "./SourceSettings";
 import { COMMON_TIMEZONES } from "./dateFormat";
 import type { NormalizedEvent } from "./types";
+import { currentPushSubscription, disablePush, enablePush, pushSupported, sendTestPush } from "./pushNotifications";
 
 interface Props {
   onClose: () => void;
@@ -73,6 +74,37 @@ export default function SettingsDrawer({ onClose, allEvents }: Props) {
   }
   function toggleNotifySound() {
     save({ notifySoundEnabled: !settings.notifySoundEnabled });
+  }
+
+  // --- Push notifications (works while this tab/browser is closed) ---
+  const [pushState, setPushState] = useState<"checking" | "off" | "on" | "busy">("checking");
+  const [pushTestSent, setPushTestSent] = useState(false);
+  useEffect(() => {
+    if (!pushSupported()) {
+      setPushState("off");
+      return;
+    }
+    currentPushSubscription().then((sub) => setPushState(sub ? "on" : "off"));
+  }, []);
+  async function togglePush() {
+    setPushState("busy");
+    setPushTestSent(false);
+    try {
+      if (pushState === "on") {
+        await disablePush();
+        setPushState("off");
+      } else {
+        await enablePush();
+        setPushState("on");
+      }
+    } catch (err) {
+      console.error("Push subscription change failed:", err);
+      setPushState(pushState === "on" ? "on" : "off");
+    }
+  }
+  async function testPush() {
+    await sendTestPush();
+    setPushTestSent(true);
   }
 
   // --- Poll interval ---
@@ -219,6 +251,31 @@ export default function SettingsDrawer({ onClose, allEvents }: Props) {
                 <button type="button" className={`chip ${settings.notifySoundEnabled ? "active" : ""}`} style={{ marginTop: 10 }} onClick={toggleNotifySound}>
                   {settings.notifySoundEnabled ? "🔊 Sound on" : "🔇 Sound muted"}
                 </button>
+              )}
+              {settings.notifyOnLive && pushSupported() && (
+                <div style={{ marginTop: 10 }}>
+                  <button
+                    type="button"
+                    className={`chip ${pushState === "on" ? "active" : ""}`}
+                    disabled={pushState === "checking" || pushState === "busy"}
+                    onClick={togglePush}
+                  >
+                    {pushState === "on" ? "🔔 Push notifications on" : "Enable push notifications"}
+                  </button>
+                  {pushState === "on" && (
+                    <>
+                      <button type="button" className="btn small" style={{ marginLeft: 8 }} onClick={testPush}>
+                        Send test
+                      </button>
+                      {pushTestSent && <span className="hint" style={{ marginLeft: 8 }}>Sent — check for a notification.</span>}
+                    </>
+                  )}
+                  {pushState === "off" && (
+                    <span className="hint" style={{ display: "block", marginTop: 4 }}>
+                      Gets you these same notifications on this device even when the app/tab is closed.
+                    </span>
+                  )}
+                </div>
               )}
               {settings.notifyOnLive && (
                 <>
