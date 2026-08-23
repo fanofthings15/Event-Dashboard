@@ -12,6 +12,7 @@ const LAYOUTS: { id: StreamLayout; label: string }[] = [
   { id: "grid", label: "Grid" },
   { id: "solo", label: "Solo" },
   { id: "duo", label: "Duo" },
+  { id: "spotlight", label: "Spotlight" },
   { id: "quad", label: "Quad" },
 ];
 
@@ -31,7 +32,7 @@ function StreamTile({
       <div className="stream-frame-wrap">
         <iframe
           key={slot.id}
-          src={toEmbedUrl(slot.url)}
+          src={toEmbedUrl(slot.url, { muted: !isMain })}
           title={slot.label}
           allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
           allowFullScreen
@@ -52,12 +53,15 @@ function StreamTile({
   );
 }
 
-export default function StreamsView() {
+export default function StreamsView({ onBack }: { onBack: () => void }) {
   const { settings, save } = useSettings();
   const [label, setLabel] = useState("");
   const [url, setUrl] = useState("");
   const [pendingDelete, setPendingDelete] = useState<StreamSlot | null>(null);
   const [showForm, setShowForm] = useState(false);
+  // Collapses the whole controls row (back/add/layout) down to just the
+  // toggle itself, for more room on a screen that's just showing streams.
+  const [controlsHidden, setControlsHidden] = useState(false);
 
   const slots = settings.streamSlots;
   const layout = settings.streamLayout;
@@ -105,26 +109,40 @@ export default function StreamsView() {
 
   return (
     <section className="streams-view">
-      <div className="streams-view-bar">
-        <button className="btn small" onClick={() => setShowForm((v) => !v)}>
-          {showForm ? "Close" : "+ Add stream"}
+      <div className="streams-controls-row">
+        <button
+          className="btn small controls-toggle"
+          onClick={() => setControlsHidden((v) => !v)}
+          aria-label={controlsHidden ? "Show controls" : "Hide controls"}
+        >
+          {controlsHidden ? "▸" : "▾"}
         </button>
-        {slots.length > 1 && (
-          <div className="layout-switcher">
-            {LAYOUTS.map((l) => (
-              <button
-                key={l.id}
-                className={`btn small ${layout === l.id ? "active" : ""}`}
-                onClick={() => save({ streamLayout: l.id })}
-              >
-                {l.label}
-              </button>
-            ))}
-          </div>
+        {!controlsHidden && (
+          <>
+            <button className="btn small" onClick={onBack}>
+              ‹ Back
+            </button>
+            <button className="btn small" onClick={() => setShowForm((v) => !v)}>
+              {showForm ? "Close" : "+ Add stream"}
+            </button>
+            {slots.length > 1 && (
+              <div className="layout-switcher">
+                {LAYOUTS.map((l) => (
+                  <button
+                    key={l.id}
+                    className={`btn small ${layout === l.id ? "active" : ""}`}
+                    onClick={() => save({ streamLayout: l.id })}
+                  >
+                    {l.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </>
         )}
       </div>
 
-      {showForm && (
+      {!controlsHidden && showForm && (
         <div className="form-row" style={{ marginBottom: 16, flexWrap: "wrap" }}>
           <input
             type="text"
@@ -154,6 +172,11 @@ export default function StreamsView() {
         <div className="stream-duo">
           <div className="stream-duo-primary">{tile(orderedSlots[0])}</div>
           {orderedSlots[1] && <div className="stream-duo-secondary">{tile(orderedSlots[1])}</div>}
+        </div>
+      ) : layout === "spotlight" ? (
+        <div className="stream-spotlight">
+          <div className="stream-spotlight-main">{tile(orderedSlots[0])}</div>
+          {orderedSlots.length > 1 && <div className="stream-spotlight-side">{orderedSlots.slice(1, 4).map(tile)}</div>}
         </div>
       ) : layout === "quad" ? (
         <div className="stream-quad-grid">{orderedSlots.slice(0, 4).map(tile)}</div>

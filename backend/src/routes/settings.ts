@@ -124,7 +124,13 @@ router.post("/", (req, res) => {
   if (typeof body.streamMainSlotId === "string" || body.streamMainSlotId === null) {
     next.streamMainSlotId = body.streamMainSlotId;
   }
-  if (body.streamLayout === "grid" || body.streamLayout === "solo" || body.streamLayout === "duo" || body.streamLayout === "quad") {
+  if (
+    body.streamLayout === "grid" ||
+    body.streamLayout === "solo" ||
+    body.streamLayout === "duo" ||
+    body.streamLayout === "spotlight" ||
+    body.streamLayout === "quad"
+  ) {
     next.streamLayout = body.streamLayout;
   }
 

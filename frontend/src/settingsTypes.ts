@@ -21,7 +21,7 @@ export interface StreamSlot {
   url: string;
 }
 
-export type StreamLayout = "grid" | "solo" | "duo" | "quad";
+export type StreamLayout = "grid" | "solo" | "duo" | "spotlight" | "quad";
 
 export interface SettingsState {
   pandaScoreApiKeySet: boolean;

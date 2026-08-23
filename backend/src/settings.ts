@@ -55,8 +55,9 @@ export interface StreamSlot {
 // How the Streams tab arranges whatever slots exist, independent of how many
 // there are: "grid" (default) is 1 big + the rest small underneath, "solo"
 // shows only the main slot full-size, "duo" is main + one secondary side by
-// side, "quad" is an even 2x2 of the first 4 slots (main first).
-export type StreamLayout = "grid" | "solo" | "duo" | "quad";
+// side, "spotlight" is main on the left + up to 3 small stacked on the
+// right, "quad" is an even 2x2 of the first 4 slots (main first).
+export type StreamLayout = "grid" | "solo" | "duo" | "spotlight" | "quad";
 
 // Global, admin-only: the owner's own paid/rate-limited external API
 // credentials. One shared file — every user's requests use the same keys

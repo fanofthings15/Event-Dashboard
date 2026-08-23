@@ -460,13 +460,19 @@ section h2 {
 .stream-duo { display: flex; gap: 16px; flex-wrap: wrap; }
 .stream-duo-primary { flex: 3 1 480px; min-width: 0; }
 .stream-duo-secondary { flex: 1 1 240px; min-width: 0; }
+.stream-spotlight { display: flex; gap: 16px; flex-wrap: wrap; }
+.stream-spotlight-main { flex: 3 1 480px; min-width: 0; }
+.stream-spotlight-side { flex: 1 1 240px; min-width: 0; display: flex; flex-direction: column; gap: 16px; }
 .stream-quad-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
-.streams-view-bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+.streams-controls-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+.streams-controls-row .btn.small { padding: 3px 9px; min-height: 22px; font-size: 11px; }
 .layout-switcher { display: flex; gap: 4px; }
 
 /* Kiosk layout for the Streams tab: no dashboard header/search/filters, just
    a small way back and the stream(s) filling the rest of the viewport — the
-   point of the tab is to F11 it on a TV and not look at it again. */
+   point of the tab is to F11 it on a TV and not look at it again. The
+   controls row (back/add/layout) can also collapse down to just its toggle
+   for even more room, since none of it is needed once streams are set up. */
 .streams-mode {
   display: flex;
   flex-direction: column;
@@ -477,11 +483,11 @@ section h2 {
   padding: max(8px, env(safe-area-inset-top)) 8px 8px;
   box-sizing: border-box;
 }
-.streams-topbar { flex-shrink: 0; margin-bottom: 8px; }
 .streams-mode .streams-view { flex: 1; display: flex; flex-direction: column; min-height: 0; }
 .streams-mode .stream-main,
 .streams-mode .stream-solo,
 .streams-mode .stream-duo,
+.streams-mode .stream-spotlight,
 .streams-mode .stream-quad-grid {
   flex: 1;
   min-height: 0;
@@ -489,14 +495,41 @@ section h2 {
 .streams-mode .stream-main { display: flex; flex-direction: column; margin-bottom: 8px; }
 .streams-mode .stream-solo { display: flex; flex-direction: column; }
 .streams-mode .stream-duo-primary,
-.streams-mode .stream-duo-secondary {
+.streams-mode .stream-duo-secondary,
+.streams-mode .stream-spotlight-main,
+.streams-mode .stream-spotlight-side {
   display: flex;
   flex-direction: column;
   min-height: 0;
 }
 .streams-mode .stream-quad-grid { grid-template-rows: repeat(2, 1fr); }
-.streams-mode .stream-tile { flex: 1; min-height: 0; }
-.streams-mode .stream-tile .stream-frame-wrap { flex: 1; aspect-ratio: auto; min-height: 0; }
+/* Only the "big" fill containers get the flex-fill treatment — the minor
+   strip below the main stream keeps its normal aspect-ratio sizing, since
+   it's a bounded, scrollable row rather than something meant to fill the
+   remaining viewport height. Applying this to .stream-minor-grid too used
+   to strip its tiles' aspect-ratio without giving them a flex-based height
+   to replace it with, collapsing them to 0px tall. */
+.streams-mode .stream-main > .stream-tile,
+.streams-mode .stream-solo > .stream-tile,
+.streams-mode .stream-duo-primary > .stream-tile,
+.streams-mode .stream-duo-secondary > .stream-tile,
+.streams-mode .stream-spotlight-main > .stream-tile,
+.streams-mode .stream-spotlight-side .stream-tile,
+.streams-mode .stream-quad-grid .stream-tile {
+  flex: 1;
+  min-height: 0;
+}
+.streams-mode .stream-main .stream-frame-wrap,
+.streams-mode .stream-solo .stream-frame-wrap,
+.streams-mode .stream-duo-primary .stream-frame-wrap,
+.streams-mode .stream-duo-secondary .stream-frame-wrap,
+.streams-mode .stream-spotlight-main .stream-frame-wrap,
+.streams-mode .stream-spotlight-side .stream-frame-wrap,
+.streams-mode .stream-quad-grid .stream-frame-wrap {
+  flex: 1;
+  aspect-ratio: auto;
+  min-height: 0;
+}
 .streams-mode .stream-minor-grid { flex-shrink: 0; max-height: 180px; overflow-y: auto; }
 
 .btn-x-link {

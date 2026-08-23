@@ -245,12 +245,7 @@ export default function App() {
   if (view === "streams") {
     return (
       <div className="app streams-mode">
-        <div className="streams-topbar">
-          <button className="btn small" onClick={() => setView("list")}>
-            ‹ Back
-          </button>
-        </div>
-        <StreamsView />
+        <StreamsView onBack={() => setView("list")} />
       </div>
     );
   }
