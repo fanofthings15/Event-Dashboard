@@ -90,7 +90,7 @@ export interface UserSettings {
   // substring (e.g. "LCK Challengers League" hides that specific league
   // without touching the main LCK league).
   excludedLeagues: string[];
-  // Core sources (nfl, f1, nba, nhl, frc) the user has turned off entirely.
+  // Core sources (nfl, f1, nba, nhl, mlb, frc) the user has turned off entirely.
   disabledCoreSources: string[];
   // PandaScore game slugs currently pulled (see esportsCatalog.ts for the
   // full list of what's available to enable).

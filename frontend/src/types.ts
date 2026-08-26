@@ -60,6 +60,7 @@ export const CORE_SPORT_META: Record<string, { label: string; color: string }> =
   f1: { label: "F1", color: "#ef4444" }, // 0°
   nba: { label: "NBA", color: "#f97316" }, // 30°
   nhl: { label: "NHL", color: "#14b8a6" }, // 180°
+  mlb: { label: "MLB", color: "#22c55e" }, // 142°
   nfl: { label: "NFL", color: "#3b82f6" }, // 240°
   frc: { label: "FRC", color: "#8b5cf6" }, // 270°
 };

@@ -76,7 +76,7 @@ export default function StandingsView({ standingsBySport, loading, loaded, onRef
   }, [available.join(","), activeSport]);
 
   if (available.length === 0) {
-    return <div className="empty">No standings sources enabled — turn on NFL, NBA, NHL, or F1 in Settings.</div>;
+    return <div className="empty">No standings sources enabled — turn on NFL, NBA, NHL, MLB, or F1 in Settings.</div>;
   }
 
   const groups = activeSport ? standingsBySport[activeSport] : undefined;
