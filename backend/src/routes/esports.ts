@@ -39,8 +39,14 @@ function allStreams(streamsList: any[] | undefined): { label: string; url: strin
       url: s.raw_url as string,
       platform: platformRank(s.raw_url),
       quality: s.official && s.main ? 0 : s.main ? 1 : s.official ? 2 : 3,
+      // Tiebreaker only — most matches carry a broadcast per region/language
+      // (LoL especially: en/ko/vi/fr/... often all tied at the same quality
+      // tier), and PandaScore's array order between those ties is otherwise
+      // arbitrary, not preference-ordered. Without this, which language
+      // lands as the default "Watch live" link is essentially random.
+      isEnglish: s.language === "en" ? 0 : 1,
     }))
-    .sort((a, b) => a.platform - b.platform || a.quality - b.quality);
+    .sort((a, b) => a.platform - b.platform || a.quality - b.quality || a.isEnglish - b.isEnglish);
 
   // A given platform can appear multiple times (different languages, VOD
   // vs live) — keep only the first (best-ranked) URL per platform so the
