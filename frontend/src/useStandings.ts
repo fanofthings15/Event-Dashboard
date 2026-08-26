@@ -2,7 +2,7 @@ import { useCallback, useState } from "react";
 import { reauthAwareFetch } from "./authFetch";
 import type { StandingsGroup } from "./types";
 
-export const STANDINGS_SPORTS = ["nfl", "nba", "nhl", "mlb", "f1"] as const;
+export const STANDINGS_SPORTS = ["nfl", "nba", "nhl", "mlb", "ncaaf", "f1"] as const;
 export type StandingsSport = (typeof STANDINGS_SPORTS)[number];
 
 const STANDINGS_ENDPOINTS: Record<StandingsSport, string> = {
@@ -10,6 +10,7 @@ const STANDINGS_ENDPOINTS: Record<StandingsSport, string> = {
   nba: "/api/nba/standings",
   nhl: "/api/nhl/standings",
   mlb: "/api/mlb/standings",
+  ncaaf: "/api/ncaaf/standings",
   f1: "/api/f1/standings",
 };
 

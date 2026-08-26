@@ -16,6 +16,7 @@ const CORE_ENDPOINTS: Record<string, string> = {
   nba: "/api/nba",
   nhl: "/api/nhl",
   mlb: "/api/mlb",
+  ncaaf: "/api/ncaaf",
   frc: "/api/frc",
 };
 

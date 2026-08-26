@@ -15,6 +15,7 @@ export const ESPORTS_CATALOG: EsportsGame[] = [
   { slug: "overwatch", sport: "overwatch", label: "Overwatch 2", color: "#22c55e" }, // 120°
   { slug: "dota2", sport: "dota2", label: "Dota 2", color: "#10b981" }, // 150°
   { slug: "r6siege", sport: "r6siege", label: "Rainbow Six Siege", color: "#ec4899" }, // 330°
+  { slug: "starcraft-2", sport: "sc2", label: "StarCraft II", color: "#06b6d4" }, // 190°
 ];
 
 export const DEFAULT_ENABLED_SLUGS = ["csgo", "lol", "rl"];
