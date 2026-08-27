@@ -62,13 +62,14 @@ function matchesRegion(e: NormalizedEvent, frcRegions: string[]): boolean {
   return frcRegions.includes(e.region);
 }
 
-// Anything hidden by a league/region filter shouldn't be able to notify
-// either, even if a favorite team happens to be playing in it — hiding a
-// league is a stronger signal than "I follow this team," not one this
-// bypasses. Custom events are the user's own and are never league/region-
-// filtered at all.
+// A followed team/event bypasses league/region filters — "I don't care
+// about the whole league, but I care about my team" (e.g. excluding most
+// NCAAF conferences while still following one team in one of them). Custom
+// events are the user's own and are never league/region-filtered at all.
+// This also governs the notify loop below, so a followed team now notifies
+// even in an otherwise-hidden league — the whole point of following it.
 function isHiddenByFilters(e: NormalizedEvent, excludedLeagues: string[], frcRegions: string[]): boolean {
-  if (e.sport === "custom") return false;
+  if (e.sport === "custom" || e.followed || e.manuallyFollowed) return false;
   return matchesExcluded(e.league, excludedLeagues) || !matchesRegion(e, frcRegions);
 }
 
