@@ -196,43 +196,64 @@ export default function App() {
   // settings): a fresh page load is free to auto-add it again.
   const autoAddedStreamIds = useRef<Set<string>>(new Set());
 
-  // Followed games join the Streams tab the moment they go live, and drop
-  // off again the moment they finish — polling (useEvents' own interval)
-  // is what drives both, so a stream someone's watching stays current all
-  // day without ever needing a manual refresh or a re-click of "Watch live".
-  useEffect(() => {
-    const existingIds = new Set(settings.streamSlots.map((s) => s.id));
-    const toAdd = allEvents.filter((e) => {
-      if (!e.followed && !e.manuallyFollowed) return false;
-      if (e.status !== "live" || !hasWatchableStream(e)) return false;
-      const id = eventStreamSlotId(e);
-      return !existingIds.has(id) && !autoAddedStreamIds.current.has(id);
-    });
-    if (toAdd.length === 0) return;
+  // Session-only bookkeeping for event-linked slots the feed stops
+  // returning outright, rather than ever showing them as "finished" first —
+  // PandaScore's finished-match window is a recent-history slice (15
+  // matches per title, then a 7-day cutoff), so a busy title can push a
+  // just-ended match out of the response before anyone notices. Treated the
+  // same as finished, but only once it's stayed missing a few minutes
+  // running — a single failed poll already zeroes out a whole source's
+  // events for that cycle, and that alone shouldn't close a stream someone
+  // is actually watching.
+  const missingSinceRef = useRef<Map<string, number>>(new Map());
+  const MISSING_GRACE_MS = 10 * 60 * 1000;
 
+  // Drives the Streams tab hands-free: a followed game joins the moment it
+  // goes live and has a real broadcast link, and drops off again the moment
+  // it's no longer live — polling (useEvents' own interval) is what makes
+  // both happen without a manual refresh or another click of "Watch live".
+  // One effect (not two) so an add and a remove landing in the same poll
+  // can't race each other over the same settings.streamSlots snapshot.
+  useEffect(() => {
+    const eventById = new Map(allEvents.map((e) => [eventStreamSlotId(e), e]));
+    const now = Date.now();
     let nextSlots = settings.streamSlots;
     let nextMain = settings.streamMainSlotId;
-    for (const e of toAdd) {
+    let changed = false;
+
+    const existingIds = new Set(nextSlots.map((s) => s.id));
+    for (const e of allEvents) {
+      if (!e.followed && !e.manuallyFollowed) continue;
+      if (e.status !== "live" || !hasWatchableStream(e)) continue;
+      const id = eventStreamSlotId(e);
+      if (existingIds.has(id) || autoAddedStreamIds.current.has(id)) continue;
       nextSlots = withEventStreamSlot(nextSlots, e, e.streamUrl as string);
-      autoAddedStreamIds.current.add(eventStreamSlotId(e));
-      nextMain = nextMain ?? eventStreamSlotId(e);
+      autoAddedStreamIds.current.add(id);
+      nextMain = nextMain ?? id;
+      changed = true;
     }
-    save({ streamSlots: nextSlots, streamMainSlotId: nextMain });
-  }, [allEvents, settings.streamSlots, settings.streamMainSlotId]);
 
-  // Mirror image of the effect above: a stream slot tied to an event (as
-  // opposed to a manually-pasted link, which carries no event to check)
-  // disappears on its own once that event finishes.
-  useEffect(() => {
-    const finishedSlotIds = new Set(allEvents.filter((e) => e.status === "finished").map((e) => eventStreamSlotId(e)));
-    const nextSlots = settings.streamSlots.filter((s) => !finishedSlotIds.has(s.id));
-    if (nextSlots.length === settings.streamSlots.length) return;
+    const toRemove = new Set<string>();
+    for (const slot of nextSlots) {
+      if (!slot.id.startsWith("event:")) continue; // manually-pasted link — no event to check it against
+      const event = eventById.get(slot.id);
+      if (event) {
+        missingSinceRef.current.delete(slot.id);
+        if (event.status !== "live") toRemove.add(slot.id);
+        continue;
+      }
+      const missingSince = missingSinceRef.current.get(slot.id) ?? now;
+      missingSinceRef.current.set(slot.id, missingSince);
+      if (now - missingSince >= MISSING_GRACE_MS) toRemove.add(slot.id);
+    }
+    if (toRemove.size > 0) {
+      nextSlots = nextSlots.filter((s) => !toRemove.has(s.id));
+      if (nextMain && toRemove.has(nextMain)) nextMain = nextSlots[0]?.id ?? null;
+      for (const id of toRemove) missingSinceRef.current.delete(id);
+      changed = true;
+    }
 
-    const nextMain =
-      settings.streamMainSlotId && finishedSlotIds.has(settings.streamMainSlotId)
-        ? (nextSlots[0]?.id ?? null)
-        : settings.streamMainSlotId;
-    save({ streamSlots: nextSlots, streamMainSlotId: nextMain });
+    if (changed) save({ streamSlots: nextSlots, streamMainSlotId: nextMain });
   }, [allEvents, settings.streamSlots, settings.streamMainSlotId]);
 
   // Every sport currently enabled, in a stable order: core sources first,

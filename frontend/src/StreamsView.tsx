@@ -1,7 +1,8 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useSettings } from "./SettingsContext";
 import type { StreamLayout, StreamSlot } from "./settingsTypes";
-import { toEmbedUrl } from "./streamEmbed";
+import { toEmbedUrl, isYoutubeEmbed } from "./streamEmbed";
+import { forceMaxQuality } from "./youtubeQuality";
 import ConfirmDialog from "./ConfirmDialog";
 
 function uid() {
@@ -27,12 +28,24 @@ function StreamTile({
   onMakeMain: () => void;
   onRemove: () => void;
 }): ReactNode {
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
+  const embedUrl = toEmbedUrl(slot.url, { muted: !isMain });
+
+  // Re-attaches every time embedUrl actually changes — toggling "Make main"
+  // changes the mute param, which reloads the iframe's content and
+  // invalidates whatever Player instance was watching the old load.
+  useEffect(() => {
+    if (!isYoutubeEmbed(embedUrl) || !iframeRef.current) return;
+    return forceMaxQuality(iframeRef.current);
+  }, [embedUrl]);
+
   return (
     <div className="stream-tile">
       <div className="stream-frame-wrap">
         <iframe
+          ref={iframeRef}
           key={slot.id}
-          src={toEmbedUrl(slot.url, { muted: !isMain })}
+          src={embedUrl}
           title={slot.label}
           allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
           allowFullScreen
