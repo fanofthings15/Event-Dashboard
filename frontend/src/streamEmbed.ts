@@ -1,8 +1,14 @@
 // Converts a pasted stream link into something embeddable in an <iframe>.
-// Only YouTube gets special-cased (watch/live/youtu.be links aren't
-// embeddable as-is); everything else is assumed to already allow framing
-// and is used verbatim — the streams tab has no source-discovery API, the
-// user pastes whatever link they found.
+// YouTube and Twitch get special-cased (neither is embeddable as-is —
+// Twitch actively blocks framing outside player.twitch.tv via CSP unless
+// given a `parent` param naming the embedding domain, so a raw twitch.tv
+// link just renders blank everywhere, not only in Firefox); everything else
+// is assumed to already allow framing and is used verbatim — the streams
+// tab has no source-discovery API, the user pastes whatever link they
+// found. The esports backend already ranks YouTube ahead of Twitch when a
+// match offers both (see platformRank in routes/esports.ts) — this is only
+// reached with a Twitch link when that's genuinely the only stream on
+// offer, or the user pasted one by hand.
 //
 // `muted` defaults to true (needed for autoplay to reliably work at all —
 // browsers block unmuted autoplay outright) but the main/primary tile is
@@ -15,6 +21,13 @@
 // own docs recommend it as a postMessage security check.
 const jsApiParams =
   typeof window !== "undefined" ? `&enablejsapi=1&origin=${encodeURIComponent(window.location.origin)}` : "&enablejsapi=1";
+
+// Twitch's embed player refuses to load unless `parent` names the exact
+// hostname (no protocol/port) it's being framed from — omitting it, or
+// getting it wrong, is why a raw twitch.tv link just shows blank.
+function twitchParentParam(): string {
+  return typeof window !== "undefined" ? `&parent=${encodeURIComponent(window.location.hostname)}` : "";
+}
 
 export function toEmbedUrl(rawUrl: string, { muted = true }: { muted?: boolean } = {}): string {
   const url = rawUrl.trim();
@@ -48,6 +61,34 @@ export function toEmbedUrl(rawUrl: string, { muted = true }: { muted?: boolean }
       // A channel's live tab (e.g. /@handle/live or /channel/UC.../live) has
       // no stable video id to extract client-side — hand it back as-is
       // rather than guessing wrong; it just won't autoplay embedded.
+    }
+
+    if (host === "twitch.tv") {
+      const parentParam = twitchParentParam();
+      const twitchMute = `&muted=${muted ? "true" : "false"}`;
+      const parts = u.pathname.split("/").filter(Boolean);
+      if (parts[0] === "videos" && parts[1]) {
+        return `https://player.twitch.tv/?video=${parts[1]}&autoplay=true${twitchMute}${parentParam}`;
+      }
+      if (parts.length >= 1 && parts[0] !== "directory") {
+        // /<channel> is the live channel itself — the common case for a
+        // followed esports broadcast. A clip URL (/<channel>/clip/<slug>)
+        // falls through to this too and embeds the channel rather than the
+        // clip, but clips aren't what live-event stream links point to.
+        return `https://player.twitch.tv/?channel=${encodeURIComponent(parts[0])}&autoplay=true${twitchMute}${parentParam}`;
+      }
+    }
+
+    if (host === "player.twitch.tv") {
+      // Already embed-shaped (e.g. pasted straight from a "copy embed code")
+      // — just make sure autoplay/mute/parent are set the way we need them.
+      if (!u.searchParams.has("parent")) {
+        const parent = twitchParentParam();
+        if (parent) new URLSearchParams(parent.slice(1)).forEach((v, k) => u.searchParams.set(k, v));
+      }
+      u.searchParams.set("autoplay", "true");
+      u.searchParams.set("muted", muted ? "true" : "false");
+      return u.toString();
     }
 
     return url;
