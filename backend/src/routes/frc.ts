@@ -2,7 +2,7 @@ import { Router } from "express";
 import { cached } from "../cache.js";
 import { readGlobalSettings, readUserSettings } from "../settings.js";
 import { getUserId } from "../userContext.js";
-import { computeMatchProgress } from "../frcMatchProgress.js";
+import { computeMatchProgress, hasMatchPlayStarted } from "../frcMatchProgress.js";
 import type { NormalizedEvent } from "../types.js";
 
 const router = Router();
@@ -199,6 +199,9 @@ router.get("/", async (req, res) => {
     // Match progress ("Qual Match 23 of 40", "Semifinals — Match 2") only
     // makes sense for events actually happening today — fetching it for the
     // whole season's events would be a lot of wasted TBA calls for nothing.
+    // statusFor is date-only, so this "live" set includes events whose day
+    // has arrived but whose first match hasn't actually been called yet —
+    // the match list settles that for real.
     const liveEvents = events.filter((e) => e.status === "live");
     if (liveEvents.length > 0) {
       const settled = await Promise.allSettled(
@@ -212,10 +215,18 @@ router.get("/", async (req, res) => {
       );
       settled.forEach((result, i) => {
         if (result.status === "fulfilled") {
-          liveEvents[i].seriesScore = computeMatchProgress(result.value as any[]);
+          const matches = result.value as any[];
+          if (!hasMatchPlayStarted(matches)) {
+            // Today, per the calendar, but no match has actually started —
+            // schedule not posted yet, or just hasn't gotten underway.
+            liveEvents[i].status = "upcoming";
+          } else {
+            liveEvents[i].seriesScore = computeMatchProgress(matches);
+          }
         }
         // A failed per-event match lookup just means no progress line shows
-        // for that one event — not worth surfacing as a user-facing warning.
+        // for that one event (and it's left as date-based "live") — not
+        // worth surfacing as a user-facing warning.
       });
     }
 
