@@ -4,7 +4,7 @@ import { useStandings } from "./useStandings";
 import { useSettings } from "./SettingsContext";
 import { useNow, formatCountdown } from "./countdown";
 import { sportMeta } from "./sportMeta";
-import { isLiveNow } from "./eventStatus";
+import { isLiveNow, hasEventEnded } from "./eventStatus";
 import { sameDay } from "./calendarUtils";
 import { formatEventTime } from "./dateFormat";
 import { useNewlySeen } from "./useNewlySeen";
@@ -208,12 +208,22 @@ export default function App() {
   const missingSinceRef = useRef<Map<string, number>>(new Map());
   const MISSING_GRACE_MS = 10 * 60 * 1000;
 
-  // Drives the Streams tab hands-free: a followed game joins the moment it
-  // goes live and has a real broadcast link, and drops off again the moment
-  // it's no longer live — polling (useEvents' own interval) is what makes
-  // both happen without a manual refresh or another click of "Watch live".
-  // One effect (not two) so an add and a remove landing in the same poll
-  // can't race each other over the same settings.streamSlots snapshot.
+  // A prestarted slot gets exactly one "did something better come along"
+  // check, right as the event actually goes live — not on every poll, which
+  // would mean re-swapping (and reloading) the iframe each time PandaScore
+  // reorders its streams list.
+  const startRecheckedIds = useRef<Set<string>>(new Set());
+  const PRESTART_WINDOW_MS = 5 * 60 * 1000;
+
+  // Drives the Streams tab hands-free: a followed game joins up to 5 minutes
+  // before its projected start if it already has a real broadcast link (no
+  // link yet just means nothing to prestart — it still joins the normal way
+  // once actually live), gets one recheck for a better stream right as it
+  // goes live, and drops off again once it's over — polling (useEvents' own
+  // interval) is what makes all of this happen without a manual refresh or
+  // another click of "Watch live". One effect (not two) so an add and a
+  // remove landing in the same poll can't race each other over the same
+  // settings.streamSlots snapshot.
   useEffect(() => {
     const eventById = new Map(allEvents.map((e) => [eventStreamSlotId(e), e]));
     const now = Date.now();
@@ -224,9 +234,26 @@ export default function App() {
     const existingIds = new Set(nextSlots.map((s) => s.id));
     for (const e of allEvents) {
       if (!e.followed && !e.manuallyFollowed) continue;
-      if (e.status !== "live" || !hasWatchableStream(e)) continue;
+      if (hasEventEnded(e, now) || !hasWatchableStream(e)) continue;
+      const startMs = new Date(e.startTime).getTime();
+      const reachedStart = e.status === "live" || now >= startMs;
+      if (!reachedStart && startMs - now > PRESTART_WINDOW_MS) continue; // too early — no prestart yet
+
       const id = eventStreamSlotId(e);
-      if (existingIds.has(id) || autoAddedStreamIds.current.has(id)) continue;
+      if (existingIds.has(id)) {
+        // Already on the board (prestarted or otherwise) — the one-time
+        // upgrade check, once the event has actually gotten underway.
+        if (reachedStart && !startRecheckedIds.current.has(id)) {
+          startRecheckedIds.current.add(id);
+          const current = nextSlots.find((s) => s.id === id);
+          if (current && current.url !== e.streamUrl) {
+            nextSlots = withEventStreamSlot(nextSlots, e, e.streamUrl as string);
+            changed = true;
+          }
+        }
+        continue;
+      }
+      if (autoAddedStreamIds.current.has(id)) continue;
       nextSlots = withEventStreamSlot(nextSlots, e, e.streamUrl as string);
       autoAddedStreamIds.current.add(id);
       nextMain = nextMain ?? id;
@@ -239,7 +266,7 @@ export default function App() {
       const event = eventById.get(slot.id);
       if (event) {
         missingSinceRef.current.delete(slot.id);
-        if (event.status !== "live") toRemove.add(slot.id);
+        if (hasEventEnded(event, now)) toRemove.add(slot.id);
         continue;
       }
       const missingSince = missingSinceRef.current.get(slot.id) ?? now;
