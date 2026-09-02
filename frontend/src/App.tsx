@@ -332,19 +332,17 @@ export default function App() {
 
   const visibleWarnings = warnings.filter((w) => !dismissedWarnings.has(w));
 
-  // Kiosk-style layout: no header/search/filters to fight for space when
-  // this tab is F11'd on an always-on TV — just the streams and a small way
-  // back to the real dashboard.
-  if (view === "streams") {
-    return (
-      <div className="app streams-mode">
-        <StreamsView onBack={() => setView("list")} />
-      </div>
-    );
-  }
-
+  // StreamsView is mounted exactly once, always, regardless of `view` — a
+  // stream's <iframe> is what's actually playing video/audio, and unmounting
+  // it (which switching views used to do) reloads it from scratch, dropping
+  // playback position and unmuting it again. Instead it stays alive the
+  // whole time and just gets repositioned: full-viewport kiosk layout while
+  // `view === "streams"`, a small picture-in-picture box hovering over every
+  // other tab otherwise, so leaving the Streams tab to check something else
+  // doesn't interrupt what's playing.
   return (
-    <div className="app">
+    <>
+      <div className="app" style={view === "streams" ? { display: "none" } : undefined}>
       <header className="header">
         <h1>Event Dashboard</h1>
         <div className="header-actions">
@@ -562,6 +560,13 @@ export default function App() {
           onWatchLive={watchLiveInApp}
         />
       )}
-    </div>
+      </div>
+
+      <StreamsView
+        mode={view === "streams" ? "full" : "pip"}
+        onBack={() => setView("list")}
+        onExpand={() => setView("streams")}
+      />
+    </>
   );
 }
