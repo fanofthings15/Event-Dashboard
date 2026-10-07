@@ -49,6 +49,7 @@ export interface SettingsState {
   compactCards: boolean;
   timezone: string;
   icsToken: string;
+  discordWebhookUrl: string;
   streamSlots: StreamSlot[];
   streamMainSlotId: string | null;
   streamLayout: StreamLayout;

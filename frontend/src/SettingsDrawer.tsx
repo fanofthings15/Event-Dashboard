@@ -3,7 +3,6 @@ import { useSettings } from "./SettingsContext";
 import SourceSettings from "./SourceSettings";
 import { COMMON_TIMEZONES } from "./dateFormat";
 import type { NormalizedEvent } from "./types";
-import { currentPushSubscription, disablePush, enablePush, pushSupported, sendTestPush } from "./pushNotifications";
 
 interface Props {
   onClose: () => void;
@@ -52,14 +51,7 @@ export default function SettingsDrawer({ onClose, allEvents }: Props) {
     save(next);
   }
 
-  // --- Notifications ---
-  const notificationsSupported = typeof Notification !== "undefined";
-  const [permission, setPermission] = useState(notificationsSupported ? Notification.permission : "denied");
-  async function requestPermission() {
-    const result = await Notification.requestPermission();
-    setPermission(result);
-    if (result === "granted") save({ notifyOnLive: true });
-  }
+  // --- Notifications (delivered via Discord — see discordScheduler.ts) ---
   function toggleNotify() {
     save({ notifyOnLive: !settings.notifyOnLive });
   }
@@ -76,35 +68,22 @@ export default function SettingsDrawer({ onClose, allEvents }: Props) {
     save({ notifySoundEnabled: !settings.notifySoundEnabled });
   }
 
-  // --- Push notifications (works while this tab/browser is closed) ---
-  const [pushState, setPushState] = useState<"checking" | "off" | "on" | "busy">("checking");
-  const [pushTestSent, setPushTestSent] = useState(false);
-  useEffect(() => {
-    if (!pushSupported()) {
-      setPushState("off");
-      return;
-    }
-    currentPushSubscription().then((sub) => setPushState(sub ? "on" : "off"));
-  }, []);
-  async function togglePush() {
-    setPushState("busy");
-    setPushTestSent(false);
-    try {
-      if (pushState === "on") {
-        await disablePush();
-        setPushState("off");
-      } else {
-        await enablePush();
-        setPushState("on");
-      }
-    } catch (err) {
-      console.error("Push subscription change failed:", err);
-      setPushState(pushState === "on" ? "on" : "off");
-    }
+  const [discordUrlDraft, setDiscordUrlDraft] = useState(settings.discordWebhookUrl);
+  useEffect(() => setDiscordUrlDraft(settings.discordWebhookUrl), [settings.discordWebhookUrl]);
+  const [discordSaved, setDiscordSaved] = useState(false);
+  const [discordTestState, setDiscordTestState] = useState<"idle" | "sending" | "sent" | "error">("idle");
+  async function saveDiscordUrl() {
+    await save({ discordWebhookUrl: discordUrlDraft.trim() });
+    setDiscordSaved(true);
   }
-  async function testPush() {
-    await sendTestPush();
-    setPushTestSent(true);
+  async function sendDiscordTest() {
+    setDiscordTestState("sending");
+    try {
+      const r = await fetch("/api/discord/test", { method: "POST" });
+      setDiscordTestState(r.ok ? "sent" : "error");
+    } catch {
+      setDiscordTestState("error");
+    }
   }
 
   // --- Poll interval ---
@@ -216,18 +195,35 @@ export default function SettingsDrawer({ onClose, allEvents }: Props) {
 
         <section className="settings-section">
           <h3>Notifications</h3>
-          {!notificationsSupported ? (
-            <span className="hint">Not supported in this browser.</span>
-          ) : permission !== "granted" ? (
-            <>
-              <span className="hint">Get a browser notification when a favorited or followed event goes live.</span>
-              <button className="btn primary" style={{ marginTop: 10 }} onClick={requestPermission}>
-                Enable notifications
+          <div className="form-row" style={{ flexWrap: "wrap" }}>
+            <input
+              type="text"
+              placeholder="Discord webhook URL (channel Settings → Integrations → Webhooks)"
+              value={discordUrlDraft}
+              onChange={(e) => {
+                setDiscordUrlDraft(e.target.value);
+                setDiscordSaved(false);
+              }}
+              style={{ flex: 1, minWidth: 260 }}
+            />
+            <button className="btn primary" onClick={saveDiscordUrl} disabled={discordUrlDraft === settings.discordWebhookUrl}>
+              Save
+            </button>
+            {discordSaved && <span className="ok-tag">Saved</span>}
+          </div>
+          {settings.discordWebhookUrl && (
+            <div style={{ marginTop: 8 }}>
+              <button type="button" className="btn small" onClick={sendDiscordTest} disabled={discordTestState === "sending"}>
+                Send test
               </button>
-            </>
-          ) : (
+              {discordTestState === "sent" && <span className="hint" style={{ marginLeft: 8 }}>Sent — check the channel.</span>}
+              {discordTestState === "error" && <span className="hint" style={{ marginLeft: 8 }}>Discord rejected that webhook URL.</span>}
+            </div>
+          )}
+
+          {settings.discordWebhookUrl && (
             <>
-              <button type="button" className={`chip ${settings.notifyOnLive ? "active" : ""}`} onClick={toggleNotify}>
+              <button type="button" className={`chip ${settings.notifyOnLive ? "active" : ""}`} style={{ marginTop: 14 }} onClick={toggleNotify}>
                 {settings.notifyOnLive ? "Notifying on live events" : "Notifications off"}
               </button>
               {settings.notifyOnLive && (
@@ -250,38 +246,14 @@ export default function SettingsDrawer({ onClose, allEvents }: Props) {
               )}
               {settings.notifyOnLive && (
                 <button type="button" className={`chip ${settings.notifySoundEnabled ? "active" : ""}`} style={{ marginTop: 10 }} onClick={toggleNotifySound}>
-                  {settings.notifySoundEnabled ? "🔊 Sound on" : "🔇 Sound muted"}
+                  {settings.notifySoundEnabled ? "🔊 In-tab sound on" : "🔇 In-tab sound muted"}
                 </button>
-              )}
-              {settings.notifyOnLive && pushSupported() && (
-                <div style={{ marginTop: 10 }}>
-                  <button
-                    type="button"
-                    className={`chip ${pushState === "on" ? "active" : ""}`}
-                    disabled={pushState === "checking" || pushState === "busy"}
-                    onClick={togglePush}
-                  >
-                    {pushState === "on" ? "🔔 Push notifications on" : "Enable push notifications"}
-                  </button>
-                  {pushState === "on" && (
-                    <>
-                      <button type="button" className="btn small" style={{ marginLeft: 8 }} onClick={testPush}>
-                        Send test
-                      </button>
-                      {pushTestSent && <span className="hint" style={{ marginLeft: 8 }}>Sent — check for a notification.</span>}
-                    </>
-                  )}
-                  {pushState === "off" && (
-                    <span className="hint" style={{ display: "block", marginTop: 4 }}>
-                      Gets you these same notifications on this device even when the app/tab is closed.
-                    </span>
-                  )}
-                </div>
               )}
               {settings.notifyOnLive && (
                 <>
                   <span className="hint" style={{ display: "block", marginTop: 12, marginBottom: 6 }}>
-                    Also get a heads-up before an event starts — pick any combination:
+                    Also get a heads-up before an event starts — pick any combination. Every notification includes a
+                    link to mute that specific event (e.g. once you're already watching its stream).
                   </span>
                   <div className="source-chip-list">
                     {[0, 5, 15, 30, 60].map((minutes) => (

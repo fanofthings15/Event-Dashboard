@@ -37,6 +37,7 @@ router.get("/", (req, res) => {
     compactCards: settings.compactCards,
     timezone: settings.timezone,
     icsToken: settings.icsToken,
+    discordWebhookUrl: settings.discordWebhookUrl,
     streamSlots: settings.streamSlots,
     streamMainSlotId: settings.streamMainSlotId,
     streamLayout: settings.streamLayout,
@@ -98,6 +99,9 @@ router.post("/", (req, res) => {
       .map((x: number) => Math.floor(x));
   }
   if (typeof body.notifySoundEnabled === "boolean") next.notifySoundEnabled = body.notifySoundEnabled;
+  if (typeof body.discordWebhookUrl === "string" && (body.discordWebhookUrl === "" || body.discordWebhookUrl.startsWith("https://discord.com/api/webhooks/"))) {
+    next.discordWebhookUrl = body.discordWebhookUrl;
+  }
   if (Array.isArray(body.snoozedEventIds)) next.snoozedEventIds = body.snoozedEventIds.filter((x: unknown) => typeof x === "string");
   if (typeof body.compactCards === "boolean") next.compactCards = body.compactCards;
   if (typeof body.timezone === "string") {

@@ -27,6 +27,7 @@ const EMPTY: SettingsState = {
   compactCards: false,
   timezone: "",
   icsToken: "",
+  discordWebhookUrl: "",
   streamSlots: [],
   streamMainSlotId: null,
   streamLayout: "grid",

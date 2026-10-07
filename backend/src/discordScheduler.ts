@@ -2,13 +2,38 @@ import fs from "fs";
 import path from "path";
 import os from "os";
 import { readUserSettings } from "./settings.js";
-import { sendPushToUser } from "./push.js";
+import { sendDiscordWebhook } from "./discordNotify.js";
 import type { NormalizedEvent } from "./types.js";
 
 // Same directory settings.ts writes per-user files under — read directly
 // here (rather than adding a "list every known user" export there) since
 // this is the only caller that ever needs to enumerate every user at once.
 const USERS_DIR = path.join(os.homedir(), ".event-dashboard", "users");
+
+// Where the mute link in each notification points — has to be the real
+// public hostname, not localhost, since it's opened from Discord's own
+// client (desktop/mobile), never from this server. Overridable via env for
+// anyone self-hosting this on a different domain.
+const PUBLIC_BASE_URL = process.env.PUBLIC_BASE_URL ?? "https://events.omurray.me";
+
+const LIVE_COLOR = 0xef4444;
+const UPCOMING_COLOR = 0x4f8dfd;
+
+function muteUrl(muteToken: string, eventKey: string): string {
+  return `${PUBLIC_BASE_URL}/api/discord/mute?event=${encodeURIComponent(eventKey)}&t=${muteToken}`;
+}
+
+async function notify(userId: string, webhookUrl: string, muteToken: string, eventKey: string, title: string, league: string, color: number): Promise<void> {
+  try {
+    await sendDiscordWebhook(webhookUrl, {
+      title,
+      description: `${league}\n\n🔇 [Mute this event](${muteUrl(muteToken, eventKey)})`,
+      color,
+    });
+  } catch (err) {
+    console.error(`[discord-scheduler] send failed for user ${userId}:`, err);
+  }
+}
 
 const CORE_ENDPOINTS: Record<string, string> = {
   nfl: "/api/nfl",
@@ -36,7 +61,7 @@ function matchesFavoriteTeamName(haystack: string, favorite: string): boolean {
 
 // Mirrors frontend/src/useEvents.ts's withFavoriteTeams — the raw per-source
 // API responses don't know about a user's favoriteTeams list (that matching
-// happens client-side today), so it's replicated here for the push path to
+// happens client-side today), so it's replicated here for this scheduler to
 // gate on the same "followed" definition the in-page notifications use.
 function matchesFavoriteTeam(e: NormalizedEvent, favoriteTeams: string[]): boolean {
   if (e.followed || favoriteTeams.length === 0) return false;
@@ -92,7 +117,7 @@ async function fetchUserEvents(baseUrl: string, userId: string, disabledCoreSour
 
 async function tickUser(baseUrl: string, userId: string): Promise<void> {
   const settings = readUserSettings(userId);
-  if (!settings.notifyOnLive || settings.pushSubscriptions.length === 0) return;
+  if (!settings.notifyOnLive || !settings.discordWebhookUrl) return;
 
   const events = await fetchUserEvents(baseUrl, userId, settings.disabledCoreSources);
   const reminderLeads = settings.notifyLeadMinutes.filter((m) => m > 0);
@@ -119,7 +144,7 @@ async function tickUser(baseUrl: string, userId: string): Promise<void> {
     if (e.status === "live") {
       nowLiveIds.add(key);
       if (!state.prevLiveIds.has(key)) {
-        await sendPushToUser(userId, { title: `${e.name} is live`, body: e.league, tag: `${key}-live` });
+        await notify(userId, settings.discordWebhookUrl, settings.discordMuteToken, key, `🔴 ${e.name} is live`, e.league, LIVE_COLOR);
       }
       continue;
     }
@@ -131,7 +156,8 @@ async function tickUser(baseUrl: string, userId: string): Promise<void> {
         if (state.notifiedUpcoming.has(leadKey)) continue;
         if (msUntilStart > 0 && msUntilStart <= lead * 60_000) {
           state.notifiedUpcoming.add(leadKey);
-          await sendPushToUser(userId, { title: `${e.name} starts in ${lead} min`, body: e.league, tag: `${key}-upcoming-${lead}` });
+          const when = lead === 0 ? "now" : `in ${lead} min`;
+          await notify(userId, settings.discordWebhookUrl, settings.discordMuteToken, key, `⏰ ${e.name} starts ${when}`, e.league, UPCOMING_COLOR);
         }
       }
     }
@@ -140,12 +166,13 @@ async function tickUser(baseUrl: string, userId: string): Promise<void> {
   state.prevLiveIds = nowLiveIds;
 }
 
-// Starts the recurring tick that drives push notifications while nobody has
-// the app open — everything the in-page Notification path already does
-// (frontend/src/useEvents.ts) reactively per open tab, this does on a timer
-// for every user who has both notifications and at least one push
-// subscription turned on.
-export function startPushScheduler(port: number): void {
+// Starts the recurring tick that drives Discord notifications, independent
+// of whether anyone has the app open — on a timer, for every user who has
+// both notifications and a Discord webhook URL configured. Replaced an
+// in-page browser Notification()/Web Push pair that depended on OS/browser
+// notification permissions actually working, which in practice didn't
+// reliably — this just needs the webhook URL to still be valid.
+export function startDiscordScheduler(port: number): void {
   const baseUrl = `http://localhost:${port}`;
 
   const tick = async () => {
@@ -159,7 +186,7 @@ export function startPushScheduler(port: number): void {
       try {
         await tickUser(baseUrl, userId);
       } catch (err) {
-        console.error(`[push-scheduler] tick failed for user ${userId}:`, err);
+        console.error(`[discord-scheduler] tick failed for user ${userId}:`, err);
       }
     }
   };

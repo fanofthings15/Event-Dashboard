@@ -136,17 +136,18 @@ export default function App() {
     document.documentElement.setAttribute("data-density", settings.compactCards ? "compact" : "comfortable");
   }, [settings.compactCards]);
 
+  // The actual notification delivery (Discord) now happens server-side,
+  // independent of whether this tab is even open — see
+  // backend/src/discordScheduler.ts. This just adds a quiet audio cue for
+  // whoever already has the page open when something goes live, on the
+  // same gating (notifyOnLive/notifyMode) so the two stay in sync.
   const notifyEvent = useCallback(
-    (e: NormalizedEvent, reason: NotifyReason, leadMinutes?: number) => {
+    (e: NormalizedEvent, _reason: NotifyReason, _leadMinutes?: number) => {
       if (!settings.notifyOnLive) return;
       if (settings.notifyMode === "followed" && !e.followed && !e.manuallyFollowed) return;
-      if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
-      const meta = sportMeta(e, settings.esportsCatalog, settings.sportColorOverrides);
-      const title = reason === "live" ? `${e.name} is live` : `${e.name} starts in ${leadMinutes} min`;
-      new Notification(title, { body: meta.label, tag: `${e.sport}-${e.id}-${reason}-${leadMinutes ?? ""}` });
       if (settings.notifySoundEnabled) playNotificationPing();
     },
-    [settings.notifyOnLive, settings.notifyMode, settings.notifySoundEnabled, settings.esportsCatalog, settings.sportColorOverrides]
+    [settings.notifyOnLive, settings.notifyMode, settings.notifySoundEnabled]
   );
 
   const { events, allEvents, warnings, loading, refreshing, lastUpdated, isOffline, refetch } = useEvents(

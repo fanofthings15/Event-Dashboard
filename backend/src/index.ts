@@ -18,7 +18,8 @@ import globalSettings from "./routes/globalSettings.js";
 import customEvents from "./routes/customEvents.js";
 import ics from "./routes/ics.js";
 import push from "./routes/push.js";
-import { startPushScheduler } from "./pushScheduler.js";
+import discord from "./routes/discord.js";
+import { startDiscordScheduler } from "./discordScheduler.js";
 
 // Static top-level import so Bun's compiler can statically detect and embed
 // this file into the .exe when running `bun build --compile`. This always
@@ -103,6 +104,7 @@ app.use("/api/settings", settings);
 app.use("/api/global-settings", globalSettings);
 app.use("/api/custom-events", customEvents);
 app.use("/api/push", push);
+app.use("/api/discord", discord);
 app.use("/calendar.ics", ics);
 
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
@@ -122,5 +124,5 @@ app.listen(PORT, () => {
   if (!uiDir) {
     console.log("No built frontend found yet — run the Vite dev server separately (bun run dev), or `bun run build:ui` first for a production-style run.");
   }
-  startPushScheduler(PORT);
+  startDiscordScheduler(PORT);
 });

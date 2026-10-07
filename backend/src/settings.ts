@@ -149,6 +149,18 @@ export interface UserSettings {
   // then) rather than at settings-creation time, so existing users get one
   // the next time anything reads their settings.
   icsToken: string;
+  // Discord webhook URL (from a channel's Integrations settings) that
+  // notifyOnLive/notifyLeadMinutes now deliver to instead of a browser/push
+  // notification — see discordScheduler.ts. Empty means notifications are
+  // configured but have nowhere to go, same as having no push subscriptions
+  // used to mean before this replaced that path.
+  discordWebhookUrl: string;
+  // Opaque per-user secret embedded in the "mute this event" link sent with
+  // every Discord notification (see discordScheduler.ts/routes/discord.ts).
+  // Clicking it can't carry an Authentik session (it's opened from Discord's
+  // own in-app browser), so this is the only identity that route trusts —
+  // same pattern as icsToken above. Lazily generated on first read.
+  discordMuteToken: string;
   // Streams tab: user-curated embeddable links (always-on TV / multiview
   // use case), not tied to any specific event.
   streamSlots: StreamSlot[];
@@ -201,6 +213,8 @@ const USER_DEFAULTS: UserSettings = {
   compactCards: false,
   timezone: "",
   icsToken: "",
+  discordWebhookUrl: "",
+  discordMuteToken: "",
   streamSlots: [],
   streamMainSlotId: null,
   streamLayout: "grid",
@@ -345,10 +359,18 @@ export function readUserSettings(userId: string): UserSettings {
       merged.icsToken = crypto.randomBytes(24).toString("hex");
       fs.writeFileSync(file, JSON.stringify(merged, null, 2), "utf-8");
     }
+    if (!merged.discordMuteToken) {
+      merged.discordMuteToken = crypto.randomBytes(24).toString("hex");
+      fs.writeFileSync(file, JSON.stringify(merged, null, 2), "utf-8");
+    }
 
     return merged;
   } catch {
-    const fresh = { ...USER_DEFAULTS, icsToken: crypto.randomBytes(24).toString("hex") };
+    const fresh = {
+      ...USER_DEFAULTS,
+      icsToken: crypto.randomBytes(24).toString("hex"),
+      discordMuteToken: crypto.randomBytes(24).toString("hex"),
+    };
     fs.mkdirSync(path.dirname(file), { recursive: true });
     fs.writeFileSync(file, JSON.stringify(fresh, null, 2), "utf-8");
     return fresh;
@@ -380,6 +402,23 @@ export function findUserIdByIcsToken(token: string): string | null {
   try {
     for (const userId of fs.readdirSync(USERS_DIR)) {
       const candidate = readUserSettings(userId).icsToken;
+      const candidateBuf = Buffer.from(candidate, "utf-8");
+      if (candidateBuf.length === tokenBuf.length && crypto.timingSafeEqual(candidateBuf, tokenBuf)) return userId;
+    }
+  } catch {
+    // USERS_DIR doesn't exist yet (no users have ever loaded settings) — no match.
+  }
+  return null;
+}
+
+// Same idea as findUserIdByIcsToken, for the "mute this event" links sent
+// in Discord notifications — see routes/discord.ts.
+export function findUserIdByDiscordMuteToken(token: string): string | null {
+  if (!token) return null;
+  const tokenBuf = Buffer.from(token, "utf-8");
+  try {
+    for (const userId of fs.readdirSync(USERS_DIR)) {
+      const candidate = readUserSettings(userId).discordMuteToken;
       const candidateBuf = Buffer.from(candidate, "utf-8");
       if (candidateBuf.length === tokenBuf.length && crypto.timingSafeEqual(candidateBuf, tokenBuf)) return userId;
     }
