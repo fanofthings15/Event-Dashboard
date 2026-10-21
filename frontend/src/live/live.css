@@ -148,8 +148,8 @@ body.live-body {
   min-height: 0;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 1em;
-  padding: 1em max(1.2em, env(safe-area-inset-right)) 0.6em max(1.2em, env(safe-area-inset-left));
+  gap: 0.8em 1.2em;
+  padding: 0.6em max(1.2em, env(safe-area-inset-right)) 0.5em max(1.2em, env(safe-area-inset-left));
 }
 
 .lv-body > :only-child {
@@ -204,10 +204,6 @@ body.live-body {
   max-height: 100%;
   min-height: 0;
   overflow: hidden;
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 0.6em;
-  padding: 0.9em 1em;
   display: flex;
   flex-direction: column;
   gap: 0.8em;
@@ -607,7 +603,7 @@ body.live-body {
 }
 
 .lv-grid td {
-  padding: 0.25em 0 0.25em 1em;
+  padding: 0.18em 0 0.18em 1em;
   text-align: right;
   font-weight: 700;
   white-space: nowrap;
@@ -862,4 +858,57 @@ body.live-body {
   font-weight: 700;
   white-space: nowrap;
   background: #262b35;
+}
+
+/* MLB: linescore down by inning beside the count / pitches / plays */
+.lv-mlb-side {
+  display: flex;
+  gap: 1.6em;
+  align-items: start;
+  min-height: 0;
+}
+
+.lv-linescore th,
+.lv-linescore td {
+  text-align: center;
+  padding-left: 0.9em;
+}
+
+.lv-linescore td:first-child {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.lv-linescore-total td {
+  border-top: 1px solid var(--border);
+  padding-top: 0.35em;
+}
+
+.lv-mlb-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5em;
+  width: 16em;
+  min-width: 0;
+}
+
+.lv-mlb-info .lv-line {
+  white-space: normal;
+}
+
+.lv-side:has(.lv-mlb-side) {
+  max-width: none;
+}
+
+@media (max-aspect-ratio: 1/1) {
+  /* the vertical linescore needs ~13 rows under the park on a tall screen */
+  .lv-body:has(.lv-mlb-side) .lv-surface svg {
+    max-height: 44vh;
+  }
+  .lv-linescore {
+    font-size: 0.85em;
+  }
+  .lv-venue {
+    display: none;
+  }
 }

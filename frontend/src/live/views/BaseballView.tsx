@@ -1,6 +1,6 @@
 import type { BaseballState } from "../liveTypes";
 import { teamColors } from "../teamColors";
-import { Below, C, LiveFrame, Line, Scoreboard, Side, Surface, useScoreFlash } from "../Layout";
+import { C, LiveFrame, Line, Scoreboard, Side, Surface, useScoreFlash } from "../Layout";
 import Ballpark, { BASES, Base } from "../surfaces/Ballpark";
 import BallFlight from "../surfaces/BallFlight";
 
@@ -47,7 +47,6 @@ export default function BaseballView({ data, leagueColor }: { data: BaseballStat
 
   return (
     <LiveFrame
-      layout="stack"
       league="MLB"
       leagueColor={leagueColor}
       live={data.state === "in"}
@@ -55,16 +54,10 @@ export default function BaseballView({ data, leagueColor }: { data: BaseballStat
       status={data.state === "in" && data.inning ? data.inning : data.detail}
     >
       {flash}
-      <Surface
-        caption={
-          <span>
-            {data.fence?.venue ? `${data.fence.venue} · ` : ""}
-            {lastHit
-              ? `Last ball in play: ${[lastHit.result, lastHit.distance ? `${Math.round(lastHit.distance)} ft` : null, lastHit.speed ? `${lastHit.speed} mph` : null, lastHit.angle !== undefined ? `${lastHit.angle}°` : null].filter(Boolean).join(", ")}`
-              : "No balls in play yet"}
-          </span>
-        }
-      >
+      {/* The park is about as tall as it is wide, so it takes the full height
+          and everything else sits beside it: the linescore runs down by
+          inning, with the count, pitches and plays next to it. */}
+      <Surface>
         <Ballpark fence={data.fence}>
           {/* earlier balls in play this game, as a faint spray chart */}
           {hits.slice(0, -1).map((h) => (
@@ -76,10 +69,46 @@ export default function BaseballView({ data, leagueColor }: { data: BaseballStat
           <BallFlight hit={lastHit} />
         </Ballpark>
       </Surface>
-      <Below
-        left={
-          <div style={{ display: "flex", gap: "1.2em", alignItems: "center", minWidth: 0 }}>
-            <svg viewBox="40 100 150 150" style={{ width: "7.5em", height: "7.5em", flex: "none" }} role="img" aria-label="Pitch locations this at-bat">
+      <Side>
+        <div className="lv-mlb-side">
+          <table className="lv-grid lv-linescore">
+            <thead>
+              <tr>
+                <th />
+                <th style={{ color: awayColor }}>{away?.abbr}</th>
+                <th style={{ color: homeColor }}>{home?.abbr}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {Array.from({ length: innings }, (_, i) => (
+                <tr key={i}>
+                  <td>{i + 1}</td>
+                  <td style={{ fontWeight: 400 }}>{away?.linescores[i] ?? ""}</td>
+                  <td style={{ fontWeight: 400 }}>{home?.linescores[i] ?? ""}</td>
+                </tr>
+              ))}
+              {(
+                [
+                  ["R", away?.score, home?.score],
+                  ["H", away?.hits, home?.hits],
+                  ["E", away?.errors, home?.errors],
+                ] as const
+              ).map(([label, a, h], k) => (
+                <tr key={label} className={k === 0 ? "lv-linescore-total" : undefined}>
+                  <td>{label}</td>
+                  <td>{a ?? "–"}</td>
+                  <td>{h ?? "–"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div className="lv-mlb-info">
+            <div style={{ display: "flex", gap: "1em", flexWrap: "wrap" }}>
+              <Dots label="B" n={data.balls} total={4} color={C.green} />
+              <Dots label="S" n={data.strikes} total={3} color={C.live} />
+              <Dots label="O" n={data.outs} total={3} color={C.yellow} />
+            </div>
+            <svg viewBox="40 100 150 150" style={{ width: "8em", height: "8em", flex: "none" }} role="img" aria-label="Pitch locations this at-bat">
               <rect x={40} y={100} width={150} height={150} rx={6} fill="var(--panel)" />
               <rect x={ZONE.x} y={ZONE.y} width={ZONE.w} height={ZONE.h} fill="none" stroke="#fff" strokeOpacity={0.75} strokeWidth={1.2} />
               {[1, 2].map((k) => (
@@ -100,56 +129,27 @@ export default function BaseballView({ data, leagueColor }: { data: BaseballStat
                 <circle key={data.pitches.length} cx={lastPitch.x} cy={lastPitch.y} r={12} fill="none" stroke={pitchColor(lastPitch.result)} strokeWidth={2} className="live-pulse" />
               )}
             </svg>
-            <div style={{ display: "flex", flexDirection: "column", gap: "0.4em", minWidth: 0 }}>
-              <div style={{ display: "flex", gap: "1.2em", flexWrap: "wrap" }}>
-                <Dots label="B" n={data.balls} total={4} color={C.green} />
-                <Dots label="S" n={data.strikes} total={3} color={C.live} />
-                <Dots label="O" n={data.outs} total={3} color={C.yellow} />
+            {lastPitch && (
+              <Line>
+                Pitch {data.pitches.length}: {lastPitch.type ?? "Pitch"}
+                {lastPitch.mph ? ` ${lastPitch.mph} mph` : ""} · <span style={{ color: pitchColor(lastPitch.result) }}>{lastPitch.result}</span>
+              </Line>
+            )}
+            {data.matchup && <Line>{data.matchup}</Line>}
+            <Line primary>{data.lastPlay ?? ""}</Line>
+            {lastHit && (
+              <Line>
+                Last ball in play: {[lastHit.result, lastHit.distance ? `${Math.round(lastHit.distance)} ft` : null, lastHit.speed ? `${lastHit.speed} mph` : null, lastHit.angle !== undefined ? `${lastHit.angle}°` : null].filter(Boolean).join(", ")}
+              </Line>
+            )}
+            {data.fence?.venue && (
+              <div className="lv-venue">
+                <Line>{data.fence.venue}</Line>
               </div>
-              {lastPitch && (
-                <Line>
-                  Pitch {data.pitches.length}: {lastPitch.type ?? "Pitch"}
-                  {lastPitch.mph ? ` ${lastPitch.mph} mph` : ""} · <span style={{ color: pitchColor(lastPitch.result) }}>{lastPitch.result}</span>
-                </Line>
-              )}
-              {data.matchup && <Line>{data.matchup}</Line>}
-              <Line primary>{data.lastPlay ?? ""}</Line>
-            </div>
+            )}
           </div>
-        }
-        right={
-          <Side>
-            <table className="lv-grid">
-              <thead>
-                <tr>
-                  <th />
-                  {Array.from({ length: innings }, (_, i) => (
-                    <th key={i}>{i + 1}</th>
-                  ))}
-                  <th>R</th>
-                  <th>H</th>
-                  <th>E</th>
-                </tr>
-              </thead>
-              <tbody>
-                {[away, home].map((t, k) => (
-                  <tr key={k}>
-                    <td style={{ color: k ? homeColor : awayColor }}>{t?.abbr}</td>
-                    {Array.from({ length: innings }, (_, i) => (
-                      <td key={i} style={{ fontWeight: 400 }}>
-                        {t?.linescores[i] ?? ""}
-                      </td>
-                    ))}
-                    <td>{t?.score}</td>
-                    <td>{t?.hits ?? "–"}</td>
-                    <td>{t?.errors ?? "–"}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </Side>
-        }
-      />
+        </div>
+      </Side>
     </LiveFrame>
   );
 }

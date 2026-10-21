@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import type { F1State } from "../liveTypes";
-import { C, LiveFrame, Line, Message, Side, Surface } from "../Layout";
+import { C, LiveFrame, Message, Side, Surface } from "../Layout";
 
 // TrackStatus codes from the live-timing feed. 1 (all clear) gets no pill.
 const TYRE: Record<string, { letter: string; color: string }> = {
@@ -109,7 +109,7 @@ export default function F1View({ data, leagueColor }: { data: F1State; leagueCol
   const status = data.trackStatus ? TRACK_STATUS[data.trackStatus.code] : undefined;
   const finished = /final|ends|inactive/i.test(data.session?.status ?? "");
   const rc = data.raceControl[0];
-  const pad = 70;
+  const pad = 36;
   const inPit = data.drivers.filter((d) => d.inPit && !d.out);
   const stops = data.pitStops ?? [];
 
@@ -128,23 +128,20 @@ export default function F1View({ data, leagueColor }: { data: F1State; leagueCol
           `Lap ${data.lap.current} / ${data.lap.total}`
         ) : undefined
       }
-      footer={
-        <>
-          {rc && (
-            <Line primary>
-              <span style={{ color: rc.flag?.includes("YELLOW") ? C.yellow : C.accent, fontWeight: 700 }}>Race control </span>
-              {rc.message}
-            </Line>
-          )}
-        </>
-      }
     >
       {geo ? (
         <Surface
           caption={
             <>
+              {/* one row under the track: a yellow sector if there is one,
+                  otherwise the latest race control message */}
               {data.yellowSectors.length > 0 ? (
                 <span style={{ color: "#ffe500", fontWeight: 800 }}>Yellow in sector {data.yellowSectors.join(", ")}</span>
+              ) : rc ? (
+                <span style={{ fontWeight: 400 }}>
+                  <span style={{ color: rc.flag?.includes("YELLOW") ? C.yellow : C.accent, fontWeight: 700 }}>Race control </span>
+                  {rc.message}
+                </span>
               ) : (
                 <span />
               )}
