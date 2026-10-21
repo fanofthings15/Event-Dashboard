@@ -17,7 +17,7 @@ router.get("/espn/:sport/:id", async (req, res) => {
   const path = ESPN_PATHS[sport];
   if (!path || !/^\d+$/.test(id)) return res.status(400).json({ error: "Unknown sport or game id" });
   try {
-    const data = await cached(`live:espn:${sport}:${id}`, 8, () =>
+    const data = await cached(`live:espn:${sport}:${id}`, 4, () =>
       curlGetJson(`https://site.api.espn.com/apis/site/v2/sports/${path}/summary?event=${id}`)
     );
     res.json(mapEspnSummary(sport, data));

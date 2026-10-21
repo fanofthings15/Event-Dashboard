@@ -176,12 +176,14 @@ export interface HockeyState extends LiveCommon {
   kind: "hockey";
   // Rink coordinates in feet from centre ice: x -100..100, y -42.5..42.5.
   // Teams switch ends each period, so every play is normalised here so the
-  // home team always attacks the right-hand net. The last shot is flagged
-  // for highlighting.
-  shots: { x: number; y: number; goal: boolean; teamId: string; last?: boolean }[];
-  // Nothing public tracks the puck live; the closest thing is where the most
-  // recent located play (shot, hit, giveaway, takeaway, block…) happened.
-  lastEvent?: { x: number; y: number; type: string; text?: string; teamId: string };
+  // home team always attacks the right-hand net. Blocked attempts are
+  // included (a block is a new shot on TV), and the latest attempt of any
+  // kind is flagged for highlighting.
+  shots: { x: number; y: number; goal: boolean; blocked: boolean; teamId: string; last?: boolean }[];
+  // Nothing public tracks the puck live. The one moment its position is
+  // known exactly is a faceoff, so this is set only while the most recent
+  // play is a faceoff — the dot it was taken on, and who won it.
+  faceoff?: { x: number; y: number; winnerId: string };
   powerPlayTeamId?: string;
   lastGoal?: string;
   recent: string[];
@@ -189,6 +191,7 @@ export interface HockeyState extends LiveCommon {
 }
 
 const HOCKEY_SHOT_TYPES = new Set(["Shot", "Goal", "Missed"]);
+const HOCKEY_ATTEMPT_TYPES = new Set([...HOCKEY_SHOT_TYPES, "Blocked"]);
 
 export function mapHockey(data: any): HockeyState {
   const common = commonFrom(data);
@@ -223,11 +226,20 @@ export function mapHockey(data: any): HockeyState {
   };
 
   const shots: HockeyState["shots"] = located
-    .filter((p) => HOCKEY_SHOT_TYPES.has(p.type?.text))
-    .map((p) => ({ ...place(p), goal: p.type.text === "Goal", teamId: String(p.team?.id ?? "") }));
+    .filter((p) => HOCKEY_ATTEMPT_TYPES.has(p.type?.text))
+    .map((p) => ({ ...place(p), goal: p.type.text === "Goal", blocked: p.type.text === "Blocked", teamId: String(p.team?.id ?? "") }));
   if (shots.length) shots[shots.length - 1].last = true;
-  const lastLocated = located.at(-1);
-  const lastEvent = lastLocated ? { ...place(lastLocated), type: lastLocated.type?.text ?? "", text: lastLocated.text, teamId: String(lastLocated.team?.id ?? "") } : undefined;
+
+  // Faceoff coordinates snap to the real dots (±69,±22 end zones, ±20,±22
+  // neutral zone). Centre-ice faceoffs — after goals and period starts —
+  // come with no coordinate at all (ESPN drops a 0,0), so a missing one
+  // means centre ice. The faceoff play's team is the one that won it.
+  const latest = [...plays].reverse().find((p) => p.type?.text !== "Period Start");
+  let faceoff: HockeyState["faceoff"];
+  if (latest?.type?.text === "Face Off") {
+    const at = latest.coordinate && typeof latest.coordinate.x === "number" ? latest : { ...latest, coordinate: { x: 0, y: 0 } };
+    faceoff = { ...place(at), winnerId: String(latest.team?.id ?? "") };
+  }
 
   // Every play carries a `strength` relative to its own team. The latest
   // play's reading is the current state: "power-play" means that team is
@@ -245,7 +257,7 @@ export function mapHockey(data: any): HockeyState {
     kind: "hockey",
     ...common,
     shots,
-    lastEvent: common.state === "in" ? lastEvent : undefined,
+    faceoff: common.state === "in" ? faceoff : undefined,
     powerPlayTeamId: common.state === "in" ? powerPlayTeamId : undefined,
     lastGoal: [...plays].reverse().find((p) => p.type?.text === "Goal")?.text,
     recent: plays.slice(-3).reverse().map((p) => p.text).filter(Boolean),

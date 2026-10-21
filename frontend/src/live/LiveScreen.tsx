@@ -30,7 +30,7 @@ import "./live.css";
 // Keys: F fullscreen, M minimap-only (esports), C adjust the minimap crop.
 
 const ESPN_SPORTS = new Set(["nfl", "ncaaf", "nba", "nhl", "mlb"]);
-const POLL_MS: Record<string, number> = { f1: 3_000, frc: 60_000 };
+const POLL_MS: Record<string, number> = { f1: 3_000, nhl: 5_000, frc: 60_000 };
 const FINALS_WINDOW_MS = 18 * 60 * 60 * 1000;
 
 function SportView({ event, label, color }: { event: NormalizedEvent; label: string; color: string }) {

@@ -51,8 +51,8 @@ export interface BasketballState extends LiveCommon {
 
 export interface HockeyState extends LiveCommon {
   kind: "hockey";
-  shots: { x: number; y: number; goal: boolean; teamId: string; last?: boolean }[];
-  lastEvent?: { x: number; y: number; type: string; text?: string; teamId: string };
+  shots: { x: number; y: number; goal: boolean; blocked: boolean; teamId: string; last?: boolean }[];
+  faceoff?: { x: number; y: number; winnerId: string };
   powerPlayTeamId?: string;
   lastGoal?: string;
   recent: string[];

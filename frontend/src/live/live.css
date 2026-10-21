@@ -147,7 +147,7 @@ body.live-body {
 .lv-body {
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(13em, 24%);
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 1em;
   padding: 1em max(1.2em, env(safe-area-inset-right)) 0.6em max(1.2em, env(safe-area-inset-left));
 }
@@ -192,8 +192,16 @@ body.live-body {
   text-overflow: ellipsis;
 }
 
+/* Sized to its content (not a fixed share of the width) and only as tall as
+   what's in it, so the surface gets the rest of the screen. */
 .lv-side {
-  min-width: 0;
+  align-self: start;
+  /* as wide as its widest unbreakable row (a stat row, a name); free text
+     like the legend wraps inside that */
+  width: min-content;
+  min-width: 13em;
+  max-width: min(24em, 34vw);
+  max-height: 100%;
   min-height: 0;
   overflow: hidden;
   background: var(--panel);
@@ -213,7 +221,6 @@ body.live-body {
 }
 
 .lv-stats {
-  width: 100%;
   border-collapse: collapse;
 }
 
@@ -231,17 +238,14 @@ body.live-body {
   white-space: nowrap;
 }
 
-/* Label column takes the leftover width and truncates instead of pushing
-   the numbers into each other. */
+/* Labels are short fixed strings; the table is only as wide as its content
+   so the side panel can be too. */
 .lv-stats td:first-child {
-  width: 100%;
-  max-width: 0;
   padding-left: 0;
+  padding-right: 0.8em;
   text-align: left;
   font-weight: 400;
   color: var(--muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .lv-row {
@@ -328,6 +332,10 @@ body.live-body {
   .lv-surface svg {
     height: auto;
     max-height: 55vh;
+  }
+  .lv-side {
+    width: auto;
+    max-width: none;
   }
 }
 
