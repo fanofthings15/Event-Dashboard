@@ -727,7 +727,9 @@ body.live-body {
    anti-aliased curves (border-radius plus a shadow) left a hairline seam
    the video showed through; a single gradient per corner can't. */
 .lv-stream::after {
-  --r: 0.6em;
+  /* at least as round as the player's own corners, so its curve is always
+     inside this one and no sliver of it shows between the two */
+  --r: max(0.6em, 16px);
   --bg: #0f1115;
   content: "";
   position: absolute;
@@ -748,6 +750,11 @@ body.live-body {
   width: 100%;
   height: 100%;
   border: 0;
+  /* The page is color-scheme: dark and the embedded player is light; when
+     they differ the browser paints the frame's backdrop opaque white, which
+     shows in the player's own rounded corners. Matching it keeps the
+     backdrop transparent, so those corners show the box's black instead. */
+  color-scheme: light;
 }
 
 .lv-linkbar {
