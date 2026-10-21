@@ -9,6 +9,10 @@ export default function HockeyView({ data, leagueColor }: { data: HockeyState; l
   const colorOf = (teamId: string) => (teamId === home?.id ? homeColor : awayColor);
   const stat = (teamId: string | undefined, name: string) => data.stats[teamId ?? ""]?.[name];
   const pp = data.powerPlayTeamId ? (data.powerPlayTeamId === home?.id ? home : away) : undefined;
+  const EVENT_LABEL: Record<string, string> = { Missed: "Missed shot", Blocked: "Blocked shot", Goal: "Goal" };
+  const lastShot = data.shots.find((s) => s.last);
+  const puck = data.lastEvent;
+  const puckTeam = puck ? (puck.teamId === home?.id ? home : puck.teamId === away?.id ? away : undefined) : undefined;
   const ppLine = (id?: string) => {
     const g = stat(id, "powerPlayGoals");
     const o = stat(id, "powerPlayOpportunities");
@@ -34,6 +38,12 @@ export default function HockeyView({ data, leagueColor }: { data: HockeyState; l
         caption={
           <>
             <span style={{ color: awayColor }}>← {away?.abbr} shooting</span>
+            {puck && (
+              <span style={{ color: "var(--muted)", fontWeight: 400 }}>
+                Puck last seen: {EVENT_LABEL[puck.type] ?? (puck.type === "Stoppage" && puck.text ? puck.text : puck.type)}
+                {puckTeam ? ` · ${puckTeam.abbr}` : ""}
+              </span>
+            )}
             <span style={{ color: homeColor }}>{home?.abbr} shooting →</span>
           </>
         }
@@ -58,6 +68,21 @@ export default function HockeyView({ data, leagueColor }: { data: HockeyState; l
                 </g>
               );
             })}
+          {lastShot &&
+            (() => {
+              const [x, y] = rinkPoint(lastShot.x, lastShot.y);
+              return <circle cx={x} cy={y} r={lastShot.goal ? 5 : 4} fill="none" stroke={colorOf(lastShot.teamId)} strokeWidth={0.7} className="live-pulse" />;
+            })()}
+          {puck &&
+            (() => {
+              const [x, y] = rinkPoint(puck.x, puck.y);
+              return (
+                <g>
+                  <circle cx={x} cy={y} r={3.2} fill="#111" fillOpacity={0.18} className="live-pulse" />
+                  <circle cx={x} cy={y} r={1.6} fill="#111" stroke="#fff" strokeWidth={0.45} />
+                </g>
+              );
+            })()}
         </Rink>
       </Surface>
       <Side>
@@ -80,7 +105,7 @@ export default function HockeyView({ data, leagueColor }: { data: HockeyState; l
             ["Power plays", ppLine(away?.id), ppLine(home?.id)],
           ]}
         />
-        <SideLabel>● shot · Ⓖ goal</SideLabel>
+        <SideLabel>● shot · Ⓖ goal · ◯ last shot · ⬤ puck (last play)</SideLabel>
       </Side>
     </LiveFrame>
   );

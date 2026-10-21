@@ -175,9 +175,13 @@ export function mapBasketball(data: any): BasketballState {
 export interface HockeyState extends LiveCommon {
   kind: "hockey";
   // Rink coordinates in feet from centre ice: x -100..100, y -42.5..42.5.
-  // Teams switch ends each period, so shots are normalised here so the home
-  // team always shoots at the right-hand net and the away team at the left.
-  shots: { x: number; y: number; goal: boolean; teamId: string }[];
+  // Teams switch ends each period, so every play is normalised here so the
+  // home team always attacks the right-hand net. The last shot is flagged
+  // for highlighting.
+  shots: { x: number; y: number; goal: boolean; teamId: string; last?: boolean }[];
+  // Nothing public tracks the puck live; the closest thing is where the most
+  // recent located play (shot, hit, giveaway, takeaway, block…) happened.
+  lastEvent?: { x: number; y: number; type: string; text?: string; teamId: string };
   powerPlayTeamId?: string;
   lastGoal?: string;
   recent: string[];
@@ -190,14 +194,40 @@ export function mapHockey(data: any): HockeyState {
   const common = commonFrom(data);
   const homeId = common.teams.find((t) => t.homeAway === "home")?.id;
   const plays: any[] = data.plays ?? [];
-  const shots = plays
-    .filter((p) => HOCKEY_SHOT_TYPES.has(p.type?.text) && p.coordinate)
-    .map((p) => {
-      const teamId = String(p.team?.id ?? "");
-      const wantRight = teamId === homeId;
-      const flip = wantRight ? p.coordinate.x < 0 : p.coordinate.x > 0;
-      return { x: flip ? -p.coordinate.x : p.coordinate.x, y: flip ? -p.coordinate.y : p.coordinate.y, goal: p.type.text === "Goal", teamId };
-    });
+  const located = plays.filter((p) => p.coordinate && typeof p.coordinate.x === "number");
+
+  // Which end the home team attacks in each period, read off where its
+  // shots were taken (a team's shots cluster at the net it attacks). With no
+  // home shots yet in a period, the away team's shots answer it instead;
+  // with neither, ends alternate from period 1. Every located play in a
+  // period gets the same flip, so non-shot plays (hits, giveaways) land on
+  // the right side too — flipping each shot by its own x got stray shots
+  // from a team's own zone wrong.
+  const lean = new Map<number, number>();
+  for (const p of located) {
+    if (!HOCKEY_SHOT_TYPES.has(p.type?.text)) continue;
+    const period = p.period?.number ?? 1;
+    const sign = String(p.team?.id ?? "") === homeId ? 1 : -1;
+    lean.set(period, (lean.get(period) ?? 0) + sign * p.coordinate.x);
+  }
+  const homeAttacksRight = (period: number): boolean => {
+    const v = lean.get(period);
+    if (v !== undefined && v !== 0) return v > 0;
+    const p1 = lean.get(1);
+    const p1Right = p1 === undefined || p1 >= 0;
+    return period % 2 === 1 ? p1Right : !p1Right;
+  };
+  const place = (p: any) => {
+    const flip = !homeAttacksRight(p.period?.number ?? 1);
+    return { x: flip ? -p.coordinate.x : p.coordinate.x, y: flip ? -p.coordinate.y : p.coordinate.y };
+  };
+
+  const shots: HockeyState["shots"] = located
+    .filter((p) => HOCKEY_SHOT_TYPES.has(p.type?.text))
+    .map((p) => ({ ...place(p), goal: p.type.text === "Goal", teamId: String(p.team?.id ?? "") }));
+  if (shots.length) shots[shots.length - 1].last = true;
+  const lastLocated = located.at(-1);
+  const lastEvent = lastLocated ? { ...place(lastLocated), type: lastLocated.type?.text ?? "", text: lastLocated.text, teamId: String(lastLocated.team?.id ?? "") } : undefined;
 
   // Every play carries a `strength` relative to its own team. The latest
   // play's reading is the current state: "power-play" means that team is
@@ -215,6 +245,7 @@ export function mapHockey(data: any): HockeyState {
     kind: "hockey",
     ...common,
     shots,
+    lastEvent: common.state === "in" ? lastEvent : undefined,
     powerPlayTeamId: common.state === "in" ? powerPlayTeamId : undefined,
     lastGoal: [...plays].reverse().find((p) => p.type?.text === "Goal")?.text,
     recent: plays.slice(-3).reverse().map((p) => p.text).filter(Boolean),
