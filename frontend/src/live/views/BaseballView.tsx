@@ -39,7 +39,10 @@ export default function BaseballView({ data, leagueColor }: { data: BaseballStat
       { abbr: away?.abbr ?? "", color: awayColor },
       { abbr: home?.abbr ?? "", color: homeColor },
     ],
-    (d, team) => ({ banner: `${d >= 4 ? "Grand slam" : d === 1 ? "Run scores" : `${d} runs score`} · ${team}`, ms: 7000 })
+    (d, team) => ({
+      banner: `${lastHit?.result === "Home Run" ? (d >= 4 ? "Grand slam" : "Home run") : d === 1 ? "Run scores" : `${d} runs score`} · ${team}`,
+      ms: 8000,
+    })
   );
 
   return (

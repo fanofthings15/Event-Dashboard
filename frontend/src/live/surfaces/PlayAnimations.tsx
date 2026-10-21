@@ -62,47 +62,75 @@ export interface FootballMotion {
   towardHome: boolean;
   lane: "left" | "middle" | "right";
   depth?: "short" | "deep";
+  pass?: boolean;
+  kickYards?: number;
+  fumbleAt?: number;
+  turnover?: boolean;
 }
+
+type FSeg = Seg & { loose?: boolean };
 
 // Builds the ball's path for a football play on the drawn field (away end
 // zone left, so a spot sits at x = 110 - yardsFromHomeGoal). ESPN gives no
 // catch location: a pass is thrown from behind the line to a point short or
 // deep in the named lane (capped by where the play ended), then carried to
-// the real end spot.
-function footballSegments(m: FootballMotion): { segs: Seg[]; catchAt?: Pt; dropped?: boolean } {
+// the real end spot. Punts land where "punts N yards" puts them and are run
+// back; interceptions are thrown, picked and returned; fumbles squirt loose
+// where the gain before "FUMBLES" ended and are recovered at the end spot.
+function footballSegments(m: FootballMotion): { segs: FSeg[]; catchAt?: Pt; dropped?: boolean; looseAt?: Pt } {
   const X = (yd: number) => 110 - yd;
   const dir = m.towardHome ? 1 : -1; // +1 = offense moving right on screen
   const mid = FIELD_H / 2;
   const laneOff = (m.lane === "left" ? -1 : m.lane === "right" ? 1 : 0) * 13 * dir;
   const los = X(m.from);
   const end = X(m.to);
-  const gain = (end - los) * dir;
-  const yds = (n: number) => Math.min(2600, Math.max(500, Math.abs(n) * 75));
+  const yds = (n: number) => Math.min(2800, Math.max(450, Math.abs(n) * 80));
+  const run = (from: Pt, to: Pt): FSeg => ({ from, to, ms: yds(to[0] - from[0]), arc: 0, kind: "ground" });
   const t = m.type.toLowerCase();
 
-  if (/pass reception|passing touchdown|interception|incompletion/.test(t)) {
+  const pass = (gainTo: number): { segs: FSeg[]; catchAt: Pt } => {
     const depth = m.depth === "deep" ? 22 : m.depth === "short" ? 7 : 11;
-    const airYds = /incompletion|interception/.test(t) ? depth : Math.max(2, Math.min(depth, gain));
-    const qb: Pt = [los - 6 * dir, mid];
+    const airYds = Math.max(2, Math.min(depth, (gainTo - los) * dir || depth));
     const catchAt: Pt = [los + airYds * dir, mid + laneOff];
-    const throwSeg: Seg = { from: qb, to: catchAt, ms: 500 + airYds * 35, arc: 3 + airYds * 0.35, kind: "air" };
-    if (/incompletion/.test(t)) return { segs: [throwSeg], catchAt, dropped: true };
-    const runTo: Pt = [end, mid + laneOff * 0.6];
-    return { segs: [throwSeg, { from: catchAt, to: runTo, ms: yds(Math.abs(end - catchAt[0])), arc: 0, kind: "ground" }], catchAt };
+    return { segs: [{ from: [los - 6 * dir, mid], to: catchAt, ms: 500 + airYds * 35, arc: 3 + airYds * 0.35, kind: "air" }], catchAt };
+  };
+
+  if (m.fumbleAt !== undefined) {
+    // carry (or catch and carry) to where it came loose, then the loose ball
+    const loose: Pt = [X(m.fumbleAt), mid + laneOff * 0.6];
+    const lead = m.pass ? pass(loose[0]) : { segs: [] as FSeg[], catchAt: undefined };
+    const carryFrom: Pt = lead.catchAt ?? [los - (/sack/.test(t) ? 6 : 3) * dir, mid];
+    const recovered: Pt = [end, mid + laneOff * 0.4];
+    return {
+      segs: [...lead.segs, run(carryFrom, loose), { from: loose, to: recovered, ms: 1300, arc: 0, kind: "ground", loose: true }],
+      catchAt: lead.catchAt,
+      looseAt: loose,
+    };
   }
-  if (/sack/.test(t)) return { segs: [{ from: [los - 6 * dir, mid], to: [end, mid], ms: 900, arc: 0, kind: "ground" }] };
-  if (/rush|scramble|two-point|kneel/.test(t)) {
-    return { segs: [{ from: [los - 3 * dir, mid], to: [end, mid + laneOff * 0.7], ms: yds(gain), arc: 0, kind: "ground" }] };
+  if (/interception/.test(t)) {
+    const { segs, catchAt } = pass(los + 15 * dir);
+    return { segs: [...segs, run(catchAt, [end, mid + laneOff * 0.5])], catchAt };
   }
+  if (/pass reception|passing touchdown|incompletion/.test(t)) {
+    const { segs, catchAt } = pass(end);
+    if (/incompletion/.test(t)) return { segs, catchAt, dropped: true };
+    return { segs: [...segs, run(catchAt, [end, mid + laneOff * 0.6])], catchAt };
+  }
+  if (/sack/.test(t)) return { segs: [run([los - 6 * dir, mid], [end, mid])] };
+  if (/rush|scramble|two-point|kneel/.test(t)) return { segs: [run([los - 3 * dir, mid], [end, mid + laneOff * 0.7])] };
   if (/field goal/.test(t)) {
     const posts = m.towardHome ? 120 : 0;
     const wide = /missed|no good/.test(t) ? 7 : 0;
     return { segs: [{ from: [los - 7 * dir, mid], to: [posts, mid + wide], ms: 1600, arc: 14, kind: "air" }] };
   }
-  if (/punt|kickoff/.test(t)) {
-    const kickFrom = /punt/.test(t) ? los - 13 * dir : los;
-    return { segs: [{ from: [kickFrom, mid], to: [end, mid], ms: 2000, arc: 22, kind: "air" }] };
+  if (/punt/.test(t)) {
+    const punter: Pt = [los - 13 * dir, mid];
+    const land: Pt = [m.kickYards ? los + m.kickYards * dir : end, mid];
+    const segs: FSeg[] = [{ from: punter, to: land, ms: 2200, arc: 24, kind: "air" }];
+    if (Math.abs(land[0] - end) > 1) segs.push(run(land, [end, mid]));
+    return { segs };
   }
+  if (/kickoff/.test(t)) return { segs: [{ from: [los, mid], to: [end, mid], ms: 2200, arc: 24, kind: "air" }] };
   return { segs: [] };
 }
 
@@ -111,8 +139,10 @@ const FADE_MS = 500;
 // `rest` is the ball sitting at the line of scrimmage for the next snap. It's
 // hidden while a play runs; when the play ends the moving ball fades out
 // where the play finished and the resting ball fades back in on the line.
+// Height is shown top-down: the ball stays on its path and grows, while its
+// shadow drops away from it — no sideways jump that would read as a bounce.
 export function FootballPlay({ motion, rest }: { motion: FootballMotion | undefined; rest?: ReactNode }) {
-  const plan = motion ? footballSegments(motion) : { segs: [] as Seg[] };
+  const plan = motion ? footballSegments(motion) : { segs: [] as FSeg[] };
   const playMs = total(plan.segs) - 250;
   const elapsed = usePlayClock(motion?.id, playMs + FADE_MS);
   const idle = elapsed === Infinity;
@@ -125,32 +155,49 @@ export function FootballPlay({ motion, rest }: { motion: FootballMotion | undefi
   const fading = !idle && elapsed >= playMs;
   const pos = idle ? null : fading ? position(plan.segs, playMs - 1) : position(plan.segs, elapsed);
   const fadeOpacity = fading ? Math.max(0, 1 - (elapsed - playMs) / FADE_MS) : 1;
-  const throwSeg = plan.segs[0].kind === "air" ? plan.segs[0] : undefined;
-  const showTrail = throwSeg && (!pos || pos.seg > 0 || pos.f > 0);
+  const firstAir = plan.segs.find((sg) => sg.kind === "air");
+  const airIdx = firstAir ? plan.segs.indexOf(firstAir) : -1;
+  const showTrail = firstAir && (!pos || pos.seg > airIdx || (pos.seg === airIdx && pos.f > 0));
+  // a loose ball hops: small shrinking bounces on its way to the recovery
+  const looseSeg = pos ? (plan.segs[pos.seg] as FSeg) : undefined;
+  const height = pos ? (looseSeg?.loose ? Math.abs(Math.sin(pos.f * Math.PI * 4)) * 1.6 * (1 - pos.f) : pos.height) : 0;
+  const spin = looseSeg?.loose && pos ? pos.f * 720 : 0;
+  const turnoverShown = motion.turnover && pos && looseSeg?.loose && pos.f > 0.6;
   return (
     <g pointerEvents="none">
-      {/* the throw or kick, drawn as it goes and left faintly afterwards */}
-      {showTrail && throwSeg && (
+      {showTrail && firstAir && (
         <line
-          x1={throwSeg.from[0]}
-          y1={throwSeg.from[1]}
-          x2={pos && pos.seg === 0 ? pos.at[0] : throwSeg.to[0]}
-          y2={pos && pos.seg === 0 ? pos.at[1] : throwSeg.to[1]}
+          x1={firstAir.from[0]}
+          y1={firstAir.from[1]}
+          x2={pos && pos.seg === airIdx ? pos.at[0] : firstAir.to[0]}
+          y2={pos && pos.seg === airIdx ? pos.at[1] : firstAir.to[1]}
           stroke="#fff"
           strokeOpacity={pos ? 0.7 : 0.35}
           strokeWidth={0.3}
           strokeDasharray="1 0.8"
         />
       )}
-      {plan.catchAt && (!pos || pos.seg > 0) && (
-        <circle cx={plan.catchAt[0]} cy={plan.catchAt[1]} r={0.9} fill="none" stroke={plan.dropped ? "#f87171" : "#fff"} strokeWidth={0.3} />
+      {plan.catchAt && (!pos || pos.seg > airIdx) && (
+        <circle cx={plan.catchAt[0]} cy={plan.catchAt[1]} r={0.9} fill="none" stroke={plan.dropped ? "#f87171" : /interception/i.test(motion.type) ? "#f87171" : "#fff"} strokeWidth={0.3} />
+      )}
+      {plan.looseAt && (!pos || (looseSeg?.loose ?? false)) && (
+        <text x={plan.looseAt[0]} y={plan.looseAt[1] - 2.2} fontSize={1.8} fontWeight={900} fill="#f87171" textAnchor="middle" stroke="#1f2937" strokeWidth={0.4} paintOrder="stroke">
+          FUMBLE
+        </text>
       )}
       {restingBall}
       {pos && (
         <g opacity={fadeOpacity}>
-          <ellipse cx={pos.at[0]} cy={pos.at[1]} rx={1.1 + pos.height * 0.03} ry={0.6 + pos.height * 0.02} fill="#000" fillOpacity={0.35} />
-          <g transform={`translate(${pos.at[0]} ${pos.at[1] - pos.height * 0.35}) scale(${1 + pos.height * 0.05})`}>
-            <ellipse rx={1.3} ry={0.8} fill="#8a4a22" stroke="#fff" strokeWidth={0.15} />
+          <ellipse
+            cx={pos.at[0] + height * 0.12}
+            cy={pos.at[1] + height * 0.22}
+            rx={1.2}
+            ry={0.7}
+            fill="#000"
+            fillOpacity={Math.max(0.12, 0.38 - height * 0.012)}
+          />
+          <g transform={`translate(${pos.at[0]} ${pos.at[1]}) rotate(${spin}) scale(${1 + height * 0.045})`}>
+            <ellipse rx={1.3} ry={0.8} fill="#8a4a22" stroke={turnoverShown ? "#f87171" : "#fff"} strokeWidth={turnoverShown ? 0.3 : 0.15} />
             <line x1={-0.6} x2={0.6} y1={0} y2={0} stroke="#fff" strokeWidth={0.15} />
           </g>
         </g>

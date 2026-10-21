@@ -42,7 +42,19 @@ export interface FootballState extends LiveCommon {
   spotText?: string;
   driveSummary?: string;
   lastPlay?: string;
-  motion?: { id: string; type: string; from: number; to: number; towardHome: boolean; lane: "left" | "middle" | "right"; depth?: "short" | "deep" };
+  motion?: {
+    id: string;
+    type: string;
+    from: number;
+    to: number;
+    towardHome: boolean;
+    lane: "left" | "middle" | "right";
+    depth?: "short" | "deep";
+    pass?: boolean;
+    kickYards?: number;
+    fumbleAt?: number;
+    turnover?: boolean;
+  };
 }
 
 export interface BasketballState extends LiveCommon {

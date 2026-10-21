@@ -80,8 +80,9 @@ export default function Ballpark({ children, fence }: { children?: ReactNode; fe
   const f = fence ?? GENERIC;
   const wall = wallPoints(f);
   const grass = wallPoints(f, 15);
-  const maxY = Math.max(...wall.map((p) => p[1])) + 20;
-  const maxX = Math.max(...wall.map((p) => Math.abs(p[0]))) + 15;
+  // room beyond the wall for home runs to land in
+  const maxY = Math.max(...wall.map((p) => p[1])) + 55;
+  const maxX = Math.max(...wall.map((p) => Math.abs(p[0]))) + 35;
   return (
     <svg viewBox={`${-maxX} ${-maxY} ${maxX * 2} ${maxY + 25}`} preserveAspectRatio="xMidYMid meet" role="img" aria-label="Baseball field">
       <path d={wedge(wall)} fill={TRACK} />

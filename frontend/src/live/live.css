@@ -684,6 +684,9 @@ body.live-body {
 
 .lv-flash-banner {
   position: relative;
+  /* the banner says what happened, then gets out of the way of the play;
+     the coloured edge keeps pulsing for the rest of the flash */
+  animation: lv-banner 3.2s ease-in forwards;
   margin-top: 4.2em;
   padding: 0.25em 1em;
   border-radius: 0.3em;
@@ -851,5 +854,15 @@ body.live-body {
 @media (prefers-reduced-motion: reduce) {
   .lv-fade-in {
     animation: none;
+  }
+}
+
+@keyframes lv-banner {
+  0%,
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
   }
 }

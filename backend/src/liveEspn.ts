@@ -109,6 +109,10 @@ export interface FootballState extends LiveCommon {
     towardHome: boolean; // offense heading for the home goal
     lane: "left" | "middle" | "right";
     depth?: "short" | "deep";
+    pass?: boolean; // a forward pass was thrown on the play
+    kickYards?: number; // punts: distance in the air, from "punts 56 yards"
+    fumbleAt?: number; // where the ball came loose (yards from home goal)
+    turnover?: boolean; // the other team ended up with the ball
   };
 }
 
@@ -136,9 +140,20 @@ export function mapFootball(data: any): FootballState {
   const s0 = last.start ?? {};
   if (typeof s0.yardLine === "number" && last.type?.text) {
     const towardHome = typeof s0.yardsToEndzone === "number" && s0.yardsToEndzone !== 50 ? Math.abs(s0.yardLine - s0.yardsToEndzone) < 0.5 : String(s0.team?.id ?? "") !== home?.id;
-    const gained = typeof last.statYardage === "number" ? last.statYardage : undefined;
-    const endSpot = gained !== undefined ? s0.yardLine + (towardHome ? -gained : gained) : last.end?.yardLine;
     const text: string = last.text ?? "";
+    const forward = (yds: number) => s0.yardLine + (towardHome ? -yds : yds);
+    // statYardage is 0 on turnovers and kicks, but end.yardLine stays the
+    // true spot (yards from the home goal) through a change of possession.
+    const kickOrTurnover = /punt|kickoff|interception|fumble|muff/i.test(last.type.text);
+    const gained = typeof last.statYardage === "number" && !kickOrTurnover ? last.statYardage : undefined;
+    const endSpot = gained !== undefined ? forward(gained) : last.end?.yardLine;
+    // The gain before a fumble ("to WAS 21 for 12 yards ... FUMBLES") is
+    // where the ball came loose.
+    const beforeFumble = text.split(/FUMBLES/i)[0];
+    const fumbleGain = /FUMBLES/i.test(text) ? (beforeFumble.match(/for (-?\d+) yards?/i)?.[1] ?? (/for no gain/i.test(beforeFumble) ? "0" : undefined)) : undefined;
+    const kickYards = text.match(/punts (\d+) yards?/i)?.[1];
+    const endTeam = last.end?.team?.id ?? last.end?.team;
+    const startTeam = s0.team?.id ?? s0.team;
     const lane = /\b(deep|short)?\s*left\b|left (end|tackle|guard)/i.test(text) ? "left" : /\b(deep|short)?\s*right\b|right (end|tackle|guard)/i.test(text) ? "right" : "middle";
     out.motion = {
       id: String(last.id ?? `${s0.yardLine}-${last.text}`),
@@ -148,6 +163,10 @@ export function mapFootball(data: any): FootballState {
       towardHome,
       lane,
       depth: /pass deep/i.test(text) ? "deep" : /pass short/i.test(text) ? "short" : undefined,
+      pass: / pass /i.test(` ${text} `) && !/pass (?:attempt )?(?:is )?(?:blocked|aborted)/i.test(text),
+      kickYards: kickYards ? Number(kickYards) : undefined,
+      fumbleAt: fumbleGain !== undefined ? forward(Number(fumbleGain)) : undefined,
+      turnover: Boolean(endTeam && startTeam && String(endTeam) !== String(startTeam) && !/punt|kickoff/i.test(last.type.text)) || /interception|\(opponent\)|opp fumble/i.test(last.type.text),
     };
   }
 
