@@ -1,6 +1,6 @@
 import type { NormalizedEvent } from "./types";
 import { useSettings } from "./SettingsContext";
-import { hasWatchableStream, isWithinStreamWindow, withEventStreamSlot, withoutEventStreamSlot } from "./eventStreamSlots";
+import { eventStreamSlotId, hasWatchableStream, isWithinStreamWindow, withEventStreamSlot, withoutEventStreamSlot } from "./eventStreamSlots";
 
 interface Props {
   event: NormalizedEvent;
@@ -41,9 +41,15 @@ export default function FollowStar({ event }: Props) {
     // only if it's live or about to start. Anything later is just followed;
     // App.tsx adds its stream when the prestart window opens.
     if (hasWatchableStream(event) && isWithinStreamWindow(event, Date.now())) {
-      await save({ followedEventIds, notifyOnLive: true, streamSlots: withEventStreamSlot(settings.streamSlots, event, event.streamUrl!) });
+      const id = eventStreamSlotId(event);
+      await save({
+        followedEventIds,
+        notifyOnLive: true,
+        streamSlots: withEventStreamSlot(settings.streamSlots, event, event.streamUrl!),
+        closedStreamSlotIds: settings.closedStreamSlotIds.filter((c) => c !== id),
+      });
     } else {
-      await save({ followedEventIds, notifyOnLive: true });
+      await save({ followedEventIds, notifyOnLive: true, closedStreamSlotIds: settings.closedStreamSlotIds.filter((c) => c !== eventStreamSlotId(event)) });
     }
   }
 

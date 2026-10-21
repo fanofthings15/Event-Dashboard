@@ -30,6 +30,7 @@ const EMPTY: SettingsState = {
   discordWebhookUrl: "",
   streamSlots: [],
   streamMainSlotId: null,
+  closedStreamSlotIds: [],
   streamLayout: "grid",
   frcStreamUrls: {},
 };

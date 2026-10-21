@@ -40,6 +40,7 @@ router.get("/", (req, res) => {
     discordWebhookUrl: settings.discordWebhookUrl,
     streamSlots: settings.streamSlots,
     streamMainSlotId: settings.streamMainSlotId,
+    closedStreamSlotIds: settings.closedStreamSlotIds,
     streamLayout: settings.streamLayout,
     frcStreamUrls: settings.frcStreamUrls,
     esportsCatalog: ESPORTS_CATALOG,
@@ -91,6 +92,9 @@ router.post("/", (req, res) => {
   if (typeof body.icsFavoritesOnly === "boolean") next.icsFavoritesOnly = body.icsFavoritesOnly;
   if (Array.isArray(body.followedEventIds)) next.followedEventIds = body.followedEventIds.filter((x: unknown) => typeof x === "string");
   if (body.notifyMode === "followed" || body.notifyMode === "all") next.notifyMode = body.notifyMode;
+  if (Array.isArray(body.closedStreamSlotIds)) {
+    next.closedStreamSlotIds = body.closedStreamSlotIds.filter((x: unknown) => typeof x === "string");
+  }
   if (Array.isArray(body.dismissedFinishedEventIds)) {
     next.dismissedFinishedEventIds = body.dismissedFinishedEventIds.filter((x: unknown) => typeof x === "string");
   }

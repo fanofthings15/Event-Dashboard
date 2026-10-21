@@ -168,6 +168,11 @@ export interface UserSettings {
   // rest render small in the minor grid. null once no slots exist yet, or
   // if the previously-main slot was removed.
   streamMainSlotId: string | null;
+  // Event stream tiles ("event:sport-id") the user closed, so the automatic
+  // add for followed live events doesn't bring them back on the next page
+  // load. Cleared for an event once it ends, or when the user asks for it
+  // again (Watch live, re-follow).
+  closedStreamSlotIds: string[];
   // Arrangement for the Streams tab — see StreamLayout above.
   streamLayout: StreamLayout;
   // /live display: a webcast link per FRC event key (e.g. "2026miket"),
@@ -220,6 +225,7 @@ const USER_DEFAULTS: UserSettings = {
   discordMuteToken: "",
   streamSlots: [],
   streamMainSlotId: null,
+  closedStreamSlotIds: [],
   streamLayout: "grid",
   frcStreamUrls: {},
   pushSubscriptions: [],

@@ -159,7 +159,10 @@ export default function StreamsView({
   async function removeSlot(slot: StreamSlot) {
     const nextSlots = slots.filter((s) => s.id !== slot.id);
     const nextMain = settings.streamMainSlotId === slot.id ? (nextSlots[0]?.id ?? null) : settings.streamMainSlotId;
-    await save({ streamSlots: nextSlots, streamMainSlotId: nextMain });
+    // An event's tile stays closed across reloads — otherwise the auto-add
+    // for followed live events (App.tsx) reopens it on the next page load.
+    const closed = slot.id.startsWith("event:") && !settings.closedStreamSlotIds.includes(slot.id) ? [...settings.closedStreamSlotIds, slot.id] : settings.closedStreamSlotIds;
+    await save({ streamSlots: nextSlots, streamMainSlotId: nextMain, closedStreamSlotIds: closed });
     setPendingDelete(null);
   }
 

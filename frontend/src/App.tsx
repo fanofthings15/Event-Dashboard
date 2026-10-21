@@ -188,7 +188,12 @@ export default function App() {
   // "Watch live" from the detail view — plays right in the Streams tab
   // instead of opening a new tab, for anything with a real broadcast link.
   async function watchLiveInApp(e: NormalizedEvent, url: string) {
-    await save({ streamSlots: withEventStreamSlot(settings.streamSlots, e, url), streamMainSlotId: eventStreamSlotId(e) });
+    const id = eventStreamSlotId(e);
+    await save({
+      streamSlots: withEventStreamSlot(settings.streamSlots, e, url),
+      streamMainSlotId: id,
+      closedStreamSlotIds: settings.closedStreamSlotIds.filter((c) => c !== id),
+    });
     setSelectedEvent(null);
     setView("streams");
   }
@@ -234,6 +239,7 @@ export default function App() {
     let changed = false;
 
     const existingIds = new Set(nextSlots.map((s) => s.id));
+    const closed = new Set(settings.closedStreamSlotIds);
     for (const e of allEvents) {
       if (!e.followed && !e.manuallyFollowed) continue;
       if (hasEventEnded(e, now) || !hasWatchableStream(e)) continue;
@@ -255,7 +261,7 @@ export default function App() {
         }
         continue;
       }
-      if (autoAddedStreamIds.current.has(id)) continue;
+      if (autoAddedStreamIds.current.has(id) || closed.has(id)) continue;
       nextSlots = withEventStreamSlot(nextSlots, e, e.streamUrl as string);
       autoAddedStreamIds.current.add(id);
       nextMain = nextMain ?? id;
@@ -282,8 +288,16 @@ export default function App() {
       changed = true;
     }
 
-    if (changed) save({ streamSlots: nextSlots, streamMainSlotId: nextMain });
-  }, [allEvents, settings.streamSlots, settings.streamMainSlotId]);
+    // A closed tile only needs remembering while its event could still be
+    // auto-added; drop it once that event has ended.
+    const stillClosed = settings.closedStreamSlotIds.filter((id) => {
+      const event = eventById.get(id);
+      return !event || !hasEventEnded(event, now);
+    });
+    const closedChanged = stillClosed.length !== settings.closedStreamSlotIds.length;
+
+    if (changed || closedChanged) save({ streamSlots: nextSlots, streamMainSlotId: nextMain, ...(closedChanged ? { closedStreamSlotIds: stillClosed } : {}) });
+  }, [allEvents, settings.streamSlots, settings.streamMainSlotId, settings.closedStreamSlotIds]);
 
   // Every sport currently enabled, in a stable order: core sources first,
   // then enabled esports titles, then "custom" if any custom events exist.

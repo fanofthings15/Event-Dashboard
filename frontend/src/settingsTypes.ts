@@ -52,6 +52,7 @@ export interface SettingsState {
   discordWebhookUrl: string;
   streamSlots: StreamSlot[];
   streamMainSlotId: string | null;
+  closedStreamSlotIds: string[];
   streamLayout: StreamLayout;
   frcStreamUrls: Record<string, string>;
 }
