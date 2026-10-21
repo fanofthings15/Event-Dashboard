@@ -467,28 +467,6 @@ body.live-body {
   }
 }
 
-.live-controls {
-  position: fixed;
-  right: max(16px, env(safe-area-inset-right));
-  bottom: max(16px, env(safe-area-inset-bottom));
-  display: flex;
-  gap: 8px;
-  font-size: 15px;
-}
-
-.live-controls button {
-  font: inherit;
-  font-size: 15px;
-  font-weight: 600;
-  min-height: 44px;
-  padding: 0 16px;
-  border-radius: 8px;
-  border: 1px solid #262b35;
-  background: #171a21e6;
-  color: #e8eaed;
-  cursor: pointer;
-}
-
 .lv-idle-cols {
   width: min(100%, 76em);
   display: flex;
@@ -716,12 +694,6 @@ body.live-body {
   }
 }
 
-.live-controls.live-controls-left {
-  right: auto;
-  left: max(16px, env(safe-area-inset-left));
-  z-index: 30;
-}
-
 /* F1 yellow sectors: bright and only slightly breathing, never dimmed out */
 .f1-yellow {
   animation: f1-yellow 1.1s ease-in-out infinite;
@@ -865,4 +837,26 @@ body.live-body {
   100% {
     opacity: 0;
   }
+}
+
+/* Back / Fullscreen at the start of the bottom strip */
+.lv-strip-controls {
+  flex: none;
+  display: flex;
+  gap: 0.5em;
+  padding-right: 0.6em;
+  margin-right: 0.1em;
+  border-right: 1px solid #262b35;
+}
+
+.lv-others button.lv-strip-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  grid-template-columns: none;
+  max-width: none;
+  padding: 0 0.9em;
+  font-weight: 700;
+  white-space: nowrap;
+  background: #262b35;
 }

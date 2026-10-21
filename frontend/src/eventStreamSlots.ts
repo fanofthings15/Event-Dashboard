@@ -11,6 +11,16 @@ export function hasWatchableStream(event: Pick<NormalizedEvent, "streamUrl" | "d
   return Boolean(event.streamUrl && event.streamUrl !== event.detailUrl);
 }
 
+// How early a followed event's stream joins the Streams tab before its
+// projected start. Earlier than this, following it only follows it — the
+// stream is added automatically once the window opens (App.tsx).
+export const PRESTART_WINDOW_MS = 5 * 60 * 1000;
+
+export function isWithinStreamWindow(event: Pick<NormalizedEvent, "status" | "startTime">, nowMs: number): boolean {
+  if (event.status === "live") return true;
+  return new Date(event.startTime).getTime() - nowMs <= PRESTART_WINDOW_MS;
+}
+
 export function eventStreamSlotId(event: Pick<NormalizedEvent, "sport" | "id">): string {
   return `event:${event.sport}-${event.id}`;
 }

@@ -76,7 +76,10 @@ export default function StreamsView({
   onBack,
   onExpand,
 }: {
-  mode: "full" | "pip";
+  // "hidden": nothing shown (e.g. while the full-screen Live tab is open),
+  // but the player stays mounted in the picture-in-picture host so it picks
+  // up where it was when the box comes back.
+  mode: "full" | "pip" | "hidden";
   onBack: () => void;
   onExpand: () => void;
 }) {
@@ -119,7 +122,7 @@ export default function StreamsView({
   function syncPortalHost() {
     const host = portalHostRef.current;
     if (!host) return;
-    const target = mode === "pip" ? pipRef.current : dockRef.current;
+    const target = mode === "full" ? dockRef.current : pipRef.current;
     if (target && host.parentElement !== target) target.appendChild(host);
   }
 
@@ -186,7 +189,7 @@ export default function StreamsView({
     <section className={`streams-view ${mode === "full" ? "streams-view-full" : ""}`}>
       {/* Full layout — always mounted so the dock above never unmounts, just
           hidden behind the picture-in-picture box while it's active. */}
-      <div className="streams-body" style={mode === "pip" ? { display: "none" } : undefined}>
+      <div className="streams-body" style={mode !== "full" ? { display: "none" } : undefined}>
         <div className={`streams-controls-row ${controlsHidden ? "collapsed" : ""}`}>
           <button
             className="btn small controls-toggle"

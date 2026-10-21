@@ -19,7 +19,7 @@ import FollowStar from "./FollowStar";
 import StreamsView from "./StreamsView";
 // The live display only loads when its tab is opened.
 const LiveScreen = lazy(() => import("./live/LiveScreen"));
-import { eventStreamSlotId, withEventStreamSlot, hasWatchableStream } from "./eventStreamSlots";
+import { eventStreamSlotId, withEventStreamSlot, hasWatchableStream, isWithinStreamWindow } from "./eventStreamSlots";
 
 function matchesSearch(e: NormalizedEvent, query: string): boolean {
   if (!query.trim()) return true;
@@ -216,7 +216,6 @@ export default function App() {
   // would mean re-swapping (and reloading) the iframe each time PandaScore
   // reorders its streams list.
   const startRecheckedIds = useRef<Set<string>>(new Set());
-  const PRESTART_WINDOW_MS = 5 * 60 * 1000;
 
   // Drives the Streams tab hands-free: a followed game joins up to 5 minutes
   // before its projected start if it already has a real broadcast link (no
@@ -240,7 +239,7 @@ export default function App() {
       if (hasEventEnded(e, now) || !hasWatchableStream(e)) continue;
       const startMs = new Date(e.startTime).getTime();
       const reachedStart = e.status === "live" || now >= startMs;
-      if (!reachedStart && startMs - now > PRESTART_WINDOW_MS) continue; // too early — no prestart yet
+      if (!isWithinStreamWindow(e, now)) continue; // too early — no prestart yet
 
       const id = eventStreamSlotId(e);
       if (existingIds.has(id)) {
@@ -575,7 +574,7 @@ export default function App() {
       )}
 
       <StreamsView
-        mode={view === "streams" ? "full" : "pip"}
+        mode={view === "streams" ? "full" : view === "live" ? "hidden" : "pip"}
         onBack={() => setView("list")}
         onExpand={() => setView("streams")}
       />

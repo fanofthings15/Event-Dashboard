@@ -1,6 +1,6 @@
 import type { NormalizedEvent } from "./types";
 import { useSettings } from "./SettingsContext";
-import { hasWatchableStream, withEventStreamSlot, withoutEventStreamSlot } from "./eventStreamSlots";
+import { hasWatchableStream, isWithinStreamWindow, withEventStreamSlot, withoutEventStreamSlot } from "./eventStreamSlots";
 
 interface Props {
   event: NormalizedEvent;
@@ -37,8 +37,10 @@ export default function FollowStar({ event }: Props) {
     const followedEventIds = [...settings.followedEventIds, eventKey];
     // Anything with a real broadcast link (currently: esports matches, via
     // PandaScore's official stream) also lands in the Streams tab — not
-    // ESPN/F1/FRC's own detail-page links, which aren't actual streams.
-    if (hasWatchableStream(event)) {
+    // ESPN/F1/FRC's own detail-page links, which aren't actual streams — but
+    // only if it's live or about to start. Anything later is just followed;
+    // App.tsx adds its stream when the prestart window opens.
+    if (hasWatchableStream(event) && isWithinStreamWindow(event, Date.now())) {
       await save({ followedEventIds, notifyOnLive: true, streamSlots: withEventStreamSlot(settings.streamSlots, event, event.streamUrl!) });
     } else {
       await save({ followedEventIds, notifyOnLive: true });

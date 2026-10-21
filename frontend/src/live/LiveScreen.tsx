@@ -23,7 +23,7 @@ import "./live.css";
 // in the "other games" strip (that choice holds until the game ends). URL
 // overrides for testing or pinning a game:
 //   /live?event=nba-401909090   always show that event
-// On-screen buttons (Back, Fullscreen) show on mouse move/tap and hide while
+// Back and Fullscreen sit at the start of the bottom strip and hide while
 // fullscreen, whether that came from the button or the browser's F11.
 
 const ESPN_SPORTS = new Set(["nfl", "ncaaf", "nba", "nhl", "mlb"]);
@@ -82,13 +82,15 @@ function SportView({
 }
 
 // True while the display fills the whole screen. Browser F11 fullscreen
-// doesn't set document.fullscreenElement, so the window covering the full
-// screen counts too.
+// doesn't set document.fullscreenElement, so on mouse-driven devices the
+// window covering the full screen counts too. Not on touch devices: an
+// installed home-screen app is screen-sized without being "fullscreen", and
+// treating it as such would hide the Back button with no way to get it back.
 function useIsFullscreen(): boolean {
   const check = () =>
     Boolean(document.fullscreenElement) ||
     window.matchMedia("(display-mode: fullscreen)").matches ||
-    (window.innerHeight >= screen.height - 1 && window.innerWidth >= screen.width - 1);
+    (window.matchMedia("(pointer: fine)").matches && window.innerHeight >= screen.height - 1 && window.innerWidth >= screen.width - 1);
   const [full, setFull] = useState(check);
   useEffect(() => {
     const update = () => setFull(check());
@@ -236,8 +238,23 @@ export default function LiveScreen({ onBack }: { onBack?: () => void } = {}) {
   return (
     <div className={`live-root${controlsVisible ? "" : " live-idle"}`} onPointerMove={poke} onPointerDown={poke}>
       <div className="live-view">{body}</div>
-      {others.length > 0 && (
+      {/* Bottom strip: Back/Fullscreen first, then the other live games. The
+          buttons sit in the strip's flow (not floating over it) so they can
+          never cover a game, and the whole row hides while fullscreen. */}
+      {(others.length > 0 || !fullscreen) && (
         <nav className="lv-others" aria-label="Other live games">
+          {!fullscreen && (
+            <span className="lv-strip-controls">
+              {onBack && (
+                <button className="lv-strip-btn" onClick={onBack}>
+                  ‹ Back
+                </button>
+              )}
+              <button className="lv-strip-btn" onClick={() => document.documentElement.requestFullscreen?.().catch(() => undefined)}>
+                Fullscreen
+              </button>
+            </span>
+          )}
           {others.map((e) => (
             <button key={eventKey(e)} onClick={() => !pinned && setChosenKey(eventKey(e))} title="Show this game">
               <span className="bar" style={{ background: metaFor(e).color }} />
@@ -249,12 +266,6 @@ export default function LiveScreen({ onBack }: { onBack?: () => void } = {}) {
             </button>
           ))}
         </nav>
-      )}
-      {controlsVisible && !fullscreen && (
-        <div className="live-controls live-controls-left">
-          {onBack && <button onClick={onBack}>‹ Back</button>}
-          <button onClick={() => document.documentElement.requestFullscreen?.().catch(() => undefined)}>Fullscreen</button>
-        </div>
       )}
     </div>
   );
