@@ -3,6 +3,7 @@ import { cached } from "../cache.js";
 import { curlGetJson } from "../espnScoreboard.js";
 import { ESPN_PATHS, mapEspnSummary } from "../liveEspn.js";
 import { getF1LiveState } from "../f1Live.js";
+import { mlbExtras } from "../liveMlb.js";
 import { readGlobalSettings, readUserSettings } from "../settings.js";
 import { getUserId } from "../userContext.js";
 
@@ -20,7 +21,17 @@ router.get("/espn/:sport/:id", async (req, res) => {
     const data = await cached(`live:espn:${sport}:${id}`, 4, () =>
       curlGetJson(`https://site.api.espn.com/apis/site/v2/sports/${path}/summary?event=${id}`)
     );
-    res.json(mapEspnSummary(sport, data));
+    const state = mapEspnSummary(sport, data);
+    if (state.kind === "baseball" && state.startTime) {
+      const [away, home] = state.teams;
+      try {
+        Object.assign(state, await mlbExtras(state.startTime, away?.name ?? "", home?.name ?? ""));
+      } catch {
+        // Stats API down or game not found: the view falls back to a
+        // generic ballpark and no hit chart.
+      }
+    }
+    res.json(state);
   } catch (err) {
     res.status(502).json({ error: `Failed to fetch ${sport} game ${id}`, detail: String(err) });
   }

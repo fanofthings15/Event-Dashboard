@@ -74,6 +74,8 @@ export interface BaseballState extends LiveCommon {
   matchup?: string;
   pitches: { x: number; y: number; mph?: number; type?: string; result: string }[];
   lastPlay?: string;
+  fence?: { venue: string; leftLine: number; left: number; leftCenter: number; center: number; rightCenter: number; right?: number; rightLine: number };
+  hits?: { id: string; x: number; y: number; speed?: number; angle?: number; distance?: number; trajectory?: string; result?: string }[];
 }
 
 export interface F1Driver {
@@ -86,6 +88,8 @@ export interface F1Driver {
   interval?: string;
   inPit: boolean;
   out: boolean;
+  compound?: string;
+  stops: number;
   x?: number;
   y?: number;
 }
@@ -102,6 +106,7 @@ export interface F1State {
   raceControl: { utc: string; message: string; flag?: string }[];
   circuit?: { x: number[]; y: number[]; rotation: number; marshalSectors: { number: number; x: number; y: number }[] } | null;
   positionsAvailable: boolean;
+  pitStops?: { number: string; tla: string; color: string; lap: number; from?: string; to?: string; seconds?: number }[];
 }
 
 export interface FrcAlliance {

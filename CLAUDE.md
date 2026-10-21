@@ -47,8 +47,8 @@ frontend/src/
                               LiveScreen.tsx, selectLiveEvent.ts (the placeholder
                               "which game to show" policy — change it there),
                               views/ (one per sport), surfaces/ (regulation rink,
-                              court, field, ballpark), StreamCrop + CropCalibrator
-                              (optional minimap-only mode), cropPresets.ts
+                              court, field, ballpark from the real fence, BallFlight),
+                              Stream.tsx (esports and pasted FRC webcasts)
 ```
 
 /live layout rule: all text is HTML in `live/Layout.tsx`'s shell (header,
@@ -74,7 +74,8 @@ regardless of source.
 | Esports | PandaScore | Yes (free tier) | ~1000 req/month cap |
 | /live team sports | ESPN game summary (unofficial) | No | Shot/pitch coordinates, drives, box stats — quirks below |
 | /live F1 | F1 live timing, SignalR Core | No | Anonymous; old /signalr and /static/ archive 401 as of 2026-10-20 |
-| /live F1 circuit | MultiViewer circuits API | No | Outline + marshal sectors, same coords as Position.z |
+| /live F1 circuit | MultiViewer circuits API | No | Outline + marshal sectors, same coords as Position.z (no pit lane shape — it's drawn beside the S/F straight) |
+| /live MLB extras | MLB Stats API (statsapi.mlb.com) | No | Ballpark fence distances (venue fieldInfo) and every batted ball (hitData); matched to the ESPN game by date + team names (`liveMlb.ts`) |
 
 **ESPN summary quirks the /live views rely on** (all checked against real
 responses 2026-10-20): football play `yardLine` is yards from the *home*
@@ -83,7 +84,9 @@ home goal; NBA shot `coordinate.y` is feet from the rim (not the baseline),
 with a `-214748340` sentinel on free throws; NHL plays set `shootingPlay`
 on hits/giveaways too, so filter by `type.text`, and each play's `strength`
 is relative to its own team; MLB `pitchCoordinate` is gamecast pixels, with
-the strike zone fitted at roughly x 82–145, y 146–194.
+the strike zone fitted at roughly x 82–145, y 146–194. Stats API hit
+coordinates convert to feet as 2.5 × (coordX − 125.42), 2.5 × (198.27 − coordY)
+— checked against its own totalDistance (386 ft liner lands at 387 ft).
 
 **PandaScore esports slugs are not always the obvious name** — e.g. Rocket
 League is `rl`, not `rocket-league`. This was a real bug once; verify any

@@ -1,7 +1,6 @@
 import type { NormalizedEvent } from "../../types";
-import type { CropRect } from "../../settingsTypes";
-import StreamCrop from "../StreamCrop";
-import { C, LiveFrame, Message, Side, SideLabel, Source, useScoreFlash } from "../Layout";
+import Stream from "../Stream";
+import { C, LiveFrame, Message, Side, SideLabel, useScoreFlash } from "../Layout";
 
 // "1-0 (Bo3)", "Best of 5" or "2-1" — esports.ts's seriesScore formats.
 function parseSeries(s?: string): { wins?: [number, number]; bestOf?: number } {
@@ -16,25 +15,21 @@ function parseSeries(s?: string): { wins?: [number, number]; bestOf?: number } {
 
 const TEAM_COLORS = [C.accent, C.live];
 
+// Esports are the live broadcast itself, with the series beside it.
 export default function EsportsView({
   event,
   label,
   leagueColor,
-  mode,
   stream,
-  crop,
 }: {
   event: NormalizedEvent;
   label: string;
   leagueColor: string;
-  mode: "crop" | "series";
   stream: { embed: string; source: string } | null;
-  crop: CropRect | undefined;
 }) {
   const teams = event.teams ?? [];
   const { wins, bestOf } = parseSeries(event.seriesScore);
   const needed = bestOf ? Math.ceil(bestOf / 2) : undefined;
-  const cropped = mode === "crop";
   const flash = useScoreFlash(
     wins,
     teams.slice(0, 2).map((t, i) => ({ abbr: t.name, color: TEAM_COLORS[i] })),
@@ -53,22 +48,10 @@ export default function EsportsView({
         </div>
       }
       status={event.league}
-      footer={
-        <Source>
-          PandaScore series score{stream ? ` · ${cropped ? "minimap cropped from the" : "live"} ${stream.source} stream` : ""}
-          {cropped && stream ? " · press C to adjust the crop" : ""}
-        </Source>
-      }
     >
       {flash}
       <section className="lv-main" style={{ alignItems: "center", justifyContent: "center" }}>
-        {stream ? (
-          <div className="lv-stream" style={cropped ? { aspectRatio: "1 / 1", height: "100%", width: "auto", maxWidth: "100%" } : { width: "100%", height: "100%" }}>
-            <StreamCrop embed={stream.embed} crop={cropped ? crop ?? null : null} />
-          </div>
-        ) : (
-          <Message>No embeddable stream for this match</Message>
-        )}
+        {stream ? <Stream embed={stream.embed} /> : <Message>No embeddable stream for this match</Message>}
       </section>
       <Side>
         <SideLabel>{bestOf ? `Series · best of ${bestOf}` : "Match"}</SideLabel>

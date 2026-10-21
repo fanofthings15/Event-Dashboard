@@ -23,14 +23,6 @@ export interface StreamSlot {
 
 export type StreamLayout = "grid" | "solo" | "duo" | "spotlight" | "quad";
 
-// Fractions of a 16:9 broadcast frame — see live/cropPresets.ts.
-export interface CropRect {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-}
-
 export interface SettingsState {
   pandaScoreApiKeySet: boolean;
   tbaApiKeySet: boolean;
@@ -61,5 +53,5 @@ export interface SettingsState {
   streamSlots: StreamSlot[];
   streamMainSlotId: string | null;
   streamLayout: StreamLayout;
-  liveCropPresets: Record<string, CropRect>;
+  frcStreamUrls: Record<string, string>;
 }

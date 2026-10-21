@@ -3,12 +3,9 @@ import { useSettings } from "../SettingsContext";
 import { useEvents } from "../useEvents";
 import { sportMeta } from "../sportMeta";
 import type { NormalizedEvent } from "../types";
-import type { CropRect } from "../settingsTypes";
-import { eventKey, LIVE_VIEW_SPORTS, selectLiveEvent } from "./selectLiveEvent";
+import { ESPORTS_SPORTS, eventKey, LIVE_VIEW_SPORTS, selectLiveEvent } from "./selectLiveEvent";
 import { useLiveDetail } from "./useLiveDetail";
-import { cropFor, cropKey, DEFAULT_CROPS, SERIES_SPORTS } from "./cropPresets";
-import { embeddableStream } from "./StreamCrop";
-import CropCalibrator from "./CropCalibrator";
+import { embeddableStream } from "./Stream";
 import type { BaseballState, BasketballState, F1State, FootballState, FrcState, HockeyState } from "./liveTypes";
 import FootballView from "./views/FootballView";
 import BasketballView from "./views/BasketballView";
@@ -26,16 +23,26 @@ import "./live.css";
 // in the "other games" strip (that choice holds until the game ends). URL
 // overrides for testing or pinning a game:
 //   /live?event=nba-401909090   always show that event
-//   /live?calibrate             open the stream-crop editor straight away
-// Keys: M minimap-only (esports), C adjust the minimap crop. On-screen buttons
-// (Back, Fullscreen, crop) show on mouse move/tap and hide while fullscreen,
-// whether that came from the button or the browser's F11.
+// On-screen buttons (Back, Fullscreen) show on mouse move/tap and hide while
+// fullscreen, whether that came from the button or the browser's F11.
 
 const ESPN_SPORTS = new Set(["nfl", "ncaaf", "nba", "nhl", "mlb"]);
 const POLL_MS: Record<string, number> = { f1: 3_000, nhl: 5_000, frc: 60_000 };
 const FINALS_WINDOW_MS = 18 * 60 * 60 * 1000;
 
-function SportView({ event, label, color }: { event: NormalizedEvent; label: string; color: string }) {
+function SportView({
+  event,
+  label,
+  color,
+  frcStreamUrl,
+  onSaveFrcStream,
+}: {
+  event: NormalizedEvent;
+  label: string;
+  color: string;
+  frcStreamUrl?: string;
+  onSaveFrcStream: (url: string) => void;
+}) {
   const url = ESPN_SPORTS.has(event.sport)
     ? `/api/live/espn/${event.sport}/${event.id}`
     : event.sport === "f1"
@@ -64,7 +71,7 @@ function SportView({ event, label, color }: { event: NormalizedEvent; label: str
     case "f1":
       return <F1View data={data as F1State} leagueColor={color} />;
     case "frc":
-      return <FrcView data={data as FrcState} eventName={event.name} leagueColor={color} />;
+      return <FrcView data={data as FrcState} eventName={event.name} leagueColor={color} streamUrl={frcStreamUrl} onSaveStream={onSaveFrcStream} />;
     default:
       return (
         <LiveFrame league={label} leagueColor={color} live={false} centre={event.name}>
@@ -175,42 +182,25 @@ export default function LiveScreen({ onBack }: { onBack?: () => void } = {}) {
     };
   }, []);
 
-  // ----- stream crop -----
-  const esportsCrop = selected && DEFAULT_CROPS[selected.sport] ? selected : null;
   const stream = useMemo(
-    () =>
-      selected && (DEFAULT_CROPS[selected.sport] || SERIES_SPORTS.has(selected.sport))
-        ? embeddableStream((selected.streams ?? []).map((s) => s.url).concat(selected.streamUrl ?? []))
-        : null,
+    () => (selected && ESPORTS_SPORTS.has(selected.sport) ? embeddableStream((selected.streams ?? []).map((s) => s.url).concat(selected.streamUrl ?? [])) : null),
     [selected]
   );
-  const [calibrating, setCalibrating] = useState(params.has("calibrate"));
-  // Esports show the whole broadcast by default; titles with a known
-  // minimap position can switch to showing just the minimap instead.
-  const [minimapOnly, setMinimapOnly] = useState(params.has("calibrate"));
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "c" || e.key === "C") setCalibrating((v) => !v);
-      if (e.key === "m" || e.key === "M") setMinimapOnly((v) => !v);
       if (e.key === "Escape" && onBack && !document.fullscreenElement) onBack();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [onBack]);
 
-  const saveCrop = (rect: CropRect, scope: "league" | "sport") => {
-    if (!esportsCrop) return;
-    const key = scope === "league" ? cropKey(esportsCrop.sport, esportsCrop.league) : esportsCrop.sport;
-    save({ liveCropPresets: { ...settings.liveCropPresets, [key]: rect } });
-    setCalibrating(false);
-  };
-  const resetCrop = () => {
-    if (!esportsCrop) return;
-    const next = { ...settings.liveCropPresets };
-    delete next[cropKey(esportsCrop.sport, esportsCrop.league)];
-    delete next[esportsCrop.sport];
-    save({ liveCropPresets: next });
-    setCalibrating(false);
+  // FRC webcasts aren't in TBA's data the app reads, so a stream link is
+  // pasted in per event and kept in settings.
+  const saveFrcStream = (eventId: string, url: string) => {
+    const next = { ...settings.frcStreamUrls };
+    if (url) next[eventId] = url;
+    else delete next[eventId];
+    save({ frcStreamUrls: next });
   };
 
   // ----- render -----
@@ -228,19 +218,19 @@ export default function LiveScreen({ onBack }: { onBack?: () => void } = {}) {
     body = <IdleView upcoming={upcoming} finished={finished} timezone={settings.timezone} metaFor={metaFor} />;
   } else {
     const meta = metaFor(selected);
-    body =
-      DEFAULT_CROPS[selected.sport] || SERIES_SPORTS.has(selected.sport) ? (
-        <EsportsView
-          event={selected}
-          label={meta.label}
-          leagueColor={meta.color}
-          mode={DEFAULT_CROPS[selected.sport] && minimapOnly ? "crop" : "series"}
-          stream={stream}
-          crop={cropFor(settings.liveCropPresets, selected.sport, selected.league)}
-        />
-      ) : (
-        <SportView key={eventKey(selected)} event={selected} label={meta.label} color={meta.color} />
-      );
+    const sel = selected;
+    body = ESPORTS_SPORTS.has(sel.sport) ? (
+      <EsportsView event={sel} label={meta.label} leagueColor={meta.color} stream={stream} />
+    ) : (
+      <SportView
+        key={eventKey(sel)}
+        event={sel}
+        label={meta.label}
+        color={meta.color}
+        frcStreamUrl={sel.sport === "frc" ? settings.frcStreamUrls?.[sel.id] : undefined}
+        onSaveFrcStream={(url) => saveFrcStream(sel.id, url)}
+      />
+    );
   }
 
   return (
@@ -260,28 +250,11 @@ export default function LiveScreen({ onBack }: { onBack?: () => void } = {}) {
           ))}
         </nav>
       )}
-      {controlsVisible && !fullscreen && !calibrating && (
+      {controlsVisible && !fullscreen && (
         <div className="live-controls live-controls-left">
           {onBack && <button onClick={onBack}>‹ Back</button>}
           <button onClick={() => document.documentElement.requestFullscreen?.().catch(() => undefined)}>Fullscreen</button>
         </div>
-      )}
-      {controlsVisible && !fullscreen && !calibrating && esportsCrop && stream && (
-        <div className="live-controls">
-          {esportsCrop && stream && <button onClick={() => setMinimapOnly((v) => !v)}>{minimapOnly ? "Full stream" : "Minimap only"}</button>}
-          {esportsCrop && stream && minimapOnly && <button onClick={() => setCalibrating(true)}>Adjust minimap crop</button>}
-        </div>
-      )}
-      {calibrating && esportsCrop && stream && (
-        <CropCalibrator
-          embed={stream.embed}
-          initial={cropFor(settings.liveCropPresets, esportsCrop.sport, esportsCrop.league) ?? DEFAULT_CROPS[esportsCrop.sport]}
-          leagueLabel={esportsCrop.league}
-          sportLabel={metaFor(esportsCrop).label}
-          onSave={saveCrop}
-          onReset={resetCrop}
-          onClose={() => setCalibrating(false)}
-        />
       )}
     </div>
   );

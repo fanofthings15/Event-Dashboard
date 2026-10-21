@@ -2,6 +2,7 @@ import type { BaseballState } from "../liveTypes";
 import { teamColors } from "../teamColors";
 import { Below, C, LiveFrame, Line, Scoreboard, Side, Surface, useScoreFlash } from "../Layout";
 import Ballpark, { BASES, Base } from "../surfaces/Ballpark";
+import BallFlight from "../surfaces/BallFlight";
 
 // ESPN pitch coordinates are gamecast pixels, not real units. The strike
 // zone (x 82..145, y 146..194) is what separated called strikes from balls
@@ -30,6 +31,8 @@ export default function BaseballView({ data, leagueColor }: { data: BaseballStat
   const [awayColor, homeColor] = teamColors(away, home);
   const innings = Math.max(9, away?.linescores.length ?? 0, home?.linescores.length ?? 0);
   const lastPitch = data.pitches.at(-1);
+  const hits = data.hits ?? [];
+  const lastHit = hits.at(-1);
   const flash = useScoreFlash(
     away && home ? [Number(away.score), Number(home.score)] : undefined,
     [
@@ -52,14 +55,22 @@ export default function BaseballView({ data, leagueColor }: { data: BaseballStat
       <Surface
         caption={
           <span>
-            Pitches: <span style={{ color: C.green }}>●</span> ball · <span style={{ color: C.live }}>●</span> strike · <span style={{ color: C.accent }}>●</span> in play · ◯ latest
+            {data.fence?.venue ? `${data.fence.venue} · ` : ""}
+            {lastHit
+              ? `Last ball in play: ${[lastHit.result, lastHit.distance ? `${Math.round(lastHit.distance)} ft` : null, lastHit.speed ? `${lastHit.speed} mph` : null, lastHit.angle !== undefined ? `${lastHit.angle}°` : null].filter(Boolean).join(", ")}`
+              : "No balls in play yet"}
           </span>
         }
       >
-        <Ballpark>
+        <Ballpark fence={data.fence}>
+          {/* earlier balls in play this game, as a faint spray chart */}
+          {hits.slice(0, -1).map((h) => (
+            <circle key={h.id} cx={h.x} cy={-h.y} r={3.5} fill="#fff" fillOpacity={0.35} />
+          ))}
           <Base at={BASES.first} on={data.onFirst} />
           <Base at={BASES.second} on={data.onSecond} />
           <Base at={BASES.third} on={data.onThird} />
+          <BallFlight hit={lastHit} />
         </Ballpark>
       </Surface>
       <Below

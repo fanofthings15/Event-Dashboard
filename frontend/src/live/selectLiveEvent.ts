@@ -1,9 +1,11 @@
 import type { NormalizedEvent } from "../types";
-import { DEFAULT_CROPS, SERIES_SPORTS } from "./cropPresets";
 
-// Every sport the /live display has a view for. Dota 2 and StarCraft II are
-// deliberately left out — the display never picks them.
-export const LIVE_VIEW_SPORTS = new Set(["nfl", "ncaaf", "nba", "nhl", "mlb", "f1", "frc", ...Object.keys(DEFAULT_CROPS), ...SERIES_SPORTS]);
+// Esports titles the display shows (as their live stream). Dota 2 and
+// StarCraft II are deliberately left out — the display never picks them.
+export const ESPORTS_SPORTS = new Set(["cs2", "lol", "valorant", "rocket-league", "overwatch", "r6siege"]);
+
+// Every sport the /live display has a view for.
+export const LIVE_VIEW_SPORTS = new Set(["nfl", "ncaaf", "nba", "nhl", "mlb", "f1", "frc", ...ESPORTS_SPORTS]);
 
 export const eventKey = (e: NormalizedEvent) => `${e.sport}-${e.id}`;
 

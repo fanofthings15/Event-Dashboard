@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { readUserSettings, writeUserSettings, regenerateIcsToken, type UserSettings, type CropRect } from "../settings.js";
+import { readUserSettings, writeUserSettings, regenerateIcsToken, type UserSettings } from "../settings.js";
 import { getUserId } from "../userContext.js";
 import { ESPORTS_CATALOG } from "../esportsCatalog.js";
 
@@ -41,7 +41,7 @@ router.get("/", (req, res) => {
     streamSlots: settings.streamSlots,
     streamMainSlotId: settings.streamMainSlotId,
     streamLayout: settings.streamLayout,
-    liveCropPresets: settings.liveCropPresets,
+    frcStreamUrls: settings.frcStreamUrls,
     esportsCatalog: ESPORTS_CATALOG,
   });
 });
@@ -138,13 +138,12 @@ router.post("/", (req, res) => {
   ) {
     next.streamLayout = body.streamLayout;
   }
-  if (body.liveCropPresets && typeof body.liveCropPresets === "object") {
-    const clean: Record<string, CropRect> = {};
-    const frac = (v: unknown) => typeof v === "number" && v >= 0 && v <= 1;
-    for (const [key, r] of Object.entries(body.liveCropPresets as Record<string, any>)) {
-      if (r && frac(r.x) && frac(r.y) && frac(r.w) && frac(r.h) && r.w > 0 && r.h > 0) clean[key] = { x: r.x, y: r.y, w: r.w, h: r.h };
+  if (body.frcStreamUrls && typeof body.frcStreamUrls === "object") {
+    const clean: Record<string, string> = {};
+    for (const [key, url] of Object.entries(body.frcStreamUrls as Record<string, unknown>)) {
+      if (/^\d{4}[a-z0-9]+$/.test(key) && typeof url === "string" && /^https:\/\//.test(url) && url.length < 500) clean[key] = url;
     }
-    next.liveCropPresets = clean;
+    next.frcStreamUrls = clean;
   }
 
   writeUserSettings(getUserId(req), next);

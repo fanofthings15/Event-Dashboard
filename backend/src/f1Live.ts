@@ -26,6 +26,8 @@ const TOPICS = [
   "TimingData",
   "LapCount",
   "ExtrapolatedClock",
+  "TimingAppData",
+  "PitLaneTimeCollection",
   "Position.z",
 ];
 const RS = "\x1e"; // SignalR JSON protocol record separator
@@ -37,6 +39,9 @@ let lastRequestAt = 0;
 let pingTimer: ReturnType<typeof setInterval> | null = null;
 let lastError: string | undefined;
 const state: Record<string, any> = {};
+// PitLaneTimeCollection only ever holds each driver's latest pit-lane time,
+// so every one seen is kept here (keyed driver+lap) for the pit stop list.
+const pitLaneTimes = new Map<string, { number: string; lap: number; seconds: number }>();
 
 // Live-timing deltas patch the snapshot in place. Arrays arrive as objects
 // keyed by index (e.g. RaceControlMessages {"Messages": {"25": {...}}}), so
@@ -67,7 +72,17 @@ function decodeZ(data: unknown): any {
   }
 }
 
+function recordPitTimes(data: any) {
+  for (const [num, t] of Object.entries<any>(data?.PitTimes ?? {})) {
+    const seconds = parseFloat(t?.Duration);
+    const lap = parseInt(t?.Lap, 10);
+    if (!Number.isFinite(seconds) || !Number.isFinite(lap)) continue;
+    pitLaneTimes.set(`${num}:${lap}`, { number: String(t.RacingNumber ?? num), lap, seconds });
+  }
+}
+
 function applyTopic(topic: string, data: any) {
+  if (topic === "PitLaneTimeCollection") recordPitTimes(data);
   if (topic.endsWith(".z")) {
     const decoded = decodeZ(data);
     if (decoded !== undefined) state[topic.slice(0, -2)] = decoded; // positions are whole frames, not deltas
@@ -189,6 +204,8 @@ export interface F1Driver {
   interval?: string;
   inPit: boolean;
   out: boolean; // retired or stopped
+  compound?: string; // current tyre: SOFT, MEDIUM, HARD, INTERMEDIATE, WET
+  stops: number;
   x?: number;
   y?: number;
 }
@@ -205,6 +222,10 @@ export interface F1LiveState {
   raceControl: { utc: string; message: string; flag?: string }[];
   circuit?: Circuit | null;
   positionsAvailable: boolean;
+  // Most recent first. Lap and tyre change come from the stint history;
+  // pit-lane time (entry to exit) from PitLaneTimeCollection when the
+  // connection was open to see it.
+  pitStops: { number: string; tla: string; color: string; lap: number; from?: string; to?: string; seconds?: number }[];
 }
 
 // Race control reports flags per marshal sector ("YELLOW IN TRACK SECTOR 9",
@@ -230,6 +251,7 @@ export async function getF1LiveState(): Promise<F1LiveState> {
   const info = state.SessionInfo;
   const drivers = state.DriverList ?? {};
   const lines = state.TimingData?.Lines ?? {};
+  const appLines = state.TimingAppData?.Lines ?? {};
   const positionFrames: any[] = state.Position?.Position ?? [];
   const latestPositions = positionFrames.at(-1)?.Entries ?? {};
 
@@ -238,6 +260,7 @@ export async function getF1LiveState(): Promise<F1LiveState> {
     .map(([num, d]: [string, any]) => {
       const t = lines[num] ?? {};
       const p = latestPositions[num];
+      const stints: any[] = Object.values(appLines[num]?.Stints ?? {});
       return {
         number: num,
         tla: d.Tla ?? num,
@@ -248,6 +271,8 @@ export async function getF1LiveState(): Promise<F1LiveState> {
         interval: t.IntervalToPositionAhead?.Value,
         inPit: Boolean(t.InPit),
         out: Boolean(t.Retired || t.Stopped),
+        compound: stints.at(-1)?.Compound,
+        stops: Math.max(0, stints.length - 1),
         x: typeof p?.X === "number" ? p.X : undefined,
         y: typeof p?.Y === "number" ? p.Y : undefined,
       };
@@ -265,8 +290,26 @@ export async function getF1LiveState(): Promise<F1LiveState> {
     }
   }
 
+  // A stop happens at the end of every stint but the last: its lap is the
+  // laps run so far (each stint's TotalLaps counts any laps the tyre had
+  // before it went on, hence minus StartLaps).
+  const pitStops: F1LiveState["pitStops"] = [];
+  for (const d of list) {
+    const stints: any[] = Object.values(appLines[d.number]?.Stints ?? {});
+    let lap = 0;
+    stints.forEach((s, i) => {
+      if (i > 0) {
+        const timed = pitLaneTimes.get(`${d.number}:${lap}`) ?? pitLaneTimes.get(`${d.number}:${lap + 1}`);
+        pitStops.push({ number: d.number, tla: d.tla, color: d.color, lap, from: stints[i - 1].Compound, to: s.Compound, seconds: timed?.seconds });
+      }
+      lap += (Number(s.TotalLaps) || 0) - (Number(s.StartLaps) || 0);
+    });
+  }
+  pitStops.sort((a, b) => b.lap - a.lap);
+
   const messages: any[] = state.RaceControlMessages?.Messages ?? [];
   return {
+    pitStops: pitStops.slice(0, 8),
     kind: "f1",
     connected: ws?.readyState === WebSocket.OPEN,
     error: lastError,

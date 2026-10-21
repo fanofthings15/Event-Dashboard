@@ -321,6 +321,12 @@ export interface BaseballState extends LiveCommon {
   // 541 pitches from recent games, so the display draws its zone there.
   pitches: { x: number; y: number; mph?: number; type?: string; result: string }[];
   lastPlay?: string;
+  // From MLB's Stats API (liveMlb.ts), filled in by the route when the game
+  // can be matched there: the ballpark's real fence, and every batted ball.
+  fence?: import("./liveMlb.js").Fence;
+  hits?: import("./liveMlb.js").Hit[];
+  // Used only to match the game in the Stats API.
+  startTime?: string;
 }
 
 // Plays that close out an at-bat or half-inning — once one of these is the
@@ -358,6 +364,7 @@ export function mapBaseball(data: any): BaseballState {
     matchup: [...plays].reverse().find((p) => p.type?.text === "Start Batter/Pitcher")?.text,
     pitches,
     lastPlay: [...plays].reverse().find((p) => p.type?.text === "Play Result")?.text,
+    startTime: data.header?.competitions?.[0]?.date,
   };
 }
 
