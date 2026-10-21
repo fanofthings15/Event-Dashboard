@@ -86,7 +86,11 @@ export function buildEspnScoreboardRouter(espnPath: string, sport: string, leagu
 
       const events: NormalizedEvent[] = (data.events ?? []).map((e: any) => {
         const comp = e.competitions?.[0];
-        const competitors = comp?.competitors ?? [];
+        // ESPN lists the home team first; "@" convention (and every score
+        // string built from this order) is away first, so sort them.
+        const competitors = [...(comp?.competitors ?? [])].sort(
+          (a: any, b: any) => (a.homeAway === "away" ? -1 : 1) - (b.homeAway === "away" ? -1 : 1)
+        );
         const teams = competitors.map((c: any) => ({
           name: c.team?.displayName ?? c.team?.shortDisplayName,
           imageUrl: c.team?.logo,

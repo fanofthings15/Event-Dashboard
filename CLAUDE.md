@@ -46,12 +46,19 @@ frontend/src/
   live/                     — /live full-screen display (main.tsx routes by pathname):
                               LiveScreen.tsx, selectLiveEvent.ts (the placeholder
                               "which game to show" policy — change it there),
-                              views/ (one per sport), StreamCrop + CropCalibrator
-                              (broadcast minimap crop), cropPresets.ts (defaults)
+                              views/ (one per sport), surfaces/ (regulation rink,
+                              court, field, ballpark), StreamCrop + CropCalibrator
+                              (optional minimap-only mode), cropPresets.ts
 ```
 
-The /live views all draw into one 800×500 SVG canvas (`live/Screen.tsx`)
-with a fixed dark palette, not the app theme — it's a dedicated display.
+/live layout rule: all text is HTML in `live/Layout.tsx`'s shell (header,
+side panel, footer — grid/flex with ellipsis, stacked on portrait). SVGs
+draw only the playing surface and its markers, in real units (feet/yards).
+The first version positioned text by hand inside one SVG canvas and it
+clipped and overlapped as soon as real data and other screen sizes hit it —
+don't go back to that. Fixed dark palette, not the app theme. A strip of
+other live games sits along the bottom; tapping one overrides the automatic
+pick until that game ends.
 
 Every route maps its source's raw API response into `NormalizedEvent`
 (`backend/src/types.ts`) — that's the one shape the whole frontend consumes,
@@ -144,11 +151,11 @@ calling array methods on what was actually still a number.
 
 - **Git:** default branch is `main`, never `master`. No Claude/AI
   attribution anywhere in commit messages or history (no
-  `Co-Authored-By`, nothing referencing Claude). The user runs
-  `git status`/`add`/`commit`/`push` themselves and wants to read the
-  actual output before committing — don't commit and push autonomously
-  without being asked to, and don't claim a commit succeeded without
-  showing the real command output.
+  `Co-Authored-By`, nothing referencing Claude). When a change is finished
+  and checked (typecheck, build, a real run), commit and push it to `main`
+  without asking, then confirm the Coolify deploy finished (changed
+  2026-10-21; this repo used to be manual-commit only). Show the real
+  command output — never claim a commit or deploy succeeded without it.
 - **Releases:** don't tag a new version without being explicitly asked to,
   and when tagging, `git status`/`git log` first to confirm `main` is
   actually clean and has everything intended — a tag pointing at a stale

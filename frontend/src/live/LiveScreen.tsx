@@ -18,28 +18,20 @@ import F1View from "./views/F1View";
 import FrcView from "./views/FrcView";
 import EsportsView from "./views/EsportsView";
 import IdleView from "./views/IdleView";
-import { C, Header, Screen } from "./Screen";
+import { LiveFrame, Message } from "./Layout";
 import "./live.css";
 
 // Full-screen display at /live, meant for a dedicated tablet or monitor.
-// Which game it shows is decided by selectLiveEvent.ts. Two URL overrides
-// for testing or pinning a game:
+// Which game it shows is decided by selectLiveEvent.ts, unless one is tapped
+// in the "other games" strip (that choice holds until the game ends). URL
+// overrides for testing or pinning a game:
 //   /live?event=nba-401909090   always show that event
 //   /live?calibrate             open the stream-crop editor straight away
+// Keys: F fullscreen, M minimap-only (esports), C adjust the minimap crop.
 
 const ESPN_SPORTS = new Set(["nfl", "ncaaf", "nba", "nhl", "mlb"]);
 const POLL_MS: Record<string, number> = { f1: 3_000, frc: 60_000 };
-
-function Loading({ label, color, error }: { label: string; color: string; error?: string | null }) {
-  return (
-    <Screen label={`${label} loading`}>
-      <Header league={label} leagueColor={color} />
-      <text x={400} y={260} fontSize={16} fill={C.muted} textAnchor="middle">
-        {error ?? "Loading live data…"}
-      </text>
-    </Screen>
-  );
-}
+const FINALS_WINDOW_MS = 18 * 60 * 60 * 1000;
 
 function SportView({ event, label, color }: { event: NormalizedEvent; label: string; color: string }) {
   const url = ESPN_SPORTS.has(event.sport)
@@ -50,7 +42,13 @@ function SportView({ event, label, color }: { event: NormalizedEvent; label: str
         ? `/api/live/frc/${event.id}`
         : null;
   const { data, error } = useLiveDetail<any>(url, POLL_MS[event.sport] ?? 10_000);
-  if (!data) return <Loading label={label} color={color} error={error} />;
+  if (!data) {
+    return (
+      <LiveFrame league={label} leagueColor={color} live={false} centre={event.name}>
+        <Message>{error ?? "Loading live data…"}</Message>
+      </LiveFrame>
+    );
+  }
 
   switch (data.kind) {
     case "football":
@@ -66,9 +64,16 @@ function SportView({ event, label, color }: { event: NormalizedEvent; label: str
     case "frc":
       return <FrcView data={data as FrcState} eventName={event.name} leagueColor={color} />;
     default:
-      return <Loading label={label} color={color} error="No view for this data" />;
+      return (
+        <LiveFrame league={label} leagueColor={color} live={false} centre={event.name}>
+          <Message>No view for this data</Message>
+        </LiveFrame>
+      );
   }
 }
+
+const followedFirst = (a: NormalizedEvent, b: NormalizedEvent) =>
+  Number(Boolean(b.followed || b.manuallyFollowed)) - Number(Boolean(a.followed || a.manuallyFollowed));
 
 export default function LiveScreen() {
   const { settings, save } = useSettings();
@@ -86,16 +91,33 @@ export default function LiveScreen() {
     30_000
   );
 
+  // A game tapped in the strip overrides the automatic pick for as long as
+  // it stays live; once it ends, selection goes back to selectLiveEvent.
+  const [chosenKey, setChosenKey] = useState<string | null>(null);
   const [currentKey, setCurrentKey] = useState<string | null>(null);
+  const liveEvents = useMemo(() => events.filter((e) => e.status === "live" && LIVE_VIEW_SPORTS.has(e.sport)), [events]);
+  const chosen = chosenKey ? liveEvents.find((e) => eventKey(e) === chosenKey) : undefined;
+  useEffect(() => {
+    if (chosenKey && !chosen && events.length > 0) setChosenKey(null);
+  }, [chosenKey, chosen, events.length]);
+
   // A pinned event is looked up before league/region filters, so a
   // hand-picked game shows even from a league hidden on the dashboard.
   const selected = useMemo(
-    () => (pinned ? allEvents.find((e) => eventKey(e) === pinned) ?? null : selectLiveEvent(events, currentKey)),
-    [events, allEvents, currentKey, pinned]
+    () => (pinned ? allEvents.find((e) => eventKey(e) === pinned) : undefined) ?? chosen ?? selectLiveEvent(events, currentKey),
+    [events, allEvents, currentKey, pinned, chosen]
   );
   useEffect(() => {
     setCurrentKey(selected ? eventKey(selected) : null);
   }, [selected]);
+
+  const others = useMemo(
+    () =>
+      liveEvents
+        .filter((e) => !selected || eventKey(e) !== eventKey(selected))
+        .sort((a, b) => followedFirst(a, b) || a.startTime.localeCompare(b.startTime)),
+    [liveEvents, selected]
+  );
 
   const metaFor = useCallback(
     (e: NormalizedEvent) => sportMeta(e, settings.esportsCatalog, settings.sportColorOverrides),
@@ -130,13 +152,20 @@ export default function LiveScreen() {
   // ----- stream crop -----
   const esportsCrop = selected && DEFAULT_CROPS[selected.sport] ? selected : null;
   const stream = useMemo(
-    () => (selected && (DEFAULT_CROPS[selected.sport] || SERIES_SPORTS.has(selected.sport)) ? embeddableStream((selected.streams ?? []).map((s) => s.url).concat(selected.streamUrl ?? [])) : null),
+    () =>
+      selected && (DEFAULT_CROPS[selected.sport] || SERIES_SPORTS.has(selected.sport))
+        ? embeddableStream((selected.streams ?? []).map((s) => s.url).concat(selected.streamUrl ?? []))
+        : null,
     [selected]
   );
   const [calibrating, setCalibrating] = useState(params.has("calibrate"));
+  // Esports show the whole broadcast by default; titles with a known
+  // minimap position can switch to showing just the minimap instead.
+  const [minimapOnly, setMinimapOnly] = useState(params.has("calibrate"));
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "c" || e.key === "C") setCalibrating((v) => !v);
+      if (e.key === "m" || e.key === "M") setMinimapOnly((v) => !v);
       if (e.key === "f" || e.key === "F") toggleFullscreen();
     };
     window.addEventListener("keydown", onKey);
@@ -161,11 +190,16 @@ export default function LiveScreen() {
   // ----- render -----
   let body: ReactNode;
   if (!selected) {
-    const soon = events
+    const now = Date.now();
+    const upcoming = events
       .filter((e) => e.status === "upcoming" && LIVE_VIEW_SPORTS.has(e.sport))
-      .sort((a, b) => Number(Boolean(b.followed || b.manuallyFollowed)) - Number(Boolean(a.followed || a.manuallyFollowed)) || a.startTime.localeCompare(b.startTime))
-      .slice(0, 4);
-    body = <IdleView upcoming={soon} timezone={settings.timezone} metaFor={metaFor} />;
+      .sort((a, b) => followedFirst(a, b) || a.startTime.localeCompare(b.startTime))
+      .slice(0, 5);
+    const finished = events
+      .filter((e) => e.status === "finished" && LIVE_VIEW_SPORTS.has(e.sport) && e.seriesScore && now - new Date(e.startTime).getTime() < FINALS_WINDOW_MS)
+      .sort((a, b) => followedFirst(a, b) || b.startTime.localeCompare(a.startTime))
+      .slice(0, 6);
+    body = <IdleView upcoming={upcoming} finished={finished} timezone={settings.timezone} metaFor={metaFor} />;
   } else {
     const meta = metaFor(selected);
     body =
@@ -174,7 +208,7 @@ export default function LiveScreen() {
           event={selected}
           label={meta.label}
           leagueColor={meta.color}
-          mode={DEFAULT_CROPS[selected.sport] ? "crop" : "series"}
+          mode={DEFAULT_CROPS[selected.sport] && minimapOnly ? "crop" : "series"}
           stream={stream}
           crop={cropFor(settings.liveCropPresets, selected.sport, selected.league)}
         />
@@ -185,11 +219,26 @@ export default function LiveScreen() {
 
   return (
     <div className={`live-root${controlsVisible ? "" : " live-idle"}`} onPointerMove={poke} onPointerDown={poke}>
-      <div className="live-stage">{body}</div>
+      <div className="live-view">{body}</div>
+      {others.length > 0 && (
+        <nav className="lv-others" aria-label="Other live games">
+          {others.map((e) => (
+            <button key={eventKey(e)} onClick={() => !pinned && setChosenKey(eventKey(e))} title="Show this game">
+              <span className="bar" style={{ background: metaFor(e).color }} />
+              <span className="name">
+                {e.followed || e.manuallyFollowed ? "★ " : ""}
+                {e.name}
+              </span>
+              <span className="detail">{[e.seriesScore, e.liveDetail].filter(Boolean).join(" · ") || metaFor(e).label}</span>
+            </button>
+          ))}
+        </nav>
+      )}
       {controlsVisible && !calibrating && (
         <div className="live-controls">
           <button onClick={toggleFullscreen}>Fullscreen</button>
-          {esportsCrop && stream && <button onClick={() => setCalibrating(true)}>Adjust minimap crop</button>}
+          {esportsCrop && stream && <button onClick={() => setMinimapOnly((v) => !v)}>{minimapOnly ? "Full stream" : "Minimap only"}</button>}
+          {esportsCrop && stream && minimapOnly && <button onClick={() => setCalibrating(true)}>Adjust minimap crop</button>}
         </div>
       )}
       {calibrating && esportsCrop && stream && (
