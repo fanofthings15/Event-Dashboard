@@ -76,9 +76,11 @@ export default function StreamsView({
   onBack,
   onExpand,
 }: {
-  // "hidden": nothing shown (e.g. while the full-screen Live tab is open),
-  // but the player stays mounted in the picture-in-picture host so it picks
-  // up where it was when the box comes back.
+  // "hidden": nothing shown or playing (the full-screen Live tab is open and
+  // shows streams itself). A hidden player kept its sound, and a followed
+  // event auto-added while the Live tab was up started playing out loud with
+  // no way to reach its mute button, so it's unloaded instead; it reloads
+  // when you leave the Live tab.
   mode: "full" | "pip" | "hidden";
   onBack: () => void;
   onExpand: () => void;
@@ -187,6 +189,8 @@ export default function StreamsView({
   // "stream-tile" gives it the same sizing treatment the layouts already
   // give a direct tile.
   const mainDock = mainSlot ? <div key="main-dock" ref={setDockNode} className="stream-tile stream-main-dock" /> : null;
+
+  if (mode === "hidden") return null;
 
   return (
     <section className={`streams-view ${mode === "full" ? "streams-view-full" : ""}`}>
