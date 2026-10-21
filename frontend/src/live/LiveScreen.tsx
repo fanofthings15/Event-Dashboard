@@ -390,7 +390,7 @@ export default function LiveScreen({ onBack }: { onBack?: () => void } = {}) {
               key={k}
               event={e}
               slot={i}
-              big={layout === "redzone" && i === 0 && !portrait}
+              big={(layout === "redzone" && i === 0 && !portrait) || shown.length === 1}
               withSound={layout === "redzone" && i === 0}
               pinned={prefs.pins[k] !== undefined}
               dropping={drag !== null && drag.over === i && drag.key !== k}

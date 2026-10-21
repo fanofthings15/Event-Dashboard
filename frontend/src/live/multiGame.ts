@@ -233,6 +233,8 @@ export function savePrefs(prefs: MultiPrefs): void {
 // just moves between areas, so a stream isn't reloaded when its game moves.
 export function multiTemplate(layout: LiveLayout, n: number, portrait: boolean): { areas: string; columns: string; className: string } {
   const a = (rows: string[]) => rows.map((r) => `"${r}"`).join(" ");
+  // everything else hidden: the one game left fills the screen
+  if (n <= 1) return { areas: a(["s0"]), columns: "minmax(0,1fr)", className: "one" };
   if (portrait) {
     if (n <= 2) return { areas: a(["s0", "s1"]), columns: "minmax(0,1fr)", className: "p2" };
     const rows: string[] = layout === "redzone" ? ["s0 s0"] : [];
