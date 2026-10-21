@@ -3,6 +3,7 @@ import type { HockeyState } from "../liveTypes";
 import { teamColors } from "../teamColors";
 import { Below, LiveFrame, Line, Scoreboard, Side, StatGrid, Surface, useScoreFlash } from "../Layout";
 import Rink, { rinkPoint } from "../surfaces/Rink";
+import { HockeyShotPlay } from "../surfaces/PlayAnimations";
 
 // The data has the home team attacking the right-hand net. The display
 // mirrors it: each team's colour band marks the goal it defends (like a
@@ -109,6 +110,13 @@ export default function HockeyView({ data, leagueColor }: { data: HockeyState; l
                 </g>
               );
             })()}
+          <HockeyShotPlay
+            shot={
+              lastShot
+                ? { id: `${data.shots.length}`, at: place(lastShot.x, lastShot.y), goal: lastShot.goal, blocked: lastShot.blocked, missed: lastShot.missed }
+                : undefined
+            }
+          />
         </Rink>
       </Surface>
       <Below

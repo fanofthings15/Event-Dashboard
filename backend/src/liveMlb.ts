@@ -30,28 +30,41 @@ export interface Hit {
   trajectory?: string; // fly_ball, line_drive, ground_ball, popup
   result?: string; // e.g. "Single", "Home Run", "Flyout"
   out?: boolean; // the batted ball produced an out
-  // Base the ball was thrown to for the out, when a fielder's assist and a
-  // putout at a base are credited (e.g. SS to 1B on a groundout). Absent for
-  // catches and unassisted outs.
-  throwTo?: "1B" | "2B" | "3B" | "home";
+  // Bases the ball was thrown to, in order, for outs made on a throw (an
+  // assist then a putout at a base): ["1B"] on a routine groundout,
+  // ["2B", "1B"] on a 6-4-3 double play. Empty for catches and unassisted outs.
+  throws: BaseCode[];
+  // Every runner on the play, batter included: where they started, where
+  // they finished (or were put out), and whether they were out.
+  runners: { from: BaseCode; to: BaseCode; out: boolean }[];
 }
 
-const BASE_CODES: Record<string, Hit["throwTo"]> = { "1B": "1B", "2B": "2B", "3B": "3B", score: "home", HP: "home", "4B": "home" };
+export type BaseCode = "home" | "1B" | "2B" | "3B";
+const BASE_CODES: Record<string, BaseCode> = { "1B": "1B", "2B": "2B", "3B": "3B", score: "home", HP: "home", "4B": "home" };
 
-// Fielding credits name who threw and who made the out. The first runner
-// put out after an assist gives the throw's target base.
-function throwFor(play: any): { out: boolean; throwTo?: Hit["throwTo"] } {
+// Stats API lists each runner's movement (sometimes in several pieces, e.g.
+// advancing again on a throw) with fielding credits on the out. Runners are
+// listed lead runner first, which is also the order a double play's throws
+// happen in.
+function motionFor(play: any): Pick<Hit, "out" | "throws" | "runners"> {
+  const byRunner = new Map<number, { from: BaseCode; to: BaseCode; out: boolean }>();
+  const throws: BaseCode[] = [];
   let out = false;
   for (const r of play.runners ?? []) {
-    if (!r.movement?.isOut) continue;
-    out = true;
-    const credits: any[] = r.credits ?? [];
-    if (credits.some((c) => c.credit === "f_assist") && credits.some((c) => c.credit === "f_putout")) {
-      const to = BASE_CODES[r.movement.outBase];
-      if (to) return { out, throwTo: to };
+    const m = r.movement ?? {};
+    const id = r.details?.runner?.id ?? Math.random();
+    const prev = byRunner.get(id);
+    const from = prev?.from ?? (m.start ? BASE_CODES[m.start] : "home") ?? "home";
+    const outAt = m.isOut ? BASE_CODES[m.outBase] : undefined;
+    const to = outAt ?? (m.end ? BASE_CODES[m.end] : undefined) ?? prev?.to ?? from;
+    byRunner.set(id, { from, to, out: Boolean(prev?.out || m.isOut) });
+    if (m.isOut) {
+      out = true;
+      const credits: any[] = r.credits ?? [];
+      if (outAt && credits.some((c) => c.credit === "f_assist") && credits.some((c) => c.credit === "f_putout") && throws.at(-1) !== outAt) throws.push(outAt);
     }
   }
-  return { out };
+  return { out, throws, runners: [...byRunner.values()].filter((r) => r.from !== r.to || r.out) };
 }
 
 const getJson = async (url: string) => {
@@ -116,7 +129,7 @@ export async function mlbExtras(startIso: string, away: string, home: string): P
         distance: h.totalDistance,
         trajectory: h.trajectory,
         result: play.result?.event,
-        ...throwFor(play),
+        ...motionFor(play),
       });
     }
   }

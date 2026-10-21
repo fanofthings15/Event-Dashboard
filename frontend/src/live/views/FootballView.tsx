@@ -2,6 +2,7 @@ import type { FootballState } from "../liveTypes";
 import { teamColors } from "../teamColors";
 import { Below, C, LiveFrame, Line, Scoreboard, Side, SideLabel, Surface, useScoreFlash } from "../Layout";
 import Field, { FIELD_H } from "../surfaces/Field";
+import { FootballPlay } from "../surfaces/PlayAnimations";
 
 // ESPN's yardLine counts from the HOME goal line. The field is drawn with the
 // away end zone on the left (same order as the scoreboard), so the home goal
@@ -75,6 +76,7 @@ export default function FootballView({ data, league, leagueColor }: { data: Foot
               )}
             </g>
           )}
+          <FootballPlay motion={data.motion} />
         </Field>
       </Surface>
       <Below

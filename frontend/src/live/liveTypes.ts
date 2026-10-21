@@ -42,6 +42,7 @@ export interface FootballState extends LiveCommon {
   spotText?: string;
   driveSummary?: string;
   lastPlay?: string;
+  motion?: { id: string; type: string; from: number; to: number; towardHome: boolean; lane: "left" | "middle" | "right"; depth?: "short" | "deep" };
 }
 
 export interface BasketballState extends LiveCommon {
@@ -53,7 +54,7 @@ export interface BasketballState extends LiveCommon {
 
 export interface HockeyState extends LiveCommon {
   kind: "hockey";
-  shots: { x: number; y: number; goal: boolean; blocked: boolean; teamId: string; last?: boolean }[];
+  shots: { x: number; y: number; goal: boolean; blocked: boolean; missed: boolean; teamId: string; last?: boolean }[];
   faceoff?: { x: number; y: number; winnerId: string };
   powerPlayTeamId?: string;
   powerPlaySecondsLeft?: number;
@@ -75,7 +76,7 @@ export interface BaseballState extends LiveCommon {
   pitches: { x: number; y: number; mph?: number; type?: string; result: string }[];
   lastPlay?: string;
   fence?: { venue: string; leftLine: number; left: number; leftCenter: number; center: number; rightCenter: number; right?: number; rightLine: number };
-  hits?: { id: string; x: number; y: number; speed?: number; angle?: number; distance?: number; trajectory?: string; result?: string; out?: boolean; throwTo?: "1B" | "2B" | "3B" | "home" }[];
+  hits?: { id: string; x: number; y: number; speed?: number; angle?: number; distance?: number; trajectory?: string; result?: string; out?: boolean; throws?: ("home" | "1B" | "2B" | "3B")[]; runners?: { from: "home" | "1B" | "2B" | "3B"; to: "home" | "1B" | "2B" | "3B"; out: boolean }[] }[];
 }
 
 export interface F1Driver {

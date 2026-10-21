@@ -2,6 +2,7 @@ import type { BasketballState } from "../liveTypes";
 import { teamColors } from "../teamColors";
 import { Below, LiveFrame, Line, Scoreboard, Side, StatGrid, Surface, useScoreFlash } from "../Layout";
 import Court, { COURT_H, COURT_W, RIM_X } from "../surfaces/Court";
+import { BasketballShotPlay } from "../surfaces/PlayAnimations";
 
 export default function BasketballView({ data, leagueColor }: { data: BasketballState; leagueColor: string }) {
   const [away, home] = data.teams;
@@ -63,6 +64,9 @@ export default function BasketballView({ data, leagueColor }: { data: Basketball
                 />
               );
             })()}
+          <BasketballShotPlay
+            shot={lastShot ? { id: `${data.shots.length}`, at: spot(lastShot), rimLeft: lastShot.teamId === home?.id, made: lastShot.made } : undefined}
+          />
         </Court>
       </Surface>
       <Below

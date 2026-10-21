@@ -97,6 +97,19 @@ export interface FootballState extends LiveCommon {
   spotText?: string; // "SF 40"
   driveSummary?: string;
   lastPlay?: string;
+  // The latest play, for animating it on the field. ESPN gives no catch or
+  // ball location, so passes and runs are placed from the play's start and
+  // end spots plus the direction words in its text ("pass deep left", "up
+  // the middle").
+  motion?: {
+    id: string;
+    type: string; // ESPN play type, e.g. "Pass Reception", "Rush", "Sack", "Punt"
+    from: number; // yards from the home goal line
+    to: number;
+    towardHome: boolean; // offense heading for the home goal
+    lane: "left" | "middle" | "right";
+    depth?: "short" | "deep";
+  };
 }
 
 const ORD = ["", "1st", "2nd", "3rd", "4th"];
@@ -118,6 +131,25 @@ export function mapFootball(data: any): FootballState {
   out.lastPlay = last.text;
   out.driveSummary = drive?.description;
   if (typeof drive?.start?.yardLine === "number") out.driveStart = drive.start.yardLine;
+
+  // The play just run, for the field animation.
+  const s0 = last.start ?? {};
+  if (typeof s0.yardLine === "number" && last.type?.text) {
+    const towardHome = typeof s0.yardsToEndzone === "number" && s0.yardsToEndzone !== 50 ? Math.abs(s0.yardLine - s0.yardsToEndzone) < 0.5 : String(s0.team?.id ?? "") !== home?.id;
+    const gained = typeof last.statYardage === "number" ? last.statYardage : undefined;
+    const endSpot = gained !== undefined ? s0.yardLine + (towardHome ? -gained : gained) : last.end?.yardLine;
+    const text: string = last.text ?? "";
+    const lane = /\b(deep|short)?\s*left\b|left (end|tackle|guard)/i.test(text) ? "left" : /\b(deep|short)?\s*right\b|right (end|tackle|guard)/i.test(text) ? "right" : "middle";
+    out.motion = {
+      id: String(last.id ?? `${s0.yardLine}-${last.text}`),
+      type: last.type.text,
+      from: s0.yardLine,
+      to: Math.max(-10, Math.min(110, typeof endSpot === "number" ? endSpot : s0.yardLine)),
+      towardHome,
+      lane,
+      depth: /pass deep/i.test(text) ? "deep" : /pass short/i.test(text) ? "short" : undefined,
+    };
+  }
 
   if (typeof spot.yardLine !== "number") return out;
   out.ball = spot.yardLine;
@@ -183,7 +215,7 @@ export interface HockeyState extends LiveCommon {
   // home team always attacks the right-hand net. Blocked attempts are
   // included (a block is a new shot on TV), and the latest attempt of any
   // kind is flagged for highlighting.
-  shots: { x: number; y: number; goal: boolean; blocked: boolean; teamId: string; last?: boolean }[];
+  shots: { x: number; y: number; goal: boolean; blocked: boolean; missed: boolean; teamId: string; last?: boolean }[];
   // Nothing public tracks the puck live. The one moment its position is
   // known exactly is a faceoff, so this is set only while the most recent
   // play is a faceoff — the dot it was taken on, and who won it.
@@ -251,7 +283,7 @@ export function mapHockey(data: any): HockeyState {
 
   const shots: HockeyState["shots"] = located
     .filter((p) => HOCKEY_ATTEMPT_TYPES.has(p.type?.text))
-    .map((p) => ({ ...place(p), goal: p.type.text === "Goal", blocked: p.type.text === "Blocked", teamId: String(p.team?.id ?? "") }));
+    .map((p) => ({ ...place(p), goal: p.type.text === "Goal", blocked: p.type.text === "Blocked", missed: p.type.text === "Missed", teamId: String(p.team?.id ?? "") }));
   if (shots.length) shots[shots.length - 1].last = true;
 
   // Faceoff coordinates snap to the real dots (±69,±22 end zones, ±20,±22
