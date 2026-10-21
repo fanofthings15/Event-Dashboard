@@ -715,24 +715,30 @@ body.live-body {
   aspect-ratio: 16 / 9;
   max-height: 100%;
   background: #000;
-  border-radius: 0.6em;
   overflow: hidden;
 }
 
 /* Rounded corners drawn over the player rather than by clipping it: some
    browsers (Firefox especially) ignore border-radius/clip-path on an
    embedded player, and its square corners show through as white. This
-   layer paints the page background outside the rounded shape (the shadow
-   spread follows the radius) plus a faint outline, on top of whatever the
-   player draws. */
+   layer, on top of whatever the player draws, has a straight 3px border in
+   the page background (covering the video's edge) and fills each corner
+   outside a quarter circle with one radial gradient. Two separately
+   anti-aliased curves (border-radius plus a shadow) left a hairline seam
+   the video showed through; a single gradient per corner can't. */
 .lv-stream::after {
+  --r: 0.6em;
+  --bg: #0f1115;
   content: "";
   position: absolute;
   inset: 0;
   z-index: 1;
-  border-radius: 0.6em;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 0 0 0.6em #0f1115;
+  border: 3px solid var(--bg);
+  background:
+    radial-gradient(circle at 100% 100%, transparent calc(var(--r) - 0.6px), var(--bg) calc(var(--r) + 0.6px)) top left / var(--r) var(--r) no-repeat,
+    radial-gradient(circle at 0 100%, transparent calc(var(--r) - 0.6px), var(--bg) calc(var(--r) + 0.6px)) top right / var(--r) var(--r) no-repeat,
+    radial-gradient(circle at 100% 0, transparent calc(var(--r) - 0.6px), var(--bg) calc(var(--r) + 0.6px)) bottom left / var(--r) var(--r) no-repeat,
+    radial-gradient(circle at 0 0, transparent calc(var(--r) - 0.6px), var(--bg) calc(var(--r) + 0.6px)) bottom right / var(--r) var(--r) no-repeat;
   pointer-events: none;
 }
 
