@@ -75,7 +75,9 @@ function SportView({ event, label, color }: { event: NormalizedEvent; label: str
 const followedFirst = (a: NormalizedEvent, b: NormalizedEvent) =>
   Number(Boolean(b.followed || b.manuallyFollowed)) - Number(Boolean(a.followed || a.manuallyFollowed));
 
-export default function LiveScreen() {
+// `onBack` is set when the display is opened as a tab inside the dashboard;
+// the standalone /live page has no way back by design.
+export default function LiveScreen({ onBack }: { onBack?: () => void } = {}) {
   const { settings, save } = useSettings();
   const params = useMemo(() => new URLSearchParams(window.location.search), []);
   const pinned = params.get("event");
@@ -166,10 +168,11 @@ export default function LiveScreen() {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "c" || e.key === "C") setCalibrating((v) => !v);
       if (e.key === "m" || e.key === "M") setMinimapOnly((v) => !v);
+      if (e.key === "Escape" && onBack && !document.fullscreenElement) onBack();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  }, [onBack]);
 
   const saveCrop = (rect: CropRect, scope: "league" | "sport") => {
     if (!esportsCrop) return;
@@ -232,6 +235,11 @@ export default function LiveScreen() {
             </button>
           ))}
         </nav>
+      )}
+      {controlsVisible && !calibrating && onBack && (
+        <div className="live-controls live-controls-left">
+          <button onClick={onBack}>‹ Back</button>
+        </div>
       )}
       {controlsVisible && !calibrating && esportsCrop && stream && (
         <div className="live-controls">

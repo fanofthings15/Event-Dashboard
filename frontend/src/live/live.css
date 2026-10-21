@@ -827,3 +827,9 @@ body.live-body {
     animation: none;
   }
 }
+
+.live-controls.live-controls-left {
+  right: auto;
+  left: max(16px, env(safe-area-inset-left));
+  z-index: 30;
+}

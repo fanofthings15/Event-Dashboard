@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense } from "react";
 import { useEvents, type NotifyReason } from "./useEvents";
 import { useStandings } from "./useStandings";
 import { useSettings } from "./SettingsContext";
@@ -17,6 +17,8 @@ import EventDetailModal from "./EventDetailModal";
 import StandingsView from "./StandingsView";
 import FollowStar from "./FollowStar";
 import StreamsView from "./StreamsView";
+// The live display only loads when its tab is opened.
+const LiveScreen = lazy(() => import("./live/LiveScreen"));
 import { eventStreamSlotId, withEventStreamSlot, hasWatchableStream } from "./eventStreamSlots";
 
 function matchesSearch(e: NormalizedEvent, query: string): boolean {
@@ -166,7 +168,7 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [customEventsOpen, setCustomEventsOpen] = useState(false);
   const [dismissedWarnings, setDismissedWarnings] = useState<Set<string>>(new Set());
-  const [view, setView] = useState<"list" | "calendar" | "agenda" | "finished" | "standings" | "streams">("list");
+  const [view, setView] = useState<"list" | "calendar" | "agenda" | "finished" | "standings" | "streams" | "live">("list");
   const [selectedEvent, setSelectedEvent] = useState<NormalizedEvent | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const newKeys = useNewlySeen(events);
@@ -343,7 +345,7 @@ export default function App() {
   // doesn't interrupt what's playing.
   return (
     <>
-      <div className="app" style={view === "streams" ? { display: "none" } : undefined}>
+      <div className="app" style={view === "streams" || view === "live" ? { display: "none" } : undefined}>
       <header className="header">
         <h1>Event Dashboard</h1>
         <div className="header-actions">
@@ -368,6 +370,9 @@ export default function App() {
             </button>
             <button className="btn small" onClick={() => setView("streams")}>
               Streams
+            </button>
+            <button className="btn small" onClick={() => setView("live")}>
+              Live
             </button>
           </div>
           <button className="btn" onClick={refetch} disabled={refreshing}>
@@ -562,6 +567,12 @@ export default function App() {
         />
       )}
       </div>
+
+      {view === "live" && (
+        <Suspense fallback={null}>
+          <LiveScreen onBack={() => setView("list")} />
+        </Suspense>
+      )}
 
       <StreamsView
         mode={view === "streams" ? "full" : "pip"}
