@@ -1,7 +1,7 @@
 import type { NormalizedEvent } from "../../types";
 import type { CropRect } from "../../settingsTypes";
 import StreamCrop from "../StreamCrop";
-import { C, LiveFrame, Message, Side, SideLabel, Source } from "../Layout";
+import { C, LiveFrame, Message, Side, SideLabel, Source, useScoreFlash } from "../Layout";
 
 // "1-0 (Bo3)", "Best of 5" or "2-1" — esports.ts's seriesScore formats.
 function parseSeries(s?: string): { wins?: [number, number]; bestOf?: number } {
@@ -35,6 +35,11 @@ export default function EsportsView({
   const { wins, bestOf } = parseSeries(event.seriesScore);
   const needed = bestOf ? Math.ceil(bestOf / 2) : undefined;
   const cropped = mode === "crop";
+  const flash = useScoreFlash(
+    wins,
+    teams.slice(0, 2).map((t, i) => ({ abbr: t.name, color: TEAM_COLORS[i] })),
+    (_d, team) => ({ banner: `Map to ${team}`, ms: 8000 })
+  );
 
   return (
     <LiveFrame
@@ -55,6 +60,7 @@ export default function EsportsView({
         </Source>
       }
     >
+      {flash}
       <section className="lv-main" style={{ alignItems: "center", justifyContent: "center" }}>
         {stream ? (
           <div className="lv-stream" style={cropped ? { aspectRatio: "1 / 1", height: "100%", width: "auto", maxWidth: "100%" } : { width: "100%", height: "100%" }}>

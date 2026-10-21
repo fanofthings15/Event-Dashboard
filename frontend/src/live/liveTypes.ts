@@ -22,6 +22,8 @@ interface LiveCommon {
   teams: LiveTeam[]; // [away, home]
   state: "pre" | "in" | "post";
   detail: string;
+  period?: number;
+  clock?: string;
   homeWinPct?: number;
 }
 
@@ -54,6 +56,7 @@ export interface HockeyState extends LiveCommon {
   shots: { x: number; y: number; goal: boolean; blocked: boolean; teamId: string; last?: boolean }[];
   faceoff?: { x: number; y: number; winnerId: string };
   powerPlayTeamId?: string;
+  powerPlaySecondsLeft?: number;
   lastGoal?: string;
   recent: string[];
   stats: Record<string, Record<string, string>>;

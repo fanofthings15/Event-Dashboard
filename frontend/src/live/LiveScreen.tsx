@@ -27,7 +27,7 @@ import "./live.css";
 // overrides for testing or pinning a game:
 //   /live?event=nba-401909090   always show that event
 //   /live?calibrate             open the stream-crop editor straight away
-// Keys: F fullscreen, M minimap-only (esports), C adjust the minimap crop.
+// Keys: M minimap-only (esports), C adjust the minimap crop. Fullscreen is the browser's own F11.
 
 const ESPN_SPORTS = new Set(["nfl", "ncaaf", "nba", "nhl", "mlb"]);
 const POLL_MS: Record<string, number> = { f1: 3_000, nhl: 5_000, frc: 60_000 };
@@ -166,7 +166,6 @@ export default function LiveScreen() {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "c" || e.key === "C") setCalibrating((v) => !v);
       if (e.key === "m" || e.key === "M") setMinimapOnly((v) => !v);
-      if (e.key === "f" || e.key === "F") toggleFullscreen();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -234,9 +233,8 @@ export default function LiveScreen() {
           ))}
         </nav>
       )}
-      {controlsVisible && !calibrating && (
+      {controlsVisible && !calibrating && esportsCrop && stream && (
         <div className="live-controls">
-          <button onClick={toggleFullscreen}>Fullscreen</button>
           {esportsCrop && stream && <button onClick={() => setMinimapOnly((v) => !v)}>{minimapOnly ? "Full stream" : "Minimap only"}</button>}
           {esportsCrop && stream && minimapOnly && <button onClick={() => setCalibrating(true)}>Adjust minimap crop</button>}
         </div>
@@ -254,9 +252,4 @@ export default function LiveScreen() {
       )}
     </div>
   );
-}
-
-function toggleFullscreen() {
-  if (document.fullscreenElement) document.exitFullscreen().catch(() => undefined);
-  else document.documentElement.requestFullscreen?.().catch(() => undefined);
 }

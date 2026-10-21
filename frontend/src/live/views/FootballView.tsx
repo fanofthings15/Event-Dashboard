@@ -1,11 +1,19 @@
 import type { FootballState } from "../liveTypes";
 import { teamColors } from "../teamColors";
-import { C, LiveFrame, Line, Scoreboard, Side, SideLabel, Source, Surface } from "../Layout";
+import { Below, C, LiveFrame, Line, Scoreboard, Side, SideLabel, Surface, useScoreFlash } from "../Layout";
 import Field, { FIELD_H } from "../surfaces/Field";
 
-// ESPN's yardLine counts from the HOME goal line, so the home end zone is
-// drawn on the left and a spot maps straight onto x (10 + yardLine).
-const fx = (yardsFromHomeGoal: number) => 10 + yardsFromHomeGoal;
+// ESPN's yardLine counts from the HOME goal line. The field is drawn with the
+// away end zone on the left (same order as the scoreboard), so the home goal
+// line is at x = 110 and a spot sits at 110 - yardLine.
+const fx = (yardsFromHomeGoal: number) => 110 - yardsFromHomeGoal;
+
+function scoringLabel(delta: number): string {
+  if (delta >= 6) return "Touchdown";
+  if (delta === 3) return "Field goal";
+  if (delta === 2) return "Two points";
+  return "Extra point";
+}
 
 export default function FootballView({ data, league, leagueColor }: { data: FootballState; league: string; leagueColor: string }) {
   const [away, home] = data.teams;
@@ -13,27 +21,31 @@ export default function FootballView({ data, league, leagueColor }: { data: Foot
   const possession = data.possessionId === home?.id ? "home" : data.possessionId === away?.id ? "away" : undefined;
   const mid = FIELD_H / 2;
   const ball = data.ball;
-  const towardHome = data.attackingHomeGoal;
+  const towardHome = data.attackingHomeGoal; // home goal is on the right
   const winPct = data.homeWinPct;
+  const teams = [
+    { abbr: away?.abbr ?? "", color: awayColor },
+    { abbr: home?.abbr ?? "", color: homeColor },
+  ];
+  const flash = useScoreFlash(away && home ? [Number(away.score), Number(home.score)] : undefined, teams, (d, team) => ({
+    banner: `${scoringLabel(d)} · ${team}`,
+    ms: d >= 6 ? 10000 : 6000,
+  }));
 
   return (
     <LiveFrame
+      layout="stack"
       league={league}
       leagueColor={leagueColor}
       live={data.state === "in"}
       centre={<Scoreboard away={{ ...away, color: awayColor }} home={{ ...home, color: homeColor }} possession={data.state === "in" ? possession : undefined} />}
       status={data.detail}
-      footer={
-        <>
-          <Line primary>{data.lastPlay ?? ""}</Line>
-          <Source>ESPN · field position from the latest play</Source>
-        </>
-      }
     >
+      {flash}
       <Surface>
-        <Field leftColor={homeColor} rightColor={awayColor} leftLabel={home?.abbr} rightLabel={away?.abbr}>
+        <Field leftColor={awayColor} rightColor={homeColor} leftLabel={away?.abbr} rightLabel={home?.abbr}>
           {data.redZone && ball !== undefined && (
-            <rect x={towardHome ? fx(0) : fx(80)} width={20} height={FIELD_H} fill={C.live} fillOpacity={0.16} />
+            <rect x={towardHome ? fx(20) : fx(100)} width={20} height={FIELD_H} fill={C.live} fillOpacity={0.16} />
           )}
           {ball !== undefined && (
             <g>
@@ -51,7 +63,7 @@ export default function FootballView({ data, league, leagueColor }: { data: Foot
               </g>
               {towardHome !== undefined && (
                 <path
-                  d={towardHome ? `M${fx(ball) - 2} ${mid - 1} l-1.5 1 l1.5 1 z` : `M${fx(ball) + 2} ${mid - 1} l1.5 1 l-1.5 1 z`}
+                  d={towardHome ? `M${fx(ball) + 2} ${mid - 1} l1.5 1 l-1.5 1 z` : `M${fx(ball) - 2} ${mid - 1} l-1.5 1 l1.5 1 z`}
                   fill="#fff"
                 />
               )}
@@ -59,51 +71,57 @@ export default function FootballView({ data, league, leagueColor }: { data: Foot
           )}
         </Field>
       </Surface>
-      <Side>
-        <div className="lv-big">{data.downText ?? (data.state === "pre" ? "Pregame" : data.state === "post" ? "Final" : "—")}</div>
-        {data.spotText && <div>at {data.spotText}</div>}
-        {data.redZone && (
-          <span className="lv-pill" style={{ background: "rgb(239 68 68 / 0.2)", color: C.live, alignSelf: "flex-start" }}>
-            Red zone
-          </span>
-        )}
-        {data.driveSummary && (
+      <Below
+        left={
           <>
-            <SideLabel>Drive</SideLabel>
-            <div>{data.driveSummary}</div>
+            <div style={{ display: "flex", alignItems: "baseline", gap: "0.6em", flexWrap: "wrap" }}>
+              <span className="lv-big">{data.downText ?? (data.state === "pre" ? "Pregame" : data.state === "post" ? "Final" : "—")}</span>
+              {data.spotText && <span style={{ color: C.muted, fontSize: "1.2em" }}>at {data.spotText}</span>}
+              {data.redZone && (
+                <span className="lv-pill" style={{ background: "rgb(239 68 68 / 0.2)", color: C.live }}>
+                  Red zone
+                </span>
+              )}
+            </div>
+            <Line primary>{data.lastPlay ?? ""}</Line>
           </>
-        )}
-        {(away?.timeoutsRemaining !== undefined || home?.timeoutsRemaining !== undefined) && (
-          <>
-            <SideLabel>Timeouts</SideLabel>
-            <div className="lv-row">
-              <span style={{ color: awayColor }}>{away?.abbr}</span>
-              <span>{away?.timeoutsRemaining ?? "–"}</span>
-            </div>
-            <div className="lv-row">
-              <span style={{ color: homeColor }}>{home?.abbr}</span>
-              <span>{home?.timeoutsRemaining ?? "–"}</span>
-            </div>
-          </>
-        )}
-        {winPct !== undefined && (
-          <>
-            <SideLabel>Win probability</SideLabel>
-            <div className="lv-bar">
-              <span style={{ width: `${(1 - winPct) * 100}%`, background: awayColor }} />
-              <span style={{ flex: 1, background: homeColor }} />
-            </div>
-            <div className="lv-row">
-              <span>
-                {away?.abbr} {Math.round((1 - winPct) * 100)}%
-              </span>
-              <span>
-                {home?.abbr} {Math.round(winPct * 100)}%
-              </span>
-            </div>
-          </>
-        )}
-      </Side>
+        }
+        right={
+          (data.driveSummary || winPct !== undefined || away?.timeoutsRemaining !== undefined) && (
+            <Side>
+              {data.driveSummary && (
+                <div className="lv-row">
+                  <SideLabel>Drive</SideLabel>
+                  <span>{data.driveSummary}</span>
+                </div>
+              )}
+              {(away?.timeoutsRemaining !== undefined || home?.timeoutsRemaining !== undefined) && (
+                <div className="lv-row">
+                  <SideLabel>Timeouts</SideLabel>
+                  <span>
+                    <span style={{ color: awayColor }}>{away?.abbr}</span> {away?.timeoutsRemaining ?? "–"} · <span style={{ color: homeColor }}>{home?.abbr}</span>{" "}
+                    {home?.timeoutsRemaining ?? "–"}
+                  </span>
+                </div>
+              )}
+              {winPct !== undefined && (
+                <>
+                  <div className="lv-row">
+                    <SideLabel>Win probability</SideLabel>
+                    <span>
+                      {away?.abbr} {Math.round((1 - winPct) * 100)}% · {home?.abbr} {Math.round(winPct * 100)}%
+                    </span>
+                  </div>
+                  <div className="lv-bar">
+                    <span style={{ width: `${(1 - winPct) * 100}%`, background: awayColor }} />
+                    <span style={{ flex: 1, background: homeColor }} />
+                  </div>
+                </>
+              )}
+            </Side>
+          )
+        }
+      />
     </LiveFrame>
   );
 }

@@ -31,6 +31,8 @@ export interface LiveCommon {
   teams: LiveTeam[]; // always [away, home]
   state: "pre" | "in" | "post";
   detail: string; // e.g. "1:23 - 2nd", "Top 7th", "Final"
+  period?: number;
+  clock?: string; // time left in the period, e.g. "12:59"
   homeWinPct?: number;
 }
 
@@ -57,6 +59,8 @@ function commonFrom(data: any): LiveCommon {
     teams,
     state: comp.status?.type?.state ?? "pre",
     detail: comp.status?.type?.shortDetail ?? "",
+    period: typeof comp.status?.period === "number" ? comp.status.period : undefined,
+    clock: comp.status?.displayClock ?? undefined,
     homeWinPct: typeof wp === "number" ? wp : undefined,
   };
 }
@@ -185,12 +189,32 @@ export interface HockeyState extends LiveCommon {
   // play is a faceoff — the dot it was taken on, and who won it.
   faceoff?: { x: number; y: number; winnerId: string };
   powerPlayTeamId?: string;
+  // Seconds of power play left when this response was built. ESPN gives no
+  // penalty length or PP clock, so it's worked out from the penalty that
+  // started it: a minor is 2:00, a major/fighting 5:00, counted from that
+  // play's game time to the current clock.
+  powerPlaySecondsLeft?: number;
   lastGoal?: string;
   recent: string[];
   stats: Record<string, Record<string, string>>;
 }
 
 const HOCKEY_SHOT_TYPES = new Set(["Shot", "Goal", "Missed"]);
+const HOCKEY_NON_PENALTY = new Set([
+  "Shot", "Goal", "Missed", "Blocked", "Face Off", "Hit", "Giveaway", "Takeaway", "Stoppage",
+  "Period Start", "Period End", "Game End", "Shootout", "Penalty Shot", "Challenge", "Official Challenge",
+]);
+const mmss = (s: string) => {
+  const [m, sec] = s.split(":").map(Number);
+  return (m || 0) * 60 + (sec || 0);
+};
+// NHL regular-season periods: three of 20 minutes, then 5-minute overtime.
+const periodLength = (p: number) => (p <= 3 ? 1200 : 300);
+const gameSeconds = (period: number, elapsedInPeriod: number) => {
+  let t = 0;
+  for (let p = 1; p < period; p++) t += periodLength(p);
+  return t + elapsedInPeriod;
+};
 const HOCKEY_ATTEMPT_TYPES = new Set([...HOCKEY_SHOT_TYPES, "Blocked"]);
 
 export function mapHockey(data: any): HockeyState {
@@ -253,9 +277,24 @@ export function mapHockey(data: any): HockeyState {
     else if (lastWithStrength.strength.abbreviation === "short-handed") powerPlayTeamId = other;
   }
 
+  // Penalty plays are every play type that isn't ordinary hockey action.
+  let powerPlaySecondsLeft: number | undefined;
+  if (common.state === "in" && powerPlayTeamId && common.period && common.clock) {
+    const shorthanded = common.teams.find((t) => t.id !== powerPlayTeamId)?.id;
+    const penalty = [...plays].reverse().find((p) => String(p.team?.id ?? "") === shorthanded && !HOCKEY_NON_PENALTY.has(p.type?.text));
+    if (penalty?.period?.number && penalty.clock?.displayValue) {
+      const length = /major|fighting/i.test(`${penalty.type?.text} ${penalty.text}`) ? 300 : /double minor/i.test(penalty.text ?? "") ? 240 : 120;
+      const start = gameSeconds(penalty.period.number, mmss(penalty.clock.displayValue));
+      const now = gameSeconds(common.period, periodLength(common.period) - mmss(common.clock));
+      const left = start + length - now;
+      if (left > 0 && left <= length) powerPlaySecondsLeft = left;
+    }
+  }
+
   return {
     kind: "hockey",
     ...common,
+    powerPlaySecondsLeft,
     shots,
     faceoff: common.state === "in" ? faceoff : undefined,
     powerPlayTeamId: common.state === "in" ? powerPlayTeamId : undefined,

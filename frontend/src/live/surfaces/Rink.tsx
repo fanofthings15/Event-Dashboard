@@ -72,10 +72,38 @@ function End({ side }: { side: 0 | 1 }) {
   );
 }
 
-export default function Rink({ children }: { children?: ReactNode }) {
-  const clip = useId();
+// A team-coloured band beyond each end of the rink marks whose end it is
+// (the side that team shoots at, same left/right order as the scoreboard).
+function EndBand({ side, team }: { side: 0 | 1; team: { abbr: string; color: string } }) {
+  const x = side ? RINK_W + 2.5 : -12.5;
+  const cx = x + 5;
   return (
-    <svg viewBox="-1.5 -1.5 203 88" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Hockey rink">
+    <g>
+      <rect x={x} y={8} width={10} height={RINK_H - 16} rx={3} fill={team.color} />
+      <text
+        x={cx}
+        y={RINK_H / 2}
+        fontSize={5}
+        fontWeight={900}
+        fill="#fff"
+        textAnchor="middle"
+        dominantBaseline="central"
+        letterSpacing={1}
+        transform={`rotate(${side ? 90 : -90} ${cx} ${RINK_H / 2})`}
+      >
+        {team.abbr}
+      </text>
+    </g>
+  );
+}
+
+export default function Rink({ children, left, right }: { children?: ReactNode; left?: { abbr: string; color: string }; right?: { abbr: string; color: string } }) {
+  const clip = useId();
+  const pad = left || right ? 13.5 : 1.5;
+  return (
+    <svg viewBox={`${-pad} -1.5 ${RINK_W + pad * 2} 88`} preserveAspectRatio="xMidYMid meet" role="img" aria-label="Hockey rink">
+      {left && <EndBand side={0} team={left} />}
+      {right && <EndBand side={1} team={right} />}
       <defs>
         <clipPath id={clip}>
           <rect width={RINK_W} height={RINK_H} rx={R} />

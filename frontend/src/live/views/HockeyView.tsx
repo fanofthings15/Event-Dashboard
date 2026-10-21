@@ -1,46 +1,57 @@
+import { useEffect, useState } from "react";
 import type { HockeyState } from "../liveTypes";
 import { teamColors } from "../teamColors";
-import { LiveFrame, Line, Scoreboard, Side, SideLabel, Source, StatTable, Surface } from "../Layout";
+import { Below, LiveFrame, Line, Scoreboard, Side, StatGrid, Surface, useScoreFlash } from "../Layout";
 import Rink, { rinkPoint } from "../surfaces/Rink";
+
+const fmt = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
+
+// Counts the power-play clock down locally between polls, starting from the
+// server's figure each time a new response arrives.
+function usePowerPlayClock(seconds: number | undefined): number | undefined {
+  const [left, setLeft] = useState(seconds);
+  useEffect(() => {
+    setLeft(seconds);
+    if (seconds === undefined) return;
+    const start = Date.now();
+    const id = setInterval(() => setLeft(Math.max(0, seconds - (Date.now() - start) / 1000)), 1000);
+    return () => clearInterval(id);
+  }, [seconds]);
+  return left;
+}
 
 export default function HockeyView({ data, leagueColor }: { data: HockeyState; leagueColor: string }) {
   const [away, home] = data.teams;
   const [awayColor, homeColor] = teamColors(away, home);
   const colorOf = (teamId: string) => (teamId === home?.id ? homeColor : awayColor);
-  const stat = (teamId: string | undefined, name: string) => data.stats[teamId ?? ""]?.[name];
+  const stat = (name: string) => [data.stats[away?.id ?? ""]?.[name], data.stats[home?.id ?? ""]?.[name]];
   const pp = data.powerPlayTeamId ? (data.powerPlayTeamId === home?.id ? home : away) : undefined;
+  const ppLeft = usePowerPlayClock(data.powerPlaySecondsLeft);
   const lastShot = data.shots.find((s) => s.last);
   const faceoff = data.faceoff;
   const ppLine = (id?: string) => {
-    const g = stat(id, "powerPlayGoals");
-    const o = stat(id, "powerPlayOpportunities");
+    const g = data.stats[id ?? ""]?.powerPlayGoals;
+    const o = data.stats[id ?? ""]?.powerPlayOpportunities;
     return g !== undefined && o !== undefined ? `${g}/${o}` : undefined;
   };
+  const teams = [
+    { abbr: away?.abbr ?? "", color: awayColor },
+    { abbr: home?.abbr ?? "", color: homeColor },
+  ];
+  const flash = useScoreFlash(away && home ? [Number(away.score), Number(home.score)] : undefined, teams, (_d, team) => ({ banner: `Goal · ${team}`, ms: 9000 }));
 
   return (
     <LiveFrame
+      layout="stack"
       league="NHL"
       leagueColor={leagueColor}
       live={data.state === "in"}
       centre={<Scoreboard away={{ ...away, color: awayColor }} home={{ ...home, color: homeColor }} />}
       status={data.detail}
-      footer={
-        <>
-          <Line primary>{data.lastGoal ? `Last goal: ${data.lastGoal}` : data.recent[0] ?? ""}</Line>
-          {data.lastGoal && data.recent[0] && data.recent[0] !== data.lastGoal && <Line>{data.recent[0]}</Line>}
-          <Source>ESPN play-by-play · shots drawn at the net each team attacks</Source>
-        </>
-      }
     >
-      <Surface>
-        <Rink>
-          {/* direction of attack, on the ice above the centre circle */}
-          <text x={97} y={24} fontSize={3.6} fontWeight={800} fill={awayColor} textAnchor="end" dominantBaseline="central">
-            ← {away?.abbr} shooting
-          </text>
-          <text x={103} y={24} fontSize={3.6} fontWeight={800} fill={homeColor} textAnchor="start" dominantBaseline="central">
-            {home?.abbr} shooting →
-          </text>
+      {flash}
+      <Surface caption={<span>● shot · ○ blocked · Ⓖ goal · ◯ latest shot · ⬤ puck at a faceoff</span>}>
+        <Rink left={teams[0]} right={teams[1]}>
           {data.shots
             .filter((s) => !s.goal)
             .map((s, i) => {
@@ -94,28 +105,35 @@ export default function HockeyView({ data, leagueColor }: { data: HockeyState; l
             })()}
         </Rink>
       </Surface>
-      <Side>
-        {pp && (
-          <span className="lv-pill" style={{ background: colorOf(pp.id), color: "#fff" }}>
-            Power play · {pp.abbr}
-          </span>
-        )}
-        <StatTable
-          teams={[
-            { abbr: away?.abbr ?? "", color: awayColor },
-            { abbr: home?.abbr ?? "", color: homeColor },
-          ]}
-          rows={[
-            ["Shots on goal", stat(away?.id, "shotsTotal"), stat(home?.id, "shotsTotal")],
-            ["Hits", stat(away?.id, "hits"), stat(home?.id, "hits")],
-            ["Blocked", stat(away?.id, "blockedShots"), stat(home?.id, "blockedShots")],
-            ["Takeaways", stat(away?.id, "takeaways"), stat(home?.id, "takeaways")],
-            ["Faceoffs won", stat(away?.id, "faceoffsWon"), stat(home?.id, "faceoffsWon")],
-            ["Power plays", ppLine(away?.id), ppLine(home?.id)],
-          ]}
-        />
-        <SideLabel>● shot ○ blocked Ⓖ goal ◯ latest ⬤ faceoff</SideLabel>
-      </Side>
+      <Below
+        left={
+          <>
+            {pp && (
+              <span className="lv-pill" style={{ background: colorOf(pp.id), color: "#fff", alignSelf: "flex-start" }}>
+                Power play · {pp.abbr}
+                {ppLeft !== undefined ? ` · ${fmt(ppLeft)}` : ""}
+              </span>
+            )}
+            <Line primary>{data.lastGoal ? `Last goal: ${data.lastGoal}` : data.recent[0] ?? ""}</Line>
+            {data.lastGoal && data.recent[0] && data.recent[0] !== data.lastGoal && <Line>{data.recent[0]}</Line>}
+          </>
+        }
+        right={
+          <Side>
+            <StatGrid
+              teams={teams}
+              cols={[
+                ["SOG", stat("shotsTotal")],
+                ["Hits", stat("hits")],
+                ["Blk", stat("blockedShots")],
+                ["Tk", stat("takeaways")],
+                ["FO", stat("faceoffsWon")],
+                ["PP", [ppLine(away?.id), ppLine(home?.id)]],
+              ]}
+            />
+          </Side>
+        }
+      />
     </LiveFrame>
   );
 }

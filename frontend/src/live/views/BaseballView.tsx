@@ -1,6 +1,6 @@
 import type { BaseballState } from "../liveTypes";
 import { teamColors } from "../teamColors";
-import { C, LiveFrame, Line, Scoreboard, Side, SideLabel, Source, Surface } from "../Layout";
+import { C, LiveFrame, Line, Scoreboard, Side, SideLabel, Surface, useScoreFlash } from "../Layout";
 import Ballpark, { BASES, Base } from "../surfaces/Ballpark";
 
 // ESPN pitch coordinates are gamecast pixels, not real units. The strike
@@ -31,6 +31,14 @@ export default function BaseballView({ data, leagueColor }: { data: BaseballStat
   const [away, home] = data.teams;
   const [awayColor, homeColor] = teamColors(away, home);
   const innings = Math.max(9, away?.linescores.length ?? 0, home?.linescores.length ?? 0);
+  const flash = useScoreFlash(
+    away && home ? [Number(away.score), Number(home.score)] : undefined,
+    [
+      { abbr: away?.abbr ?? "", color: awayColor },
+      { abbr: home?.abbr ?? "", color: homeColor },
+    ],
+    (d, team) => ({ banner: `${d >= 4 ? "Grand slam" : d === 1 ? "Run scores" : `${d} runs score`} · ${team}`, ms: 7000 })
+  );
 
   return (
     <LiveFrame
@@ -72,10 +80,10 @@ export default function BaseballView({ data, leagueColor }: { data: BaseballStat
             </tbody>
           </table>
           <Line primary>{data.lastPlay ?? ""}</Line>
-          <Source>ESPN gamecast · pitch locations approximate</Source>
         </>
       }
     >
+      {flash}
       <Surface>
         <Ballpark>
           <Base at={BASES.first} on={data.onFirst} />
