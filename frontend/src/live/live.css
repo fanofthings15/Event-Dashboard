@@ -837,3 +837,19 @@ body.live-body {
   text-decoration: underline;
   cursor: pointer;
 }
+
+.lv-fade-in {
+  animation: lv-fade-in 500ms ease-out both;
+}
+
+@keyframes lv-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lv-fade-in {
+    animation: none;
+  }
+}

@@ -21,8 +21,15 @@ const MPH = 1.4667; // ft/s per mph
 const B = 90 / Math.SQRT2;
 const BASE_AT: Record<BaseCode, [number, number]> = { home: [0, 0], "1B": [B, B], "2B": [0, 2 * B], "3B": [-B, B] };
 const ORDER: BaseCode[] = ["home", "1B", "2B", "3B", "home"];
-const THROW_MS = 700;
-const LEG_MS = 1300; // one base path (90 ft); quicker than real so the play reads at a glance
+// Real-world pace: a batter reaches first in about 4.3 s, a runner covers a
+// 90 ft base path in about 3.7 s, a fielder takes ~0.45 s to transfer and
+// throws at roughly 85 mph (125 ft/s). With those, a routine groundout beats
+// the batter by a step and a double play's relay to first is bang-bang.
+const HOME_TO_FIRST_MS = 4300;
+const LEG_MS = 3700;
+const TRANSFER_MS = 450;
+const THROW_FT_PER_MS = 0.125;
+const legMs = (i: number, from: BaseCode) => (i === 0 && from === "home" ? HOME_TO_FIRST_MS : LEG_MS);
 
 // Rough flight profile from exit velocity and launch angle. Real balls lose
 // a lot to drag, so the vacuum hang time and apex are scaled down to look
@@ -52,13 +59,26 @@ function legs(from: BaseCode, to: BaseCode): [number, number][] {
   return out;
 }
 
-function along(path: [number, number][], ms: number): [number, number] {
+function runTime(from: BaseCode, path: [number, number][]): number {
+  let t = 0;
+  for (let i = 0; i < path.length - 1; i++) t += legMs(i, from);
+  return t;
+}
+
+function along(from: BaseCode, path: [number, number][], ms: number): [number, number] {
   if (path.length < 2) return path[0];
-  const leg = Math.min(path.length - 2, Math.floor(ms / LEG_MS));
-  const f = Math.min(1, (ms - leg * LEG_MS) / LEG_MS);
-  const [ax, ay] = path[leg];
-  const [bx, by] = path[leg + 1];
-  return [ax + (bx - ax) * f, ay + (by - ay) * f];
+  let t = ms;
+  for (let i = 0; i < path.length - 1; i++) {
+    const d = legMs(i, from);
+    if (t <= d || i === path.length - 2) {
+      const f = Math.min(1, t / d);
+      const [ax, ay] = path[i];
+      const [bx, by] = path[i + 1];
+      return [ax + (bx - ax) * f, ay + (by - ay) * f];
+    }
+    t -= d;
+  }
+  return path[path.length - 1];
 }
 
 function Ball({ x, y, height }: { x: number; y: number; height: number }) {
@@ -92,8 +112,21 @@ export default function BallFlight({ hit }: { hit: FlightHit | undefined }) {
   const throws = hit?.throws ?? [];
   const runners = hit?.runners ?? [];
   const flightMs = hit ? profile(hit).ms : 0;
-  const runMs = Math.max(0, ...runners.map((r) => (legs(r.from, r.to).length - 1) * LEG_MS));
-  const totalMs = Math.max(flightMs + (throws.length ? 150 + throws.length * THROW_MS : 0), runMs) + 300;
+  // Throw schedule: each throw leaves after a transfer and takes as long as
+  // its distance at throwing speed, starting from where the ball was fielded.
+  const throwPoints: [number, number][] = hit ? [[hit.x, hit.y], ...throws.map((b) => BASE_AT[b])] : [];
+  const throwPlan: { start: number; end: number }[] = [];
+  let clock = flightMs;
+  for (let i = 0; i < throws.length; i++) {
+    const [ax, ay] = throwPoints[i];
+    const [bx, by] = throwPoints[i + 1];
+    const start = clock + TRANSFER_MS;
+    const end = start + Math.max(300, Math.hypot(bx - ax, by - ay) / THROW_FT_PER_MS);
+    throwPlan.push({ start, end });
+    clock = end;
+  }
+  const runMs = Math.max(0, ...runners.map((r) => runTime(r.from, legs(r.from, r.to))));
+  const totalMs = Math.max(clock, runMs) + 400;
 
   useEffect(() => {
     if (!hit || hit.id === first.current) return;
@@ -119,25 +152,29 @@ export default function BallFlight({ hit }: { hit: FlightHit | undefined }) {
   const flying = !done && t < 1;
   const label = [hit.distance ? `${Math.round(hit.distance)} ft` : null, hit.speed ? `${Math.round(hit.speed)} mph` : null].filter(Boolean).join(" · ");
 
-  // Throw chain: fielding spot → first base thrown to → next…
-  const throwPoints: [number, number][] = [[hit.x, hit.y], ...throws.map((b) => BASE_AT[b])];
-  const throwElapsed = elapsed - flightMs - 150;
-  const throwLeg = Math.floor(throwElapsed / THROW_MS);
-  const throwsDone = done || throwLeg >= throws.length;
+  // which throw is in the air (or about to leave), if any
+  const throwLeg = throwPlan.findIndex((p) => elapsed < p.end);
+  const inAir = throwLeg >= 0 && elapsed >= throwPlan[throwLeg].start ? throwLeg : -1;
 
   let ball: { x: number; y: number; height: number } | null = null;
   if (flying) {
     // grounders skip: a few shrinking hops instead of one arc
     const height = grounder ? Math.abs(Math.sin(t * Math.PI * 3)) * 6 * (1 - t) : 4 * apex * t * (1 - t);
     ball = { x: hit.x * t, y: hit.y * t, height };
-  } else if (!done && throws.length && throwElapsed >= 0 && !throwsDone) {
-    const f = (throwElapsed - throwLeg * THROW_MS) / THROW_MS;
-    const [ax, ay] = throwPoints[throwLeg];
-    const [bx, by] = throwPoints[throwLeg + 1];
+  } else if (!done && inAir >= 0) {
+    const p = throwPlan[inAir];
+    const f = (elapsed - p.start) / (p.end - p.start);
+    const [ax, ay] = throwPoints[inAir];
+    const [bx, by] = throwPoints[inAir + 1];
     ball = { x: ax + (bx - ax) * f, y: ay + (by - ay) * f, height: 4 * 12 * f * (1 - f) };
+  } else if (!done && throwLeg >= 0) {
+    // in a fielder's glove during the transfer
+    const [x, y] = throwPoints[throwLeg];
+    ball = { x, y, height: 3 };
   }
-  // throw lines drawn so far
-  const drawnThrows = done ? throws.length : Math.max(0, Math.min(throws.length, throwElapsed >= 0 ? throwLeg + 1 : 0));
+  // throw lines drawn so far (the one in the air grows as it goes)
+  const drawnThrows = done ? throws.length : throwPlan.filter((p) => elapsed >= p.start).length;
+  const throwFrac = (i: number) => (done || elapsed >= throwPlan[i].end ? 1 : (elapsed - throwPlan[i].start) / (throwPlan[i].end - throwPlan[i].start));
 
   return (
     <g pointerEvents="none">
@@ -146,20 +183,19 @@ export default function BallFlight({ hit }: { hit: FlightHit | undefined }) {
       {Array.from({ length: drawnThrows }, (_, i) => {
         const [ax, ay] = throwPoints[i];
         const [bx, by] = throwPoints[i + 1];
-        const partial = !done && i === throwLeg ? (throwElapsed - i * THROW_MS) / THROW_MS : 1;
+        const partial = throwFrac(i);
         return <line key={i} x1={ax} y1={-ay} x2={ax + (bx - ax) * partial} y2={-(ay + (by - ay) * partial)} stroke="#facc15" strokeWidth={3} strokeDasharray="8 6" />;
       })}
       {/* runners on the move (once the play is over the base lights show where they ended up) */}
       {!done &&
         runners.map((r, i) => {
           const path = legs(r.from, r.to);
-          const [x, y] = along(path, elapsed);
-          const arrived = elapsed >= (path.length - 1) * LEG_MS;
-          return (
-            <g key={i}>
-              <circle cx={x} cy={-y} r={9} fill={r.out && arrived && throwsDone ? "#f87171" : "#facc15"} stroke="#1f2937" strokeWidth={2.5} />
-            </g>
-          );
+          const [x, y] = along(r.from, path, elapsed);
+          // out once the throw to their base lands (or on arrival for force
+          // outs made without a throw)
+          const k = throws.indexOf(r.to);
+          const putOut = r.out && (k >= 0 ? elapsed >= throwPlan[k].end : elapsed >= runTime(r.from, path));
+          return <circle key={i} cx={x} cy={-y} r={9} fill={putOut ? "#f87171" : "#facc15"} stroke="#1f2937" strokeWidth={2.5} />;
         })}
       {ball && <Ball {...ball} />}
       {done && throws.map((b) => <Tag key={b} x={BASE_AT[b][0]} y={BASE_AT[b][1]} text="OUT" color="#f87171" />)}

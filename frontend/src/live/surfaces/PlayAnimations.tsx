@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { FIELD_H } from "./Field";
 import { RIM_X, COURT_W } from "./Court";
 
@@ -106,11 +106,25 @@ function footballSegments(m: FootballMotion): { segs: Seg[]; catchAt?: Pt; dropp
   return { segs: [] };
 }
 
-export function FootballPlay({ motion }: { motion: FootballMotion | undefined }) {
+const FADE_MS = 500;
+
+// `rest` is the ball sitting at the line of scrimmage for the next snap. It's
+// hidden while a play runs; when the play ends the moving ball fades out
+// where the play finished and the resting ball fades back in on the line.
+export function FootballPlay({ motion, rest }: { motion: FootballMotion | undefined; rest?: ReactNode }) {
   const plan = motion ? footballSegments(motion) : { segs: [] as Seg[] };
-  const elapsed = usePlayClock(motion?.id, total(plan.segs));
-  if (!motion || plan.segs.length === 0) return null;
-  const pos = elapsed === Infinity ? null : position(plan.segs, elapsed);
+  const playMs = total(plan.segs) - 250;
+  const elapsed = usePlayClock(motion?.id, playMs + FADE_MS);
+  const idle = elapsed === Infinity;
+  const restingBall = idle && rest ? (
+    <g key={motion?.id ?? "rest"} className="lv-fade-in">
+      {rest}
+    </g>
+  ) : null;
+  if (!motion || plan.segs.length === 0) return restingBall;
+  const fading = !idle && elapsed >= playMs;
+  const pos = idle ? null : fading ? position(plan.segs, playMs - 1) : position(plan.segs, elapsed);
+  const fadeOpacity = fading ? Math.max(0, 1 - (elapsed - playMs) / FADE_MS) : 1;
   const throwSeg = plan.segs[0].kind === "air" ? plan.segs[0] : undefined;
   const showTrail = throwSeg && (!pos || pos.seg > 0 || pos.f > 0);
   return (
@@ -131,8 +145,9 @@ export function FootballPlay({ motion }: { motion: FootballMotion | undefined })
       {plan.catchAt && (!pos || pos.seg > 0) && (
         <circle cx={plan.catchAt[0]} cy={plan.catchAt[1]} r={0.9} fill="none" stroke={plan.dropped ? "#f87171" : "#fff"} strokeWidth={0.3} />
       )}
+      {restingBall}
       {pos && (
-        <g>
+        <g opacity={fadeOpacity}>
           <ellipse cx={pos.at[0]} cy={pos.at[1]} rx={1.1 + pos.height * 0.03} ry={0.6 + pos.height * 0.02} fill="#000" fillOpacity={0.35} />
           <g transform={`translate(${pos.at[0]} ${pos.at[1] - pos.height * 0.35}) scale(${1 + pos.height * 0.05})`}>
             <ellipse rx={1.3} ry={0.8} fill="#8a4a22" stroke="#fff" strokeWidth={0.15} />

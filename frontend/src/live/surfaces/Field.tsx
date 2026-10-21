@@ -6,7 +6,7 @@ import type { ReactNode } from "react";
 // arrows pointing to the nearer goal. x = 10 is the left goal line.
 export const FIELD_W = 120;
 export const FIELD_H = 160 / 3;
-const HASH_IN = 23.58;
+export const HASH_IN = 23.58;
 
 function EndZone({ x, color, label, rotate }: { x: number; color: string; label?: string; rotate: number }) {
   const cx = x + 5;

@@ -1,7 +1,7 @@
 import type { FootballState } from "../liveTypes";
 import { teamColors } from "../teamColors";
 import { Below, C, LiveFrame, Line, Scoreboard, Side, SideLabel, Surface, useScoreFlash } from "../Layout";
-import Field, { FIELD_H } from "../surfaces/Field";
+import Field, { FIELD_H, HASH_IN } from "../surfaces/Field";
 import { FootballPlay } from "../surfaces/PlayAnimations";
 
 // ESPN's yardLine counts from the HOME goal line. The field is drawn with the
@@ -23,6 +23,12 @@ export default function FootballView({ data, league, leagueColor }: { data: Foot
   const mid = FIELD_H / 2;
   const ball = data.ball;
   const towardHome = data.attackingHomeGoal; // home goal is on the right
+  // The next snap is spotted on the hash on the side the last play ended
+  // (offense's left or right, so it flips with the direction of that play),
+  // or in the middle.
+  const m = data.motion;
+  const laneSign = m ? (m.lane === "left" ? -1 : m.lane === "right" ? 1 : 0) * (m.towardHome ? 1 : -1) : 0;
+  const ballY = mid + laneSign * (mid - HASH_IN);
   const winPct = data.homeWinPct;
   const teams = [
     { abbr: away?.abbr ?? "", color: awayColor },
@@ -58,25 +64,30 @@ export default function FootballView({ data, league, leagueColor }: { data: Foot
             <g>
               {data.driveStart !== undefined && Math.abs(data.driveStart - ball) > 1 && (
                 <g>
-                  <line x1={fx(data.driveStart)} x2={fx(ball)} y1={mid} y2={mid} stroke="#fff" strokeOpacity={0.6} strokeWidth={0.35} strokeDasharray="1 0.8" />
+                  <line x1={fx(data.driveStart)} x2={fx(ball)} y1={mid} y2={ballY} stroke="#fff" strokeOpacity={0.6} strokeWidth={0.35} strokeDasharray="1 0.8" />
                   <circle cx={fx(data.driveStart)} cy={mid} r={0.5} fill="#fff" fillOpacity={0.6} />
                 </g>
               )}
               <line x1={fx(ball)} x2={fx(ball)} y1={0} y2={FIELD_H} stroke="#3b82f6" strokeWidth={0.45} />
               {data.firstDown !== undefined && <line x1={fx(data.firstDown)} x2={fx(data.firstDown)} y1={0} y2={FIELD_H} stroke={C.yellow} strokeWidth={0.45} />}
-              <g className="live-pulse">
-                <ellipse cx={fx(ball)} cy={mid} rx={1.3} ry={0.8} fill="#8a4a22" stroke="#fff" strokeWidth={0.15} />
-                <line x1={fx(ball) - 0.6} x2={fx(ball) + 0.6} y1={mid} y2={mid} stroke="#fff" strokeWidth={0.15} />
-              </g>
-              {towardHome !== undefined && (
-                <path
-                  d={towardHome ? `M${fx(ball) + 2} ${mid - 1} l1.5 1 l-1.5 1 z` : `M${fx(ball) - 2} ${mid - 1} l-1.5 1 l1.5 1 z`}
-                  fill="#fff"
-                />
-              )}
             </g>
           )}
-          <FootballPlay motion={data.motion} />
+          <FootballPlay
+            motion={data.motion}
+            rest={
+              ball !== undefined && (
+                <g>
+                  <g className="live-pulse">
+                    <ellipse cx={fx(ball)} cy={ballY} rx={1.3} ry={0.8} fill="#8a4a22" stroke="#fff" strokeWidth={0.15} />
+                    <line x1={fx(ball) - 0.6} x2={fx(ball) + 0.6} y1={ballY} y2={ballY} stroke="#fff" strokeWidth={0.15} />
+                  </g>
+                  {towardHome !== undefined && (
+                    <path d={towardHome ? `M${fx(ball) + 2} ${ballY - 1} l1.5 1 l-1.5 1 z` : `M${fx(ball) - 2} ${ballY - 1} l-1.5 1 l1.5 1 z`} fill="#fff" />
+                  )}
+                </g>
+              )
+            }
+          />
         </Field>
       </Surface>
       <Below
