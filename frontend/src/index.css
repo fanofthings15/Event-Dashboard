@@ -47,7 +47,7 @@ body {
 .header h1 { font-size: 22px; margin: 0; }
 .header-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .last-updated { font-size: 12px; color: var(--muted); margin-bottom: 10px; }
-.view-switcher { display: flex; gap: 4px; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 3px; }
+.view-switcher { display: flex; flex-wrap: wrap; gap: 4px; max-width: 100%; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 3px; }
 .view-switcher .btn.small { border: none; background: transparent; }
 .view-switcher .btn.small.active { background: var(--accent); color: #fff; }
 .search-input {
@@ -646,6 +646,10 @@ section h2 {
 @media (max-width: 480px) {
   .app { padding: 16px 12px 48px; }
   .header h1 { font-size: 19px; }
+  /* seven view tabs don't fit one row on a phone: wrap to full-width rows
+     with evenly stretched buttons instead of widening the page */
+  .view-switcher { width: 100%; }
+  .view-switcher .btn.small { flex: 1 1 auto; }
   .grid { grid-template-columns: 1fr; }
   .btn, .chip { padding: 10px 14px; }
   .calendar-cell { min-height: 60px; padding: 4px; }
