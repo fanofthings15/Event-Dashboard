@@ -72,8 +72,8 @@ function End({ side }: { side: 0 | 1 }) {
   );
 }
 
-// A team-coloured band beyond each end of the rink marks whose end it is
-// (the side that team shoots at, same left/right order as the scoreboard).
+// A team-coloured band beyond each end of the rink marks whose end it is:
+// the goal that team defends, like a football end zone.
 function EndBand({ side, team }: { side: 0 | 1; team: { abbr: string; color: string } }) {
   const x = side ? RINK_W + 2.5 : -12.5;
   const cx = x + 5;
