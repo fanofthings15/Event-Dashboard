@@ -5,10 +5,11 @@
 // link just renders blank everywhere, not only in Firefox); everything else
 // is assumed to already allow framing and is used verbatim — the streams
 // tab has no source-discovery API, the user pastes whatever link they
-// found. The esports backend already ranks YouTube ahead of Twitch when a
-// match offers both (see platformRank in routes/esports.ts) — this is only
-// reached with a Twitch link when that's genuinely the only stream on
-// offer, or the user pasted one by hand.
+// found. The esports backend ranks YouTube, then Kick, ahead of Twitch when a
+// match offers several (see platformRank in routes/esports.ts) — this is
+// only reached with a Twitch link when that's genuinely the only stream on
+// offer, or the user pasted one by hand. Kick channels embed through
+// player.kick.com, which allows framing from any site.
 //
 // `muted` defaults to true (needed for autoplay to reliably work at all —
 // browsers block unmuted autoplay outright) but the main/primary tile is
@@ -61,6 +62,17 @@ export function toEmbedUrl(rawUrl: string, { muted = true }: { muted?: boolean }
       // A channel's live tab (e.g. /@handle/live or /channel/UC.../live) has
       // no stable video id to extract client-side — hand it back as-is
       // rather than guessing wrong; it just won't autoplay embedded.
+    }
+
+    if (host === "kick.com") {
+      const channel = u.pathname.split("/").filter(Boolean)[0];
+      if (channel) return `https://player.kick.com/${encodeURIComponent(channel)}?autoplay=true&muted=${muted ? "true" : "false"}`;
+    }
+
+    if (host === "player.kick.com") {
+      u.searchParams.set("autoplay", "true");
+      u.searchParams.set("muted", muted ? "true" : "false");
+      return u.toString();
     }
 
     if (host === "twitch.tv") {

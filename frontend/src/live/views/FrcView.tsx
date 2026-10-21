@@ -74,7 +74,7 @@ function StreamLinkBar({ initial, onSave, onCancel }: { initial?: string; onSave
           </button>
         )}
       </div>
-      {!embeddable && <p>That link can't be embedded. Use a twitch.tv channel or a youtube.com/watch link.</p>}
+      {!embeddable && <p>That link can't be embedded. Use a youtube.com/watch, kick.com or twitch.tv channel link.</p>}
     </form>
   );
 }

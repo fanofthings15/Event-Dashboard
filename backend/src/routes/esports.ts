@@ -13,14 +13,18 @@ function mapStatus(status: string): NormalizedEvent["status"] {
   return "upcoming";
 }
 
+// Preference order when a match has several streams: YouTube, then Kick,
+// then Twitch (the user's least favourite), then anything else.
 function platformRank(url: string): number {
   if (/youtube\.com|youtu\.be/i.test(url)) return 0;
-  if (/twitch\.tv/i.test(url)) return 1;
-  return 2;
+  if (/kick\.com/i.test(url)) return 1;
+  if (/twitch\.tv/i.test(url)) return 2;
+  return 3;
 }
 
 function platformLabel(url: string): string {
   if (/youtube\.com|youtu\.be/i.test(url)) return "YouTube";
+  if (/kick\.com/i.test(url)) return "Kick";
   if (/twitch\.tv/i.test(url)) return "Twitch";
   try {
     return new URL(url).hostname.replace(/^www\./, "");
