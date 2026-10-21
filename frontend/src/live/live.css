@@ -715,11 +715,10 @@ body.live-body {
   aspect-ratio: 16 / 9;
   max-height: 100%;
   background: #000;
-  /* border-radius + overflow: hidden doesn't reliably clip an embedded
-     player (its square corners show through, white or grey); clip-path does */
-  border-radius: 0.6em;
+  /* Square on purpose: some browsers (Firefox especially) don't clip an
+     embedded player to rounded corners, whether by border-radius or
+     clip-path, and its square corners show through as white. */
   overflow: hidden;
-  clip-path: inset(0 round 0.6em);
 }
 
 .lv-stream iframe {
