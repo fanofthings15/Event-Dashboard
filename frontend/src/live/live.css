@@ -715,10 +715,25 @@ body.live-body {
   aspect-ratio: 16 / 9;
   max-height: 100%;
   background: #000;
-  /* Square on purpose: some browsers (Firefox especially) don't clip an
-     embedded player to rounded corners, whether by border-radius or
-     clip-path, and its square corners show through as white. */
+  border-radius: 0.6em;
   overflow: hidden;
+}
+
+/* Rounded corners drawn over the player rather than by clipping it: some
+   browsers (Firefox especially) ignore border-radius/clip-path on an
+   embedded player, and its square corners show through as white. This
+   layer paints the page background outside the rounded shape (the shadow
+   spread follows the radius) plus a faint outline, on top of whatever the
+   player draws. */
+.lv-stream::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: 0.6em;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 0 0 0.6em #0f1115;
+  pointer-events: none;
 }
 
 .lv-stream iframe {
