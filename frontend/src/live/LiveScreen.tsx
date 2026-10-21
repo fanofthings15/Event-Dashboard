@@ -27,8 +27,9 @@ import "./live.css";
 // overrides for testing or pinning a game:
 //   /live?event=nba-401909090   always show that event
 //   /live?calibrate             open the stream-crop editor straight away
-// Keys: M minimap-only (esports), C adjust the minimap crop. Fullscreen is the
-// browser's own F11; on-screen buttons (Back, crop) hide while fullscreen.
+// Keys: M minimap-only (esports), C adjust the minimap crop. On-screen buttons
+// (Back, Fullscreen, crop) show on mouse move/tap and hide while fullscreen,
+// whether that came from the button or the browser's F11.
 
 const ESPN_SPORTS = new Set(["nfl", "ncaaf", "nba", "nhl", "mlb"]);
 const POLL_MS: Record<string, number> = { f1: 3_000, nhl: 5_000, frc: 60_000 };
@@ -259,9 +260,10 @@ export default function LiveScreen({ onBack }: { onBack?: () => void } = {}) {
           ))}
         </nav>
       )}
-      {controlsVisible && !fullscreen && !calibrating && onBack && (
+      {controlsVisible && !fullscreen && !calibrating && (
         <div className="live-controls live-controls-left">
-          <button onClick={onBack}>‹ Back</button>
+          {onBack && <button onClick={onBack}>‹ Back</button>}
+          <button onClick={() => document.documentElement.requestFullscreen?.().catch(() => undefined)}>Fullscreen</button>
         </div>
       )}
       {controlsVisible && !fullscreen && !calibrating && esportsCrop && stream && (
