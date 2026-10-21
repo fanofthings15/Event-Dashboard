@@ -29,6 +29,29 @@ export interface Hit {
   distance?: number; // feet
   trajectory?: string; // fly_ball, line_drive, ground_ball, popup
   result?: string; // e.g. "Single", "Home Run", "Flyout"
+  out?: boolean; // the batted ball produced an out
+  // Base the ball was thrown to for the out, when a fielder's assist and a
+  // putout at a base are credited (e.g. SS to 1B on a groundout). Absent for
+  // catches and unassisted outs.
+  throwTo?: "1B" | "2B" | "3B" | "home";
+}
+
+const BASE_CODES: Record<string, Hit["throwTo"]> = { "1B": "1B", "2B": "2B", "3B": "3B", score: "home", HP: "home", "4B": "home" };
+
+// Fielding credits name who threw and who made the out. The first runner
+// put out after an assist gives the throw's target base.
+function throwFor(play: any): { out: boolean; throwTo?: Hit["throwTo"] } {
+  let out = false;
+  for (const r of play.runners ?? []) {
+    if (!r.movement?.isOut) continue;
+    out = true;
+    const credits: any[] = r.credits ?? [];
+    if (credits.some((c) => c.credit === "f_assist") && credits.some((c) => c.credit === "f_putout")) {
+      const to = BASE_CODES[r.movement.outBase];
+      if (to) return { out, throwTo: to };
+    }
+  }
+  return { out };
 }
 
 const getJson = async (url: string) => {
@@ -93,6 +116,7 @@ export async function mlbExtras(startIso: string, away: string, home: string): P
         distance: h.totalDistance,
         trajectory: h.trajectory,
         result: play.result?.event,
+        ...throwFor(play),
       });
     }
   }

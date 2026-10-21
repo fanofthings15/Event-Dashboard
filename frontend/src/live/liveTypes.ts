@@ -75,7 +75,7 @@ export interface BaseballState extends LiveCommon {
   pitches: { x: number; y: number; mph?: number; type?: string; result: string }[];
   lastPlay?: string;
   fence?: { venue: string; leftLine: number; left: number; leftCenter: number; center: number; rightCenter: number; right?: number; rightLine: number };
-  hits?: { id: string; x: number; y: number; speed?: number; angle?: number; distance?: number; trajectory?: string; result?: string }[];
+  hits?: { id: string; x: number; y: number; speed?: number; angle?: number; distance?: number; trajectory?: string; result?: string; out?: boolean; throwTo?: "1B" | "2B" | "3B" | "home" }[];
 }
 
 export interface F1Driver {
