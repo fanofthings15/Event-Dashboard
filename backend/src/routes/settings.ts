@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { readUserSettings, writeUserSettings, regenerateIcsToken, type UserSettings } from "../settings.js";
+import { readUserSettings, writeUserSettings, regenerateIcsToken, type UserSettings, type CropRect } from "../settings.js";
 import { getUserId } from "../userContext.js";
 import { ESPORTS_CATALOG } from "../esportsCatalog.js";
 
@@ -41,6 +41,7 @@ router.get("/", (req, res) => {
     streamSlots: settings.streamSlots,
     streamMainSlotId: settings.streamMainSlotId,
     streamLayout: settings.streamLayout,
+    liveCropPresets: settings.liveCropPresets,
     esportsCatalog: ESPORTS_CATALOG,
   });
 });
@@ -136,6 +137,14 @@ router.post("/", (req, res) => {
     body.streamLayout === "quad"
   ) {
     next.streamLayout = body.streamLayout;
+  }
+  if (body.liveCropPresets && typeof body.liveCropPresets === "object") {
+    const clean: Record<string, CropRect> = {};
+    const frac = (v: unknown) => typeof v === "number" && v >= 0 && v <= 1;
+    for (const [key, r] of Object.entries(body.liveCropPresets as Record<string, any>)) {
+      if (r && frac(r.x) && frac(r.y) && frac(r.w) && frac(r.h) && r.w > 0 && r.h > 0) clean[key] = { x: r.x, y: r.y, w: r.w, h: r.h };
+    }
+    next.liveCropPresets = clean;
   }
 
   writeUserSettings(getUserId(req), next);

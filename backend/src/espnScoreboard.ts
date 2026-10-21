@@ -6,7 +6,7 @@ import type { NormalizedEvent, ExtraFact, StandingsGroup, StandingsRow } from ".
 // Node's) fetch() based on TLS/HTTP client fingerprint alone — headers don't
 // matter, curl from the same box gets a clean 200. Shelling out to curl
 // works around it.
-async function curlGetJson(url: string): Promise<any> {
+export async function curlGetJson(url: string): Promise<any> {
   const proc = Bun.spawn(["curl", "-s", "--max-time", "10", "-w", "\n%{http_code}", url], {
     stdout: "pipe",
     stderr: "pipe",

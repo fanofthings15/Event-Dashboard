@@ -19,6 +19,7 @@ import customEvents from "./routes/customEvents.js";
 import ics from "./routes/ics.js";
 import push from "./routes/push.js";
 import discord from "./routes/discord.js";
+import live from "./routes/live.js";
 import { startDiscordScheduler } from "./discordScheduler.js";
 
 // Static top-level import so Bun's compiler can statically detect and embed
@@ -105,6 +106,7 @@ app.use("/api/global-settings", globalSettings);
 app.use("/api/custom-events", customEvents);
 app.use("/api/push", push);
 app.use("/api/discord", discord);
+app.use("/api/live", live);
 app.use("/calendar.ics", ics);
 
 app.get("/api/health", (_req, res) => res.json({ ok: true }));

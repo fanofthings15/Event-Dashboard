@@ -170,12 +170,24 @@ export interface UserSettings {
   streamMainSlotId: string | null;
   // Arrangement for the Streams tab — see StreamLayout above.
   streamLayout: StreamLayout;
+  // /live display: where the minimap sits in a broadcast, as fractions of
+  // the 16:9 frame. Keyed "sport:league" (one league's broadcast layout)
+  // or plain "sport"; anything unset falls back to the built-in defaults in
+  // frontend/src/live/cropPresets.ts.
+  liveCropPresets: Record<string, CropRect>;
   // Web Push endpoints this user has subscribed from (one per browser/device
   // that hit "Enable push notifications" — a user can have several). Lets
   // notifyOnLive/notifyMode/notifyLeadMinutes/snoozedEventIds keep driving
   // push the same way they already drive the in-page Notification API,
   // without a separate set of push-only preferences.
   pushSubscriptions: PushSubscriptionRecord[];
+}
+
+export interface CropRect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
 }
 
 export interface PushSubscriptionRecord {
@@ -218,6 +230,7 @@ const USER_DEFAULTS: UserSettings = {
   streamSlots: [],
   streamMainSlotId: null,
   streamLayout: "grid",
+  liveCropPresets: {},
   pushSubscriptions: [],
 };
 

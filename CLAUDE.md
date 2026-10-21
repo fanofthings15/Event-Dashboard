@@ -30,6 +30,9 @@ backend/src/
   esportsCatalog.ts       — PandaScore slug/sport/label/color per esports title
   favoriteTeams.ts         — shared favorite-team matching logic (also used by ics.ts)
   frcMatchProgress.ts      — TBA match-data → "Qual Match 23 of 40" / "Semifinals — Match 2"
+  liveEspn.ts              — ESPN game summary → per-sport live state for /live
+  f1Live.ts                — F1 live-timing SignalR Core client + MultiViewer circuit map
+  routes/live.ts           — /api/live/espn/:sport/:id, /api/live/f1, /api/live/frc/:eventKey
 frontend/src/
   App.tsx                 — main page, all four views (List/Calendar/Today/Finished)
   useEvents.ts             — polling, merging, filtering, notification-firing logic
@@ -40,7 +43,15 @@ frontend/src/
   EventDetailModal.tsx      — click-through event detail, stream picker, follow/snooze
   CalendarView.tsx / DayDetailModal.tsx — month grid + hourly breakdown
   dateFormat.ts             — shared timezone-aware date/time formatters
+  live/                     — /live full-screen display (main.tsx routes by pathname):
+                              LiveScreen.tsx, selectLiveEvent.ts (the placeholder
+                              "which game to show" policy — change it there),
+                              views/ (one per sport), StreamCrop + CropCalibrator
+                              (broadcast minimap crop), cropPresets.ts (defaults)
 ```
+
+The /live views all draw into one 800×500 SVG canvas (`live/Screen.tsx`)
+with a fixed dark palette, not the app theme — it's a dedicated display.
 
 Every route maps its source's raw API response into `NormalizedEvent`
 (`backend/src/types.ts`) — that's the one shape the whole frontend consumes,
@@ -54,6 +65,18 @@ regardless of source.
 | F1 | Jolpica (Ergast successor) | No | Schedule/results only, no live timing |
 | FRC | The Blue Alliance API | Yes (free) | Full events only, not individual matches |
 | Esports | PandaScore | Yes (free tier) | ~1000 req/month cap |
+| /live team sports | ESPN game summary (unofficial) | No | Shot/pitch coordinates, drives, box stats — quirks below |
+| /live F1 | F1 live timing, SignalR Core | No | Anonymous; old /signalr and /static/ archive 401 as of 2026-10-20 |
+| /live F1 circuit | MultiViewer circuits API | No | Outline + marshal sectors, same coords as Position.z |
+
+**ESPN summary quirks the /live views rely on** (all checked against real
+responses 2026-10-20): football play `yardLine` is yards from the *home*
+goal line, and `yardsToEndzone == yardLine` means the offense attacks the
+home goal; NBA shot `coordinate.y` is feet from the rim (not the baseline),
+with a `-214748340` sentinel on free throws; NHL plays set `shootingPlay`
+on hits/giveaways too, so filter by `type.text`, and each play's `strength`
+is relative to its own team; MLB `pitchCoordinate` is gamecast pixels, with
+the strike zone fitted at roughly x 82–145, y 146–194.
 
 **PandaScore esports slugs are not always the obvious name** — e.g. Rocket
 League is `rl`, not `rocket-league`. This was a real bug once; verify any
@@ -145,16 +168,16 @@ calling array methods on what was actually still a number.
 
 ## Known unverified areas (worth checking first)
 
-- `backend/src/espnScoreboard.ts`'s `liveDetail` field (current game
-  clock/period, e.g. "Q3 8:42") — **still not directly confirmed** as of
-  2026-08-15. No NFL/NBA/NHL game was live anywhere on ESPN's site API
-  during a real-network check that swept ~20 leagues (only golf was "in
-  progress", which has no clock/period). Indirect evidence is strong
-  though: a real NFL response showed `status.type` reliably carries
-  populated `shortDetail`/`detail` for both "pre" (`"8/15 - 1:00 PM EDT"`)
-  and "post" (`"Final"`) states, so the same fields existing for "in" is
-  a safe bet — just not yet witnessed directly. Re-check next time a
-  tracked game is actually live.
+- `backend/src/espnScoreboard.ts`'s `liveDetail` field — **confirmed**
+  2026-10-20 against live games: NBA `"1:23 - 2nd"`/`"Halftime"`, NHL
+  `"16:34 - 2nd"`/`"End of 1st"`.
+- /live, not yet seen against real data: F1 car positions (`Position.z`
+  wasn't in the post-session snapshot — may need a live session, may not
+  be anonymous), the esports stream crop with a real PandaScore match (only
+  tested with a faked event + YouTube video, no PandaScore key on the dev
+  box), the FRC view (no TBA key on the dev box), and NFL/MLB mid-game
+  (mapping tested on finished games and a replayed mid-drive play). The
+  default minimap crop rects in `live/cropPresets.ts` are guesses.
 - The stream-source popup in `EventDetailModal.tsx` — **confirmed** against
   a real live PandaScore match (LEC, SK Gaming vs Fnatic, 2026-08-15).
   Real `streams_list` had 5 entries across 4 languages with the official

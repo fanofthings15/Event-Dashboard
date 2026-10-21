@@ -31,6 +31,7 @@ const EMPTY: SettingsState = {
   streamSlots: [],
   streamMainSlotId: null,
   streamLayout: "grid",
+  liveCropPresets: {},
 };
 
 interface SettingsContextValue {
