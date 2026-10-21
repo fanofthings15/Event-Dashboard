@@ -27,7 +27,6 @@ const TOPICS = [
   "LapCount",
   "ExtrapolatedClock",
   "TimingAppData",
-  "PitLaneTimeCollection",
   "Position.z",
 ];
 const RS = "\x1e"; // SignalR JSON protocol record separator
@@ -39,9 +38,6 @@ let lastRequestAt = 0;
 let pingTimer: ReturnType<typeof setInterval> | null = null;
 let lastError: string | undefined;
 const state: Record<string, any> = {};
-// PitLaneTimeCollection only ever holds each driver's latest pit-lane time,
-// so every one seen is kept here (keyed driver+lap) for the pit stop list.
-const pitLaneTimes = new Map<string, { number: string; lap: number; seconds: number }>();
 
 // Live-timing deltas patch the snapshot in place. Arrays arrive as objects
 // keyed by index (e.g. RaceControlMessages {"Messages": {"25": {...}}}), so
@@ -72,17 +68,7 @@ function decodeZ(data: unknown): any {
   }
 }
 
-function recordPitTimes(data: any) {
-  for (const [num, t] of Object.entries<any>(data?.PitTimes ?? {})) {
-    const seconds = parseFloat(t?.Duration);
-    const lap = parseInt(t?.Lap, 10);
-    if (!Number.isFinite(seconds) || !Number.isFinite(lap)) continue;
-    pitLaneTimes.set(`${num}:${lap}`, { number: String(t.RacingNumber ?? num), lap, seconds });
-  }
-}
-
 function applyTopic(topic: string, data: any) {
-  if (topic === "PitLaneTimeCollection") recordPitTimes(data);
   if (topic.endsWith(".z")) {
     const decoded = decodeZ(data);
     if (decoded !== undefined) state[topic.slice(0, -2)] = decoded; // positions are whole frames, not deltas
@@ -222,10 +208,8 @@ export interface F1LiveState {
   raceControl: { utc: string; message: string; flag?: string }[];
   circuit?: Circuit | null;
   positionsAvailable: boolean;
-  // Most recent first. Lap and tyre change come from the stint history;
-  // pit-lane time (entry to exit) from PitLaneTimeCollection when the
-  // connection was open to see it.
-  pitStops: { number: string; tla: string; color: string; lap: number; from?: string; to?: string; seconds?: number }[];
+  // Most recent first: the lap and tyre change, from the stint history.
+  pitStops: { number: string; tla: string; color: string; lap: number; from?: string; to?: string }[];
 }
 
 // Race control reports flags per marshal sector ("YELLOW IN TRACK SECTOR 9",
@@ -299,8 +283,7 @@ export async function getF1LiveState(): Promise<F1LiveState> {
     let lap = 0;
     stints.forEach((s, i) => {
       if (i > 0) {
-        const timed = pitLaneTimes.get(`${d.number}:${lap}`) ?? pitLaneTimes.get(`${d.number}:${lap + 1}`);
-        pitStops.push({ number: d.number, tla: d.tla, color: d.color, lap, from: stints[i - 1].Compound, to: s.Compound, seconds: timed?.seconds });
+        pitStops.push({ number: d.number, tla: d.tla, color: d.color, lap, from: stints[i - 1].Compound, to: s.Compound });
       }
       lap += (Number(s.TotalLaps) || 0) - (Number(s.StartLaps) || 0);
     });

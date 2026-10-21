@@ -162,7 +162,6 @@ export default function F1View({ data, leagueColor }: { data: F1State; leagueCol
                           <span style={{ color: tyre(s.from)?.color }}>{tyre(s.from)?.letter}</span>→<span style={{ color: tyre(s.to)?.color }}>{tyre(s.to)?.letter}</span>
                         </>
                       ) : null}
-                      {s.seconds ? ` ${s.seconds.toFixed(1)}s` : ""}
                     </span>
                   ))}
                 </span>

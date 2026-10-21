@@ -119,7 +119,7 @@ export interface F1State {
   raceControl: { utc: string; message: string; flag?: string }[];
   circuit?: { x: number[]; y: number[]; rotation: number; marshalSectors: { number: number; x: number; y: number }[] } | null;
   positionsAvailable: boolean;
-  pitStops?: { number: string; tla: string; color: string; lap: number; from?: string; to?: string; seconds?: number }[];
+  pitStops?: { number: string; tla: string; color: string; lap: number; from?: string; to?: string }[];
 }
 
 export interface FrcAlliance {
