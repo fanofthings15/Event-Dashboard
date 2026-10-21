@@ -75,11 +75,6 @@ export default function EsportsView({
             )}
           </div>
         ))}
-        {wins && needed && (
-          <div style={{ color: C.muted }}>
-            {wins[0] === wins[1] ? `Level at ${wins[0]}–${wins[1]}` : `${teams[wins[0] > wins[1] ? 0 : 1]?.name ?? ""} needs ${needed - Math.max(...wins)} more`}
-          </div>
-        )}
       </Side>
     </LiveFrame>
   );

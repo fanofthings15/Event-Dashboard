@@ -52,7 +52,6 @@ export default function IdleView({
   return (
     <div className="lv lv-idle">
       <div className="lv-clock">{formatEventClock(new Date(now).toISOString(), timezone)}</div>
-      <div style={{ color: "var(--muted)", fontSize: "1.2em" }}>Nothing live right now</div>
       <div className="lv-idle-cols">
         {finished.length > 0 && (
           <div className="lv-upcoming">

@@ -145,10 +145,8 @@ export default function F1View({ data, leagueColor }: { data: F1State; leagueCol
             <>
               {data.yellowSectors.length > 0 ? (
                 <span style={{ color: "#ffe500", fontWeight: 800 }}>Yellow in sector {data.yellowSectors.join(", ")}</span>
-              ) : status || !data.lap ? (
-                <span />
               ) : (
-                <span style={{ color: C.muted }}>Track clear</span>
+                <span />
               )}
               {stops.length > 0 && (
                 <span style={{ fontWeight: 400 }}>

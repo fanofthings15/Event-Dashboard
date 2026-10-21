@@ -36,7 +36,7 @@ export default function BasketballView({ data, leagueColor }: { data: Basketball
       status={data.detail}
     >
       {flash}
-      <Surface caption={<span>● made · ✕ missed · ◯ latest shot · free throws aren't charted</span>}>
+      <Surface caption={<span>● made · ✕ missed · ◯ latest shot</span>}>
         <Court awayPaint="#b97a45" homePaint="#b97a45" left={teams[0]} right={teams[1]}>
           {data.shots.map((shot, i) => {
             const [cx, cy] = spot(shot);

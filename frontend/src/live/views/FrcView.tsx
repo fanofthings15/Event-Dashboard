@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { FrcAlliance, FrcState } from "../liveTypes";
 import Stream, { embeddableStream } from "../Stream";
-import { C, LiveFrame, Message, Side, SideLabel, Source } from "../Layout";
+import { C, LiveFrame, Message, Side, SideLabel } from "../Layout";
 
 const RED = "#ef4444";
 const BLUE = "#3b82f6";
@@ -151,7 +151,6 @@ export default function FrcView({
       leagueColor={leagueColor}
       centre={data.eventName ?? eventName}
       status={data.onField?.label}
-      footer={<Source>The Blue Alliance · scores post after each match</Source>}
     >
       {data.error ? (
         <Message>{data.error}</Message>

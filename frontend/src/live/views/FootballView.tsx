@@ -49,13 +49,7 @@ export default function FootballView({ data, league, leagueColor }: { data: Foot
       status={data.detail}
     >
       {flash}
-      <Surface
-        caption={
-          <span>
-            <span style={{ color: "#3b82f6" }}>▮</span> line of scrimmage · <span style={{ color: C.yellow }}>▮</span> first down · ⋯ this drive
-          </span>
-        }
-      >
+      <Surface>
         <Field leftColor={awayColor} rightColor={homeColor} leftLabel={away?.abbr} rightLabel={home?.abbr}>
           {data.redZone && ball !== undefined && (
             <rect x={towardHome ? fx(20) : fx(100)} width={20} height={FIELD_H} fill={C.live} fillOpacity={0.16} />
