@@ -16,12 +16,31 @@ import FrcView from "./views/FrcView";
 import EsportsView from "./views/EsportsView";
 import IdleView from "./views/IdleView";
 import { LiveFrame, Message } from "./Layout";
+import GameTile from "./GameTile";
+import {
+  dropOnSlot,
+  hideGame,
+  interest,
+  loadLayout,
+  loadPrefs,
+  multiTemplate,
+  placeGames,
+  pruneTo,
+  saveLayout,
+  savePrefs,
+  tapToBig,
+  unpinGame,
+  type LiveLayout,
+  type MultiPrefs,
+} from "./multiGame";
 import "./live.css";
 
 // Full-screen display at /live, meant for a dedicated tablet or monitor.
-// Which game it shows is decided by selectLiveEvent.ts, unless one is tapped
+// With two or more games live it shows several at once (multiGame.ts), in
+// the RedZone or grid arrangement picked with the layout switch; "Single"
+// is one game at a time, chosen by selectLiveEvent.ts unless one is tapped
 // in the "other games" strip (that choice holds until the game ends). URL
-// overrides for testing or pinning a game:
+// override for testing or pinning a game (always single):
 //   /live?event=nba-401909090   always show that event
 // Back and Fullscreen sit at the start of the bottom strip and hide while
 // fullscreen, whether that came from the button or the browser's F11.
@@ -104,6 +123,44 @@ function useIsFullscreen(): boolean {
   return full;
 }
 
+function useIsPortrait(): boolean {
+  const query = "(max-aspect-ratio: 1/1)";
+  const [portrait, setPortrait] = useState(() => window.matchMedia(query).matches);
+  useEffect(() => {
+    const m = window.matchMedia(query);
+    const update = () => setPortrait(m.matches);
+    m.addEventListener("change", update);
+    return () => m.removeEventListener("change", update);
+  }, []);
+  return portrait;
+}
+
+const LAYOUTS: [LiveLayout, string][] = [
+  ["redzone", "RedZone"],
+  ["grid", "Grid"],
+  ["single", "Single"],
+];
+
+// A press that turns into a drag: the mouse after a small move, touch after
+// holding still briefly (so the strip still scrolls under a finger).
+interface Press {
+  key: string;
+  from: number | "strip";
+  x0: number;
+  y0: number;
+  touch: boolean;
+  started: boolean;
+  timer?: ReturnType<typeof setTimeout>;
+}
+type DropTarget = number | "strip" | null;
+
+function dropTargetAt(x: number, y: number): DropTarget {
+  const el = document.elementFromPoint(x, y);
+  const tile = el?.closest<HTMLElement>("[data-slot]");
+  if (tile) return Number(tile.dataset.slot);
+  return el?.closest(".lv-others") ? "strip" : null;
+}
+
 const followedFirst = (a: NormalizedEvent, b: NormalizedEvent) =>
   Number(Boolean(b.followed || b.manuallyFollowed)) - Number(Boolean(a.followed || a.manuallyFollowed));
 
@@ -152,6 +209,120 @@ export default function LiveScreen({ onBack }: { onBack?: () => void } = {}) {
         .sort((a, b) => followedFirst(a, b) || a.startTime.localeCompare(b.startTime)),
     [liveEvents, selected]
   );
+
+  // ----- several games at once -----
+  const [layout, setLayoutState] = useState<LiveLayout>(loadLayout);
+  const setLayout = (l: LiveLayout) => {
+    setLayoutState(l);
+    saveLayout(l);
+  };
+  const [prefs, setPrefsState] = useState<MultiPrefs>(loadPrefs);
+  const prefsRef = useRef(prefs);
+  prefsRef.current = prefs;
+  const setPrefs = useCallback((p: MultiPrefs) => {
+    setPrefsState(p);
+    savePrefs(p);
+  }, []);
+  const multi = !pinned && layout !== "single" && liveEvents.length >= 2;
+
+  // pins and hidden games are dropped once their game is no longer live
+  useEffect(() => {
+    if (events.length === 0) return;
+    const live = new Set(liveEvents.map(eventKey));
+    const next = pruneTo(prefs, live);
+    if (Object.keys(next.pins).length !== Object.keys(prefs.pins).length || next.hidden.length !== prefs.hidden.length) setPrefs(next);
+  }, [liveEvents, events.length, prefs, setPrefs]);
+
+  // when each game's score last changed (a fresh score makes it interesting)
+  const lastScore = useRef<Map<string, { score?: string; at?: number }>>(new Map());
+  const [powerPlays, setPowerPlays] = useState<Record<string, boolean>>({});
+  const reportPowerPlay = useCallback((key: string, on: boolean) => {
+    setPowerPlays((pp) => (Boolean(pp[key]) === on ? pp : { ...pp, [key]: on }));
+  }, []);
+  const scores = useMemo(() => {
+    const now = Date.now();
+    const out = new Map<string, number>();
+    for (const e of liveEvents) {
+      const k = eventKey(e);
+      const seen = lastScore.current.get(k);
+      if (!seen) lastScore.current.set(k, { score: e.seriesScore });
+      else if (seen.score !== e.seriesScore) lastScore.current.set(k, { score: e.seriesScore, at: now });
+      out.set(k, interest(e, now, { scoredAt: lastScore.current.get(k)?.at, powerPlay: powerPlays[k] }));
+    }
+    return out;
+  }, [liveEvents, powerPlays]);
+
+  const prevSlots = useRef<string[]>([]);
+  const placement = useMemo(() => {
+    const r = placeGames(liveEvents, scores, prevSlots.current, prefs, layout);
+    prevSlots.current = r.slots;
+    return r;
+  }, [liveEvents, scores, prefs, layout]);
+  const slotsRef = useRef(placement.slots);
+  slotsRef.current = placement.slots;
+  const byKey = useMemo(() => new Map(liveEvents.map((e) => [eventKey(e), e])), [liveEvents]);
+  const portrait = useIsPortrait();
+
+  // ----- dragging games between spots and the strip -----
+  const press = useRef<Press | null>(null);
+  const suppressClick = useRef(false);
+  const [drag, setDrag] = useState<{ key: string; x: number; y: number; over: DropTarget } | null>(null);
+
+  const startPress = (e: React.PointerEvent, key: string, from: number | "strip") => {
+    if (!multi || (e.pointerType === "mouse" && e.button !== 0)) return;
+    const p: Press = { key, from, x0: e.clientX, y0: e.clientY, touch: e.pointerType !== "mouse", started: false };
+    if (p.touch) {
+      p.timer = setTimeout(() => {
+        p.started = true;
+        navigator.vibrate?.(15);
+        setDrag({ key, x: p.x0, y: p.y0, over: dropTargetAt(p.x0, p.y0) });
+      }, 350);
+    }
+    press.current = p;
+  };
+
+  useEffect(() => {
+    const move = (e: PointerEvent) => {
+      const p = press.current;
+      if (!p) return;
+      const moved = Math.hypot(e.clientX - p.x0, e.clientY - p.y0);
+      if (!p.started) {
+        if (p.touch) {
+          if (moved > 10) {
+            clearTimeout(p.timer);
+            press.current = null; // a scroll or swipe, not a hold
+          }
+          return;
+        }
+        if (moved < 6) return;
+        p.started = true;
+      }
+      e.preventDefault();
+      setDrag({ key: p.key, x: e.clientX, y: e.clientY, over: dropTargetAt(e.clientX, e.clientY) });
+    };
+    const end = (e: PointerEvent) => {
+      const p = press.current;
+      press.current = null;
+      if (!p) return;
+      clearTimeout(p.timer);
+      if (!p.started) return;
+      suppressClick.current = true;
+      setTimeout(() => (suppressClick.current = false), 0);
+      setDrag(null);
+      if (e.type === "pointercancel") return;
+      const over = dropTargetAt(e.clientX, e.clientY);
+      if (typeof over === "number") setPrefs(dropOnSlot(prefsRef.current, p.key, over, slotsRef.current));
+      else if (over === "strip" && p.from !== "strip") setPrefs(hideGame(prefsRef.current, p.key));
+    };
+    window.addEventListener("pointermove", move, { passive: false });
+    window.addEventListener("pointerup", end);
+    window.addEventListener("pointercancel", end);
+    return () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", end);
+      window.removeEventListener("pointercancel", end);
+    };
+  }, [setPrefs]);
 
   const metaFor = useCallback(
     (e: NormalizedEvent) => sportMeta(e, settings.esportsCatalog, settings.sportColorOverrides),
@@ -207,7 +378,33 @@ export default function LiveScreen({ onBack }: { onBack?: () => void } = {}) {
 
   // ----- render -----
   let body: ReactNode;
-  if (!selected) {
+  if (multi) {
+    const shown = placement.slots.map((k) => byKey.get(k)).filter((e): e is NormalizedEvent => Boolean(e));
+    const tpl = multiTemplate(layout, shown.length, portrait);
+    body = (
+      <div className={`lv-multi ${tpl.className}`} style={{ gridTemplateAreas: tpl.areas, gridTemplateColumns: tpl.columns }}>
+        {shown.map((e, i) => {
+          const k = eventKey(e);
+          return (
+            <GameTile
+              key={k}
+              event={e}
+              slot={i}
+              big={layout === "redzone" && i === 0 && !portrait}
+              withSound={layout === "redzone" && i === 0}
+              pinned={prefs.pins[k] !== undefined}
+              dropping={drag !== null && drag.over === i && drag.key !== k}
+              lifted={drag?.key === k}
+              frcStreamUrl={e.sport === "frc" ? settings.frcStreamUrls?.[e.id] : undefined}
+              onUnpin={() => setPrefs(unpinGame(prefs, k))}
+              onPowerPlay={(on) => reportPowerPlay(k, on)}
+              onPointerDown={(ev) => startPress(ev, k, i)}
+            />
+          );
+        })}
+      </div>
+    );
+  } else if (!selected) {
     const now = Date.now();
     const upcoming = events
       .filter((e) => e.status === "upcoming" && LIVE_VIEW_SPORTS.has(e.sport))
@@ -235,14 +432,22 @@ export default function LiveScreen({ onBack }: { onBack?: () => void } = {}) {
     );
   }
 
+  const stripGames = multi ? placement.strip.map((k) => byKey.get(k)).filter((e): e is NormalizedEvent => Boolean(e)) : others;
+  const hidden = new Set(prefs.hidden);
+  const tapStrip = (key: string) => {
+    if (suppressClick.current || pinned) return;
+    if (multi) setPrefs(tapToBig(prefs, key));
+    else setChosenKey(key);
+  };
+
   return (
-    <div className={`live-root${controlsVisible ? "" : " live-idle"}`} onPointerMove={poke} onPointerDown={poke}>
+    <div className={`live-root${controlsVisible ? "" : " live-idle"}${drag ? " lv-dragging" : ""}`} onPointerMove={poke} onPointerDown={poke}>
       <div className="live-view">{body}</div>
       {/* Bottom strip: Back/Fullscreen first, then the other live games. The
           buttons sit in the strip's flow (not floating over it) so they can
           never cover a game, and the whole row hides while fullscreen. */}
-      {(others.length > 0 || !fullscreen) && (
-        <nav className="lv-others" aria-label="Other live games">
+      {(stripGames.length > 0 || !fullscreen) && (
+        <nav className={`lv-others${drag && drag.over === "strip" ? " drop" : ""}`} aria-label="Other live games">
           {!fullscreen && (
             <span className="lv-strip-controls">
               {onBack && (
@@ -253,10 +458,25 @@ export default function LiveScreen({ onBack }: { onBack?: () => void } = {}) {
               <button className="lv-strip-btn" onClick={() => document.documentElement.requestFullscreen?.().catch(() => undefined)}>
                 Fullscreen
               </button>
+              {!pinned && (
+                <span className="lv-layout-switch" role="group" aria-label="Layout">
+                  {LAYOUTS.map(([value, label]) => (
+                    <button key={value} className="lv-strip-btn" aria-pressed={layout === value} onClick={() => setLayout(value)}>
+                      {label}
+                    </button>
+                  ))}
+                </span>
+              )}
             </span>
           )}
-          {others.map((e) => (
-            <button key={eventKey(e)} onClick={() => !pinned && setChosenKey(eventKey(e))} title="Show this game">
+          {stripGames.map((e) => (
+            <button
+              key={eventKey(e)}
+              className={[hidden.has(eventKey(e)) && "is-hidden", drag?.key === eventKey(e) && "is-lifted"].filter(Boolean).join(" ") || undefined}
+              onClick={() => tapStrip(eventKey(e))}
+              onPointerDown={(ev) => startPress(ev, eventKey(e), "strip")}
+              title="Show this game"
+            >
               <span className="bar" style={{ background: metaFor(e).color }} />
               <span className="name">
                 {e.followed || e.manuallyFollowed ? "★ " : ""}
@@ -266,6 +486,12 @@ export default function LiveScreen({ onBack }: { onBack?: () => void } = {}) {
             </button>
           ))}
         </nav>
+      )}
+      {drag && (
+        <div className="lv-drag-ghost" style={{ left: drag.x, top: drag.y }}>
+          <span className="bar" style={{ background: byKey.get(drag.key) ? metaFor(byKey.get(drag.key)!).color : undefined }} />
+          {byKey.get(drag.key)?.name}
+        </div>
       )}
     </div>
   );

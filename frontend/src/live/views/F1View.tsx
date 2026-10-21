@@ -103,14 +103,98 @@ function useTrackGeometry(circuit: F1State["circuit"]) {
   }, [circuit]);
 }
 
-export default function F1View({ data, leagueColor }: { data: F1State; leagueColor: string }) {
+// The circuit with yellow sectors, the pit lane and the cars — shared by
+// the full view and the multi-game tiles.
+export function F1Track({ data }: { data: F1State }) {
   const geo = useTrackGeometry(data.circuit);
   const yellow = new Set(data.yellowSectors);
+  const pad = 36;
+  const inPit = data.drivers.filter((d) => d.inPit && !d.out);
+  if (!geo) return <Message>{data.error ?? "Waiting for the circuit map…"}</Message>;
+  return (
+    <svg viewBox={`${-pad} ${-pad} ${geo.w + pad * 2} ${geo.h + pad * 2}`} preserveAspectRatio="xMidYMid meet" role="img" aria-label="Circuit map">
+      <defs>
+        <filter id="f1-glow" x="-20%" y="-20%" width="140%" height="140%">
+          <feGaussianBlur stdDeviation="9" result="b" />
+          <feMerge>
+            <feMergeNode in="b" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+      </defs>
+      {/* pit lane */}
+      <g stroke="#6b7280" fill="none" strokeLinecap="round">
+        <path d={geo.pit.entry} strokeWidth={5} strokeDasharray="10 8" />
+        <path d={geo.pit.exit} strokeWidth={5} strokeDasharray="10 8" />
+        <path d={geo.pit.d} strokeWidth={8} />
+      </g>
+      {(() => {
+        const [lx, ly] = geo.pit.points[Math.floor(geo.pit.points.length / 2)];
+        return (
+          <text x={lx} y={ly} dy={-18} fontSize={24} fontWeight={800} fill="#9ca3af" textAnchor="middle">
+            PIT
+          </text>
+        );
+      })()}
+      {geo.sectors.length === 0 && <path d={geo.outline} fill="none" stroke="#3a404c" strokeWidth={14} strokeLinejoin="round" />}
+      {geo.sectors
+        .filter((s) => !yellow.has(s.number))
+        .map((s) => (
+          <path key={s.number} d={s.d} fill="none" stroke="#3a404c" strokeWidth={14} strokeLinecap="round" strokeLinejoin="round" />
+        ))}
+      {/* yellow sectors on top, wide and glowing so they read from across the room */}
+      {geo.sectors
+        .filter((s) => yellow.has(s.number))
+        .map((s) => (
+          <path
+            key={`y${s.number}`}
+            d={s.d}
+            fill="none"
+            stroke="#ffe500"
+            strokeWidth={30}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            filter="url(#f1-glow)"
+            className="f1-yellow"
+          />
+        ))}
+      {inPit.map((d, i) => {
+        const pts = geo.pit.points;
+        const [x, y] = pts[Math.min(pts.length - 1, Math.round(((i + 1) / (inPit.length + 1)) * (pts.length - 1)))];
+        return (
+          <g key={`pit${d.number}`}>
+            <circle cx={x} cy={y} r={11} fill={d.color} stroke={C.bg} strokeWidth={2} />
+            <text x={x} y={y} dy={30} fontSize={18} fontWeight={700} fill={C.text} textAnchor="middle">
+              {d.tla}
+            </text>
+          </g>
+        );
+      })}
+      <circle cx={geo.start[0]} cy={geo.start[1]} r={10} fill="#fff" />
+      {data.positionsAvailable &&
+        [...data.drivers].reverse().map((d) => {
+          if (d.x === undefined || d.y === undefined) return null;
+          const [x, y] = geo.toView(d.x, d.y);
+          return (
+            <g key={d.number} opacity={d.out ? 0.3 : 1}>
+              <circle cx={x} cy={y} r={11} fill={d.color} stroke={C.bg} strokeWidth={2} />
+              {d.position <= 3 && (
+                <text x={x + 16} y={y} fontSize={22} fontWeight={700} fill={C.text} dominantBaseline="central">
+                  {d.tla}
+                </text>
+              )}
+            </g>
+          );
+        })}
+    </svg>
+  );
+}
+
+export default function F1View({ data, leagueColor }: { data: F1State; leagueColor: string }) {
+  const geo = useTrackGeometry(data.circuit);
   const status = data.trackStatus ? TRACK_STATUS[data.trackStatus.code] : undefined;
   const finished = /final|ends|inactive/i.test(data.session?.status ?? "");
   const rc = data.raceControl[0];
-  const pad = 36;
-  const inPit = data.drivers.filter((d) => d.inPit && !d.out);
   const stops = data.pitStops ?? [];
 
   return (
@@ -164,81 +248,7 @@ export default function F1View({ data, leagueColor }: { data: F1State; leagueCol
             </>
           }
         >
-          <svg viewBox={`${-pad} ${-pad} ${geo.w + pad * 2} ${geo.h + pad * 2}`} preserveAspectRatio="xMidYMid meet" role="img" aria-label="Circuit map">
-            <defs>
-              <filter id="f1-glow" x="-20%" y="-20%" width="140%" height="140%">
-                <feGaussianBlur stdDeviation="9" result="b" />
-                <feMerge>
-                  <feMergeNode in="b" />
-                  <feMergeNode in="SourceGraphic" />
-                </feMerge>
-              </filter>
-            </defs>
-            {/* pit lane */}
-            <g stroke="#6b7280" fill="none" strokeLinecap="round">
-              <path d={geo.pit.entry} strokeWidth={5} strokeDasharray="10 8" />
-              <path d={geo.pit.exit} strokeWidth={5} strokeDasharray="10 8" />
-              <path d={geo.pit.d} strokeWidth={8} />
-            </g>
-            {(() => {
-              const [lx, ly] = geo.pit.points[Math.floor(geo.pit.points.length / 2)];
-              return (
-                <text x={lx} y={ly} dy={-18} fontSize={24} fontWeight={800} fill="#9ca3af" textAnchor="middle">
-                  PIT
-                </text>
-              );
-            })()}
-            {geo.sectors.length === 0 && <path d={geo.outline} fill="none" stroke="#3a404c" strokeWidth={14} strokeLinejoin="round" />}
-            {geo.sectors
-              .filter((s) => !yellow.has(s.number))
-              .map((s) => (
-                <path key={s.number} d={s.d} fill="none" stroke="#3a404c" strokeWidth={14} strokeLinecap="round" strokeLinejoin="round" />
-              ))}
-            {/* yellow sectors on top, wide and glowing so they read from across the room */}
-            {geo.sectors
-              .filter((s) => yellow.has(s.number))
-              .map((s) => (
-                <path
-                  key={`y${s.number}`}
-                  d={s.d}
-                  fill="none"
-                  stroke="#ffe500"
-                  strokeWidth={30}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  filter="url(#f1-glow)"
-                  className="f1-yellow"
-                />
-              ))}
-            {inPit.map((d, i) => {
-              const pts = geo.pit.points;
-              const [x, y] = pts[Math.min(pts.length - 1, Math.round(((i + 1) / (inPit.length + 1)) * (pts.length - 1)))];
-              return (
-                <g key={`pit${d.number}`}>
-                  <circle cx={x} cy={y} r={11} fill={d.color} stroke={C.bg} strokeWidth={2} />
-                  <text x={x} y={y} dy={30} fontSize={18} fontWeight={700} fill={C.text} textAnchor="middle">
-                    {d.tla}
-                  </text>
-                </g>
-              );
-            })}
-            <circle cx={geo.start[0]} cy={geo.start[1]} r={10} fill="#fff" />
-            {data.positionsAvailable &&
-              [...data.drivers].reverse().map((d) => {
-                if (d.x === undefined || d.y === undefined) return null;
-                const [x, y] = geo.toView(d.x, d.y);
-                return (
-                  <g key={d.number} opacity={d.out ? 0.3 : 1}>
-                    <circle cx={x} cy={y} r={11} fill={d.color} stroke={C.bg} strokeWidth={2} />
-                    {d.position <= 3 && (
-                      <text x={x + 16} y={y} fontSize={22} fontWeight={700} fill={C.text} dominantBaseline="central">
-                        {d.tla}
-                      </text>
-                    )}
-                  </g>
-                );
-              })}
-          </svg>
+          <F1Track data={data} />
         </Surface>
       ) : (
         <Message>{data.error ?? "Waiting for the circuit map…"}</Message>

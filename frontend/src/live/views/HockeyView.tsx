@@ -27,6 +27,82 @@ function usePowerPlayClock(seconds: number | undefined): number | undefined {
   return left;
 }
 
+// The rink with every shot, the latest one, a live faceoff and the shot
+// animation — shared by the full view and the multi-game tiles.
+export function HockeySurface({ data }: { data: HockeyState }) {
+  const [away, home] = data.teams;
+  const [awayColor, homeColor] = teamColors(away, home);
+  const colorOf = (teamId: string) => (teamId === home?.id ? homeColor : awayColor);
+  const teams = [
+    { abbr: away?.abbr ?? "", color: awayColor },
+    { abbr: home?.abbr ?? "", color: homeColor },
+  ];
+  const lastShot = data.shots.find((s) => s.last);
+  const faceoff = data.faceoff;
+  return (
+    <Rink left={teams[0]} right={teams[1]}>
+      {data.shots
+        .filter((s) => !s.goal)
+        .map((s, i) => {
+          const [x, y] = place(s.x, s.y);
+          return s.blocked ? (
+            <circle key={i} cx={x} cy={y} r={1.3} fill="#fff" stroke={colorOf(s.teamId)} strokeWidth={0.6} />
+          ) : (
+            <circle key={i} cx={x} cy={y} r={1.5} fill={colorOf(s.teamId)} stroke="#fff" strokeWidth={0.3} />
+          );
+        })}
+      {data.shots
+        .filter((s) => s.goal)
+        .map((s, i) => {
+          const [x, y] = place(s.x, s.y);
+          return (
+            <g key={`g${i}`}>
+              <circle cx={x} cy={y} r={3} fill={colorOf(s.teamId)} stroke="#111" strokeWidth={0.5} />
+              <text x={x} y={y} fontSize={3} fontWeight={800} fill="#fff" textAnchor="middle" dominantBaseline="central">
+                G
+              </text>
+            </g>
+          );
+        })}
+      {lastShot &&
+        (() => {
+          const [x, y] = place(lastShot.x, lastShot.y);
+          // Keyed per shot so a new attempt mounts a fresh ring (restarting
+          // its pulse) instead of the old ring sliding across the ice.
+          return (
+            <circle
+              key={`${data.shots.length}`}
+              cx={x}
+              cy={y}
+              r={lastShot.goal ? 5 : 4}
+              fill="none"
+              stroke={colorOf(lastShot.teamId)}
+              strokeWidth={0.7}
+              className="live-pulse"
+            />
+          );
+        })()}
+      {faceoff &&
+        (() => {
+          const [x, y] = place(faceoff.x, faceoff.y);
+          return (
+            <g>
+              <circle cx={x} cy={y} r={3.4} fill="#111" fillOpacity={0.18} className="live-pulse" />
+              <circle cx={x} cy={y} r={1.7} fill="#111" stroke="#fff" strokeWidth={0.45} />
+            </g>
+          );
+        })()}
+      <HockeyShotPlay
+        shot={
+          lastShot
+            ? { id: `${data.shots.length}`, at: place(lastShot.x, lastShot.y), goal: lastShot.goal, blocked: lastShot.blocked, missed: lastShot.missed }
+            : undefined
+        }
+      />
+    </Rink>
+  );
+}
+
 export default function HockeyView({ data, leagueColor }: { data: HockeyState; leagueColor: string }) {
   const [away, home] = data.teams;
   const [awayColor, homeColor] = teamColors(away, home);
@@ -34,8 +110,6 @@ export default function HockeyView({ data, leagueColor }: { data: HockeyState; l
   const stat = (name: string) => [data.stats[away?.id ?? ""]?.[name], data.stats[home?.id ?? ""]?.[name]];
   const pp = data.powerPlayTeamId ? (data.powerPlayTeamId === home?.id ? home : away) : undefined;
   const ppLeft = usePowerPlayClock(data.powerPlaySecondsLeft);
-  const lastShot = data.shots.find((s) => s.last);
-  const faceoff = data.faceoff;
   const ppLine = (id?: string) => {
     const g = data.stats[id ?? ""]?.powerPlayGoals;
     const o = data.stats[id ?? ""]?.powerPlayOpportunities;
@@ -58,66 +132,7 @@ export default function HockeyView({ data, leagueColor }: { data: HockeyState; l
     >
       {flash}
       <Surface caption={<span>● shot · ○ blocked · Ⓖ goal · ◯ latest shot · ⬤ puck at a faceoff</span>}>
-        <Rink left={teams[0]} right={teams[1]}>
-          {data.shots
-            .filter((s) => !s.goal)
-            .map((s, i) => {
-              const [x, y] = place(s.x, s.y);
-              return s.blocked ? (
-                <circle key={i} cx={x} cy={y} r={1.3} fill="#fff" stroke={colorOf(s.teamId)} strokeWidth={0.6} />
-              ) : (
-                <circle key={i} cx={x} cy={y} r={1.5} fill={colorOf(s.teamId)} stroke="#fff" strokeWidth={0.3} />
-              );
-            })}
-          {data.shots
-            .filter((s) => s.goal)
-            .map((s, i) => {
-              const [x, y] = place(s.x, s.y);
-              return (
-                <g key={`g${i}`}>
-                  <circle cx={x} cy={y} r={3} fill={colorOf(s.teamId)} stroke="#111" strokeWidth={0.5} />
-                  <text x={x} y={y} fontSize={3} fontWeight={800} fill="#fff" textAnchor="middle" dominantBaseline="central">
-                    G
-                  </text>
-                </g>
-              );
-            })}
-          {lastShot &&
-            (() => {
-              const [x, y] = place(lastShot.x, lastShot.y);
-              // Keyed per shot so a new attempt mounts a fresh ring (restarting
-              // its pulse) instead of the old ring sliding across the ice.
-              return (
-                <circle
-                  key={`${data.shots.length}`}
-                  cx={x}
-                  cy={y}
-                  r={lastShot.goal ? 5 : 4}
-                  fill="none"
-                  stroke={colorOf(lastShot.teamId)}
-                  strokeWidth={0.7}
-                  className="live-pulse"
-                />
-              );
-            })()}
-          {faceoff &&
-            (() => {
-              const [x, y] = place(faceoff.x, faceoff.y);
-              return (
-                <g>
-                  <circle cx={x} cy={y} r={3.4} fill="#111" fillOpacity={0.18} className="live-pulse" />
-                  <circle cx={x} cy={y} r={1.7} fill="#111" stroke="#fff" strokeWidth={0.45} />
-                </g>
-              );
-            })()}
-          <HockeyShotPlay
-            shot={
-              lastShot
-                ? { id: `${data.shots.length}`, at: place(lastShot.x, lastShot.y), goal: lastShot.goal, blocked: lastShot.blocked, missed: lastShot.missed }
-                : undefined
-            }
-          />
-        </Rink>
+        <HockeySurface data={data} />
       </Surface>
       <Below
         left={

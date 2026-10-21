@@ -60,6 +60,21 @@ don't go back to that. Fixed dark palette, not the app theme. A strip of
 other live games sits along the bottom; tapping one overrides the automatic
 pick until that game ends.
 
+Several games at once (`live/multiGame.ts`, `live/GameTile.tsx`): with 2+
+games live, the RedZone (one big + up to 3) or Grid (up to 6) layout,
+picked by a switch next to Fullscreen ("Single" = the one-game display).
+Games are ranked by `interest()` — red zone (from the ESPN scoreboard's
+`situation`, so it works for games not on screen), a score in the last 3
+minutes, a power play (reported by the tile), a close finish, followed
+teams — with a bonus for games already shown so they don't churn. Tap a
+strip game to pin it to the big spot; drag games onto spots (pin/swap) or
+onto the strip (hide). Layout, pins and hidden games are per device
+(localStorage), pruned when their games end. Tiles stay mounted while
+they move between grid areas, so a stream doesn't reload. Each sport's
+surface is a shared component (`FootballSurface`, `HockeySurface`,
+`BasketballSurface`, `BaseballSurface`, `F1Track`) used by both the full
+view and the tiles.
+
 Every route maps its source's raw API response into `NormalizedEvent`
 (`backend/src/types.ts`) — that's the one shape the whole frontend consumes,
 regardless of source.

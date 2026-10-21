@@ -33,6 +33,7 @@ export interface NormalizedEvent {
   manuallyFollowed?: boolean; // one-off follow (detail-view button, or a custom event) — shown as a distinct tag from the team-based "followed" badge
   region?: string; // state/province code, e.g. "MI" — currently FRC only
   liveDetail?: string; // in-progress game clock/period, e.g. "Q3 8:42"
+  situation?: { redZone: boolean; downDistance?: string }; // live football only, from the ESPN scoreboard
 }
 
 export interface StandingsRow {

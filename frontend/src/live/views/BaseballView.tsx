@@ -26,6 +26,25 @@ function Dots({ label, n, total, color }: { label: string; n: number; total: num
   );
 }
 
+// The real ballpark with this game's balls in play, runners and the latest
+// ball's flight — shared by the full view and the multi-game tiles.
+export function BaseballSurface({ data }: { data: BaseballState }) {
+  const hits = data.hits ?? [];
+  const lastHit = hits.at(-1);
+  return (
+    <Ballpark fence={data.fence}>
+      {/* earlier balls in play this game, as a faint spray chart */}
+      {hits.slice(0, -1).map((h) => (
+        <circle key={h.id} cx={h.x} cy={-h.y} r={3.5} fill="#fff" fillOpacity={0.35} />
+      ))}
+      <Base at={BASES.first} on={data.onFirst} />
+      <Base at={BASES.second} on={data.onSecond} />
+      <Base at={BASES.third} on={data.onThird} />
+      <BallFlight hit={lastHit} />
+    </Ballpark>
+  );
+}
+
 export default function BaseballView({ data, leagueColor }: { data: BaseballState; leagueColor: string }) {
   const [away, home] = data.teams;
   const [awayColor, homeColor] = teamColors(away, home);
@@ -58,16 +77,7 @@ export default function BaseballView({ data, leagueColor }: { data: BaseballStat
           and everything else sits beside it: the linescore runs down by
           inning, with the count, pitches and plays next to it. */}
       <Surface>
-        <Ballpark fence={data.fence}>
-          {/* earlier balls in play this game, as a faint spray chart */}
-          {hits.slice(0, -1).map((h) => (
-            <circle key={h.id} cx={h.x} cy={-h.y} r={3.5} fill="#fff" fillOpacity={0.35} />
-          ))}
-          <Base at={BASES.first} on={data.onFirst} />
-          <Base at={BASES.second} on={data.onSecond} />
-          <Base at={BASES.third} on={data.onThird} />
-          <BallFlight hit={lastHit} />
-        </Ballpark>
+        <BaseballSurface data={data} />
       </Surface>
       <Side>
         <div className="lv-mlb-side">

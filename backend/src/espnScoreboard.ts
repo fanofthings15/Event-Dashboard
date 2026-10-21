@@ -116,6 +116,15 @@ export function buildEspnScoreboardRouter(espnPath: string, sport: string, leagu
         // response from this sandbox (network-restricted).
         const liveDetail = state === "in" ? e.status?.type?.shortDetail || e.status?.type?.detail : undefined;
 
+        // Football's live situation (down and distance, red zone) is on the
+        // scoreboard for every game, so the live display can rank games it
+        // isn't fetching full play data for.
+        const sit = comp?.situation;
+        const situation =
+          state === "in" && sit && (sit.isRedZone !== undefined || sit.downDistanceText)
+            ? { redZone: sit.isRedZone === true, downDistance: sit.shortDownDistanceText || sit.downDistanceText || undefined }
+            : undefined;
+
         // ESPN's own `comp.links` array is inconsistent — sometimes a recap
         // or boxscore link, sometimes missing outright — which was leaving
         // some games (NFL in particular) with no "More info"/"Watch live"
@@ -142,6 +151,7 @@ export function buildEspnScoreboardRouter(espnPath: string, sport: string, leagu
           teams: teams.length ? teams : undefined,
           seriesScore,
           liveDetail,
+          situation,
           extra: extra.length ? extra : undefined,
         };
       });

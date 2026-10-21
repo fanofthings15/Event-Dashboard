@@ -939,3 +939,232 @@ body.live-body {
     display: none;
   }
 }
+
+/* ---------- several games at once (multiGame.ts) ---------- */
+
+.lv-multi {
+  height: 100%;
+  min-height: 0;
+  display: grid;
+  grid-auto-rows: minmax(0, 1fr);
+  gap: 0.7em;
+  padding: 0.7em max(1.2em, env(safe-area-inset-right)) 0.7em max(1.2em, env(safe-area-inset-left));
+  color: #e8eaed;
+  font-variant-numeric: tabular-nums;
+}
+
+/* two side by side: as tall as the field needs, centred */
+.lv-multi.rz2,
+.lv-multi.g2 {
+  align-items: center;
+}
+
+.lv-multi.rz2 .lv-tile,
+.lv-multi.g2 .lv-tile {
+  max-height: 100%;
+}
+
+.lv-tile {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 0.35em;
+  padding: 0.45em 0.6em;
+  border: 1px solid #262b35;
+  border-radius: 0.6em;
+  font-size: 0.85em;
+  touch-action: none;
+  -webkit-touch-callout: none;
+  cursor: grab;
+  transition: box-shadow 300ms, border-color 300ms, opacity 150ms;
+}
+
+.lv-tile.big {
+  font-size: 1.15em;
+  padding: 0.6em 0.8em;
+}
+
+.lv-tile.glow {
+  border-color: var(--glow);
+  box-shadow: 0 0 0 0.15em var(--glow), 0 0 1.4em var(--glow);
+  animation: lv-tile-glow 1s ease-in-out infinite alternate;
+}
+
+@keyframes lv-tile-glow {
+  from {
+    box-shadow: 0 0 0 0.15em var(--glow), 0 0 0.4em var(--glow);
+  }
+  to {
+    box-shadow: 0 0 0 0.15em var(--glow), 0 0 1.6em var(--glow);
+  }
+}
+
+.lv-tile.drop {
+  border-color: #4f8dfd;
+  border-style: dashed;
+  background: rgb(79 141 253 / 0.14);
+}
+
+.lv-tile.lifted {
+  opacity: 0.35;
+}
+
+.lv-tile-score {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  min-width: 0;
+  font-weight: 800;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.lv-tile-score .n {
+  font-size: 1.15em;
+}
+
+.lv-tile-score .clock {
+  margin-left: auto;
+  color: #8b92a3;
+  font-weight: 600;
+  font-size: 0.85em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lv-tile-tag {
+  font-size: 0.72em;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  padding: 0.1em 0.45em;
+  border-radius: 0.3em;
+}
+
+.lv-tile-pin {
+  flex: none;
+  background: none;
+  border: 0;
+  padding: 0 0.1em;
+  color: #4f8dfd;
+  font-size: 0.9em;
+  cursor: pointer;
+}
+
+.lv-tile-surface {
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lv-tile-surface > svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.lv-tile-surface .lv-stream {
+  max-height: 100%;
+  width: auto;
+  height: 100%;
+  max-width: 100%;
+}
+
+.lv-tile-surface .lv-message {
+  font-size: 0.9em;
+}
+
+.lv-tile-status {
+  min-width: 0;
+  font-size: 0.85em;
+  color: #8b92a3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lv-tile-status b {
+  color: #e8eaed;
+}
+
+.lv-tile-empty {
+  color: #8b92a3;
+  font-size: 0.9em;
+}
+
+.lv-tile-frc {
+  display: grid;
+  gap: 0.3em;
+  text-align: center;
+  font-weight: 700;
+}
+
+.lv-tile-frc b {
+  font-size: 1.6em;
+}
+
+/* strip while dragging */
+.lv-others.drop {
+  box-shadow: inset 0 0 0 0.15em #4f8dfd;
+  background: rgb(79 141 253 / 0.12);
+}
+
+.lv-others button {
+  touch-action: pan-x;
+  -webkit-touch-callout: none;
+}
+
+.lv-others button.is-hidden {
+  opacity: 0.45;
+}
+
+.lv-others button.is-lifted {
+  opacity: 0.3;
+}
+
+.lv-dragging,
+.lv-dragging * {
+  cursor: grabbing !important;
+}
+
+/* an embedded player would swallow the pointer mid-drag */
+.lv-dragging iframe {
+  pointer-events: none;
+}
+
+.lv-drag-ghost {
+  position: fixed;
+  z-index: 30;
+  pointer-events: none;
+  transform: translate(-50%, -120%) rotate(-3deg);
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  padding: 0.45em 0.8em 0.45em 0.5em;
+  border-radius: 0.45em;
+  background: #232836;
+  border: 1px solid #4f8dfd;
+  box-shadow: 0 0.6em 1.6em rgb(0 0 0 / 0.6);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.lv-drag-ghost .bar {
+  width: 0.3em;
+  align-self: stretch;
+  border-radius: 0.2em;
+}
+
+/* layout switch, next to Fullscreen */
+.lv-layout-switch {
+  display: flex;
+  gap: 0.25em;
+  padding-left: 0.4em;
+}
+
+.lv-others button.lv-strip-btn[aria-pressed="true"] {
+  background: #4f8dfd;
+  color: #fff;
+}
