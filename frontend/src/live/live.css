@@ -953,17 +953,6 @@ body.live-body {
   font-variant-numeric: tabular-nums;
 }
 
-/* two side by side: as tall as the field needs, centred */
-.lv-multi.rz2,
-.lv-multi.g2 {
-  align-items: center;
-}
-
-.lv-multi.rz2 .lv-tile,
-.lv-multi.g2 .lv-tile {
-  max-height: 100%;
-}
-
 .lv-tile {
   position: relative;
   min-width: 0;
@@ -1052,11 +1041,16 @@ body.live-body {
   cursor: pointer;
 }
 
+/* Every tile fills its cell, and the surface is a size container, so a
+   stream can be fitted to the space actually there (16:9, as large as fits)
+   instead of sizing from its own height, which collapsed or overflowed. */
 .lv-tile-surface {
   min-height: 0;
+  min-width: 0;
   display: flex;
   align-items: center;
   justify-content: center;
+  container-type: size;
 }
 
 .lv-tile-surface > svg {
@@ -1066,10 +1060,10 @@ body.live-body {
 }
 
 .lv-tile-surface .lv-stream {
-  max-height: 100%;
-  width: auto;
-  height: 100%;
-  max-width: 100%;
+  flex: none;
+  width: min(100cqw, 100cqh * 16 / 9);
+  height: auto;
+  max-height: none;
 }
 
 .lv-tile-surface .lv-message {
