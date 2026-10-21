@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import type { F1State } from "../liveTypes";
-import { C, LiveFrame, Line, Message, Side, Source, Surface } from "../Layout";
+import { C, LiveFrame, Line, Message, Side, Surface } from "../Layout";
 
 // TrackStatus codes from the live-timing feed. 1 (all clear) gets no pill.
 const TRACK_STATUS: Record<string, { label: string; color: string; ink: string }> = {
@@ -95,9 +95,6 @@ export default function F1View({ data, leagueColor }: { data: F1State; leagueCol
               {rc.message}
             </Line>
           )}
-          <Source>
-            F1 live timing{data.positionsAvailable ? " · car positions" : " · no car positions in the feed right now"} · circuit map from MultiViewer
-          </Source>
         </>
       }
     >

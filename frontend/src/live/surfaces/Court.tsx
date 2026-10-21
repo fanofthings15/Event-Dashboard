@@ -35,9 +35,49 @@ function Half({ side, paint }: { side: 0 | 1; paint: string }) {
   );
 }
 
-export default function Court({ children, awayPaint, homePaint }: { children?: ReactNode; awayPaint: string; homePaint: string }) {
+// A team-coloured band beyond each baseline marks the basket that team
+// defends (same idea as a football end zone and the hockey rink's bands).
+function EndBand({ side, team }: { side: 0 | 1; team: { abbr: string; color: string } }) {
+  const x = side ? COURT_W + 1.2 : -6.2;
+  const cx = x + 2.5;
   return (
-    <svg viewBox="-1 -1 96 52" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Basketball court">
+    <g>
+      <rect x={x} y={5} width={5} height={COURT_H - 10} rx={1.2} fill={team.color} />
+      <text
+        x={cx}
+        y={COURT_H / 2}
+        fontSize={2.6}
+        fontWeight={900}
+        fill="#fff"
+        textAnchor="middle"
+        dominantBaseline="central"
+        letterSpacing={0.5}
+        transform={`rotate(${side ? 90 : -90} ${cx} ${COURT_H / 2})`}
+      >
+        {team.abbr}
+      </text>
+    </g>
+  );
+}
+
+export default function Court({
+  children,
+  awayPaint,
+  homePaint,
+  left,
+  right,
+}: {
+  children?: ReactNode;
+  awayPaint: string;
+  homePaint: string;
+  left?: { abbr: string; color: string };
+  right?: { abbr: string; color: string };
+}) {
+  const pad = left || right ? 7 : 1;
+  return (
+    <svg viewBox={`${-pad} -1 ${COURT_W + pad * 2} 52`} preserveAspectRatio="xMidYMid meet" role="img" aria-label="Basketball court">
+      {left && <EndBand side={0} team={left} />}
+      {right && <EndBand side={1} team={right} />}
       <defs>
         <linearGradient id="court-wood" x1="0" x2="0" y1="0" y2="1">
           <stop offset="0" stopColor="#dcae74" />

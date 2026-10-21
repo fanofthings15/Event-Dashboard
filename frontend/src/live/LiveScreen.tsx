@@ -27,7 +27,8 @@ import "./live.css";
 // overrides for testing or pinning a game:
 //   /live?event=nba-401909090   always show that event
 //   /live?calibrate             open the stream-crop editor straight away
-// Keys: M minimap-only (esports), C adjust the minimap crop. Fullscreen is the browser's own F11.
+// Keys: M minimap-only (esports), C adjust the minimap crop. Fullscreen is the
+// browser's own F11; on-screen buttons (Back, crop) hide while fullscreen.
 
 const ESPN_SPORTS = new Set(["nfl", "ncaaf", "nba", "nhl", "mlb"]);
 const POLL_MS: Record<string, number> = { f1: 3_000, nhl: 5_000, frc: 60_000 };
@@ -70,6 +71,27 @@ function SportView({ event, label, color }: { event: NormalizedEvent; label: str
         </LiveFrame>
       );
   }
+}
+
+// True while the display fills the whole screen. Browser F11 fullscreen
+// doesn't set document.fullscreenElement, so the window covering the full
+// screen counts too.
+function useIsFullscreen(): boolean {
+  const check = () =>
+    Boolean(document.fullscreenElement) ||
+    window.matchMedia("(display-mode: fullscreen)").matches ||
+    (window.innerHeight >= screen.height - 1 && window.innerWidth >= screen.width - 1);
+  const [full, setFull] = useState(check);
+  useEffect(() => {
+    const update = () => setFull(check());
+    window.addEventListener("resize", update);
+    document.addEventListener("fullscreenchange", update);
+    return () => {
+      window.removeEventListener("resize", update);
+      document.removeEventListener("fullscreenchange", update);
+    };
+  }, []);
+  return full;
 }
 
 const followedFirst = (a: NormalizedEvent, b: NormalizedEvent) =>
@@ -126,7 +148,8 @@ export default function LiveScreen({ onBack }: { onBack?: () => void } = {}) {
     [settings.esportsCatalog, settings.sportColorOverrides]
   );
 
-  // ----- display chrome: fullscreen, keep awake, hide the cursor -----
+  // ----- display chrome: keep awake, hide the cursor, hide buttons when fullscreen -----
+  const fullscreen = useIsFullscreen();
   const [controlsVisible, setControlsVisible] = useState(false);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const poke = useCallback(() => {
@@ -236,12 +259,12 @@ export default function LiveScreen({ onBack }: { onBack?: () => void } = {}) {
           ))}
         </nav>
       )}
-      {controlsVisible && !calibrating && onBack && (
+      {controlsVisible && !fullscreen && !calibrating && onBack && (
         <div className="live-controls live-controls-left">
           <button onClick={onBack}>‹ Back</button>
         </div>
       )}
-      {controlsVisible && !calibrating && esportsCrop && stream && (
+      {controlsVisible && !fullscreen && !calibrating && esportsCrop && stream && (
         <div className="live-controls">
           {esportsCrop && stream && <button onClick={() => setMinimapOnly((v) => !v)}>{minimapOnly ? "Full stream" : "Minimap only"}</button>}
           {esportsCrop && stream && minimapOnly && <button onClick={() => setCalibrating(true)}>Adjust minimap crop</button>}
