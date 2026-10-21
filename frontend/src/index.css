@@ -46,10 +46,11 @@ body {
 
 .header h1 { font-size: 22px; margin: 0; }
 .header-actions { display: flex; gap: 8px; flex-wrap: wrap; width: 100%; }
-/* Resync/Settings sit at the right edge, lined up with the search box and
-   cards below, instead of stopping short wherever the tabs end */
+/* The tab bar fills the row between Add Event and Resync/Settings, tabs
+   spread evenly, so the row lines up with the search box and cards below */
 @media (min-width: 481px) {
-  .header-actions .view-switcher + .btn { margin-left: auto; }
+  .header-actions .view-switcher { flex: 1 1 auto; }
+  .header-actions .view-switcher .btn.small { flex: 1 1 auto; }
 }
 .last-updated { font-size: 12px; color: var(--muted); margin-bottom: 10px; }
 .view-switcher { display: flex; flex-wrap: wrap; gap: 4px; max-width: 100%; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 3px; }

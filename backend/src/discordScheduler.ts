@@ -81,15 +81,37 @@ function isHiddenByFilters(e: NormalizedEvent, excludedLeagues: string[], frcReg
   return leagueExcluded || regionExcluded;
 }
 
-// Per-user memory of what's already been notified, so a live game doesn't
-// re-fire every tick and an upcoming reminder doesn't fire twice. Lives only
-// in process memory — resets on restart, same as the frontend's equivalent
-// (useRef state) resets on a page reload.
-interface UserPushState {
-  prevLiveIds: Set<string>;
-  notifiedUpcoming: Set<string>;
+// Per-user record of what's already been notified (event key, or event key
+// plus reminder lead, to when it was sent), saved beside the user's
+// settings. It has to survive a restart: when this only lived in memory,
+// every deploy re-sent "is live" for every game still on (8 in one
+// afternoon), and so did a single poll where a source failed and the game
+// briefly dropped out of the live list. Entries are dropped after two days.
+const SENT_TTL_MS = 2 * 24 * 60 * 60 * 1000;
+
+function sentFile(userId: string): string {
+  return path.join(USERS_DIR, userId, "notified.json");
 }
-const stateByUser = new Map<string, UserPushState>();
+
+// null when there's no record yet (first run of this version, or a new
+// user): that tick only records what's already live, so switching over
+// doesn't send one more round for games that were announced before.
+function readSent(userId: string): Record<string, number> | null {
+  try {
+    const raw = JSON.parse(fs.readFileSync(sentFile(userId), "utf-8"));
+    return raw && typeof raw === "object" ? raw : {};
+  } catch {
+    return null;
+  }
+}
+
+function writeSent(userId: string, sent: Record<string, number>): void {
+  try {
+    fs.writeFileSync(sentFile(userId), JSON.stringify(sent), "utf-8");
+  } catch (err) {
+    console.error(`[discord-scheduler] couldn't save notified list for user ${userId}:`, err);
+  }
+}
 
 async function fetchUserEvents(baseUrl: string, userId: string, disabledCoreSources: string[]): Promise<NormalizedEvent[]> {
   const endpoints = [
@@ -123,12 +145,16 @@ async function tickUser(baseUrl: string, userId: string): Promise<void> {
   const reminderLeads = settings.notifyLeadMinutes.filter((m) => m > 0);
   const nowMs = Date.now();
 
-  let state = stateByUser.get(userId);
-  if (!state) {
-    state = { prevLiveIds: new Set(), notifiedUpcoming: new Set() };
-    stateByUser.set(userId, state);
+  const stored = readSent(userId);
+  const seeding = stored === null;
+  const sent = stored ?? {};
+  let changed = seeding;
+  for (const [k, at] of Object.entries(sent)) {
+    if (nowMs - at > SENT_TTL_MS) {
+      delete sent[k];
+      changed = true;
+    }
   }
-  const nowLiveIds = new Set<string>();
 
   for (const e of events) {
     const key = `${e.sport}-${e.id}`;
@@ -142,9 +168,10 @@ async function tickUser(baseUrl: string, userId: string): Promise<void> {
     if (settings.notifyMode === "followed" && !isFollowed) continue;
 
     if (e.status === "live") {
-      nowLiveIds.add(key);
-      if (!state.prevLiveIds.has(key)) {
-        await notify(userId, settings.discordWebhookUrl, settings.discordMuteToken, key, `🔴 ${e.name} is live`, e.league, LIVE_COLOR);
+      if (!sent[key]) {
+        sent[key] = nowMs;
+        changed = true;
+        if (!seeding) await notify(userId, settings.discordWebhookUrl, settings.discordMuteToken, key, `🔴 ${e.name} is live`, e.league, LIVE_COLOR);
       }
       continue;
     }
@@ -153,9 +180,11 @@ async function tickUser(baseUrl: string, userId: string): Promise<void> {
       const msUntilStart = new Date(e.startTime).getTime() - nowMs;
       for (const lead of reminderLeads) {
         const leadKey = `${key}-${lead}`;
-        if (state.notifiedUpcoming.has(leadKey)) continue;
+        if (sent[leadKey]) continue;
         if (msUntilStart > 0 && msUntilStart <= lead * 60_000) {
-          state.notifiedUpcoming.add(leadKey);
+          sent[leadKey] = nowMs;
+          changed = true;
+          if (seeding) continue;
           const when = lead === 0 ? "now" : `in ${lead} min`;
           await notify(userId, settings.discordWebhookUrl, settings.discordMuteToken, key, `⏰ ${e.name} starts ${when}`, e.league, UPCOMING_COLOR);
         }
@@ -163,7 +192,7 @@ async function tickUser(baseUrl: string, userId: string): Promise<void> {
     }
   }
 
-  state.prevLiveIds = nowLiveIds;
+  if (changed) writeSent(userId, sent);
 }
 
 // Starts the recurring tick that drives Discord notifications, independent
