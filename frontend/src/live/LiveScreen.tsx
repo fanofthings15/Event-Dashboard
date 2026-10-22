@@ -230,7 +230,12 @@ export default function LiveScreen({ onBack }: { onBack?: () => void } = {}) {
     if (events.length === 0) return;
     const live = new Set(liveEvents.map(eventKey));
     const next = pruneTo(prefs, live);
-    if (Object.keys(next.pins).length !== Object.keys(prefs.pins).length || next.hidden.length !== prefs.hidden.length) setPrefs(next);
+    if (
+      Object.keys(next.pins).length !== Object.keys(prefs.pins).length ||
+      next.hidden.length !== prefs.hidden.length ||
+      (next.benched ?? []).length !== (prefs.benched ?? []).length
+    )
+      setPrefs(next);
   }, [liveEvents, events.length, prefs, setPrefs]);
 
   // when each game's score last changed (a fresh score makes it interesting)

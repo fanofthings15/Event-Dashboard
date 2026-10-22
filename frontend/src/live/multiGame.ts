@@ -13,6 +13,9 @@ export type LiveLayout = "redzone" | "grid" | "single";
 export interface MultiPrefs {
   pins: Record<string, number>; // event key -> slot index
   hidden: string[];
+  // replaced by a game dropped onto its spot: ranked last, so it goes to the
+  // strip rather than bumping some other game, but still fills a free spot
+  benched?: string[];
 }
 
 // ---------- interest ----------
@@ -118,7 +121,8 @@ export function placeGames(
     if (at >= 0) slots[at] = k;
   }
 
-  const rank = (k: string) => (scores.get(k) ?? 0) + (prev.includes(k) ? STAY_BONUS : 0);
+  const benched = new Set(prefs.benched ?? []);
+  const rank = (k: string) => (scores.get(k) ?? 0) + (prev.includes(k) ? STAY_BONUS : 0) - (benched.has(k) ? 10_000 : 0);
   const free = slots.filter((s) => s === null).length;
   const chosen = visible
     .map(eventKey)
@@ -149,29 +153,35 @@ export function placeGames(
 
 // ---------- user choices ----------
 
+const without = (list: string[] | undefined, key: string) => (list ?? []).filter((k) => k !== key);
+
 export const tapToBig = (prefs: MultiPrefs, key: string): MultiPrefs => {
   const pins = Object.fromEntries(Object.entries(prefs.pins).filter(([k, slot]) => k !== key && slot !== 0));
-  return { pins: { ...pins, [key]: 0 }, hidden: prefs.hidden.filter((h) => h !== key) };
+  return { pins: { ...pins, [key]: 0 }, hidden: without(prefs.hidden, key), benched: without(prefs.benched, key) };
 };
 
 // A game dropped on a spot takes it, pinned. From another spot it's a swap
-// (both stay pinned); from the strip, the game it replaces is unpinned and
-// goes back to being placed by interest.
+// (both stay pinned); from the strip, the game it replaces goes to the strip
+// (benched) and every other game stays where it is.
 export const dropOnSlot = (prefs: MultiPrefs, key: string, slot: number, slots: string[]): MultiPrefs => {
   const occupant = slots[slot];
   const from = slots.indexOf(key);
   const pins = { ...prefs.pins, [key]: slot };
+  let benched = without(prefs.benched, key);
   if (occupant && occupant !== key) {
     if (from >= 0) pins[occupant] = from;
-    else delete pins[occupant];
+    else {
+      delete pins[occupant];
+      benched = [...without(benched, occupant), occupant];
+    }
   }
-  return { pins, hidden: prefs.hidden.filter((h) => h !== key) };
+  return { pins, hidden: without(prefs.hidden, key), benched };
 };
 
 export const hideGame = (prefs: MultiPrefs, key: string): MultiPrefs => {
   const pins = { ...prefs.pins };
   delete pins[key];
-  return { pins, hidden: prefs.hidden.includes(key) ? prefs.hidden : [...prefs.hidden, key] };
+  return { pins, hidden: prefs.hidden.includes(key) ? prefs.hidden : [...prefs.hidden, key], benched: without(prefs.benched, key) };
 };
 
 export const unpinGame = (prefs: MultiPrefs, key: string): MultiPrefs => {
@@ -184,6 +194,7 @@ export const unpinGame = (prefs: MultiPrefs, key: string): MultiPrefs => {
 export const pruneTo = (prefs: MultiPrefs, liveKeys: Set<string>): MultiPrefs => ({
   pins: Object.fromEntries(Object.entries(prefs.pins).filter(([k]) => liveKeys.has(k))),
   hidden: prefs.hidden.filter((k) => liveKeys.has(k)),
+  benched: (prefs.benched ?? []).filter((k) => liveKeys.has(k)),
 });
 
 // ---------- per-device storage ----------
