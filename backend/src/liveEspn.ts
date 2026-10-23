@@ -97,6 +97,7 @@ export interface FootballState extends LiveCommon {
   spotText?: string; // "SF 40"
   driveSummary?: string;
   lastPlay?: string;
+  nextHash?: Hash; // where the next snap sits
   // The latest play, for animating it on the field. ESPN gives no catch or
   // ball location, so passes and runs are placed from the play's start and
   // end spots plus the direction words in its text ("pass deep left", "up
@@ -109,14 +110,36 @@ export interface FootballState extends LiveCommon {
     towardHome: boolean; // offense heading for the home goal
     lane: "left" | "middle" | "right";
     depth?: "short" | "deep";
+    // The play call as the text names it: "(Shotgun)" / "(Pistol)" or under
+    // centre, the run gap ("left guard", "up the middle", "right end"), a QB
+    // scramble, and a carrier who ended out of bounds.
+    formation?: "shotgun" | "pistol" | "under center";
+    gap?: "end" | "tackle" | "guard" | "middle";
+    scramble?: boolean;
+    outOfBounds?: boolean;
+    hash?: Hash; // where the ball was snapped from
     pass?: boolean; // a forward pass was thrown on the play
-    kickYards?: number; // punts: distance in the air, from "punts 56 yards"
+    kickYards?: number; // punts and kickoffs: distance in the air, from "punts 56 yards" / "kicks 63 yards"
     fumbleAt?: number; // where the ball came loose (yards from home goal)
     turnover?: boolean; // the other team ended up with the ball
   };
 }
 
 const ORD = ["", "1st", "2nd", "3rd", "4th"];
+
+// A hash as drawn: the field has the away end zone on the left, so "top" is
+// the offense's left when it's heading for the home goal.
+type Hash = "top" | "middle" | "bottom";
+
+// The part of a play's text that describes the play itself — before any
+// penalty and without the tacklers in brackets (a formation tag is kept).
+const playCall = (text: string) => text.split(/PENALTY/i)[0].replace(/\((?!shotgun|pistol|no huddle)[^)]*\)/gi, "");
+
+// Offense's left/right from "pass short left", "left tackle", "scrambles right end".
+function laneOf(text: string): "left" | "middle" | "right" {
+  const call = playCall(text);
+  return /\bleft\b/i.test(call) ? "left" : /\bright\b/i.test(call) ? "right" : "middle";
+}
 
 export function mapFootball(data: any): FootballState {
   const common = commonFrom(data);
@@ -136,10 +159,36 @@ export function mapFootball(data: any): FootballState {
   out.driveSummary = drive?.description;
   if (typeof drive?.start?.yardLine === "number") out.driveStart = drive.start.yardLine;
 
-  // The play just run, for the field animation.
-  const s0 = last.start ?? {};
-  if (typeof s0.yardLine === "number" && last.type?.text) {
-    const towardHome = typeof s0.yardsToEndzone === "number" && s0.yardsToEndzone !== 50 ? Math.abs(s0.yardLine - s0.yardsToEndzone) < 0.5 : String(s0.team?.id ?? "") !== home?.id;
+  // A play's offense is heading for the home goal when yardsToEndzone ==
+  // yardLine; on the 50 both readings agree, so fall back to home/away.
+  const headingHome = (st: any) =>
+    typeof st.yardsToEndzone === "number" && st.yardsToEndzone !== 50 ? Math.abs(st.yardLine - st.yardsToEndzone) < 0.5 : String(st.team?.id ?? "") !== home?.id;
+  // Each play leaves the ball on the hash of the side it went to; kicks
+  // reset to the middle, and incompletions, penalties and stoppages leave it
+  // where it was. hashes[i] is where the snap after play i sits.
+  const hashes: Hash[] = [];
+  let h: Hash = "middle";
+  for (const p of plays) {
+    const type: string = p.type?.text ?? "";
+    if (/kickoff|punt|field goal|extra point|two-point/i.test(type)) h = "middle";
+    else if (!/incompletion|penalty|timeout|end of|two-minute/i.test(type) && typeof p.start?.yardLine === "number") {
+      const lane = laneOf(p.text ?? "");
+      const towardHome = headingHome(p.start);
+      h = lane === "middle" ? "middle" : (lane === "left") === towardHome ? "top" : "bottom";
+    }
+    hashes.push(h);
+  }
+  out.nextHash = hashes.at(-1);
+
+  // The play just run, for the field animation — stoppages (timeouts,
+  // end of a quarter) don't replace it.
+  let runIdx = plays.length - 1;
+  while (runIdx > 0 && /timeout|end of|two-minute|end period|end quarter/i.test(plays[runIdx].type?.text ?? "")) runIdx--;
+  const run = plays[runIdx];
+  const s0 = run?.start ?? {};
+  if (run && typeof s0.yardLine === "number" && run.type?.text) {
+    const last = run;
+    const towardHome = headingHome(s0);
     const text: string = last.text ?? "";
     const forward = (yds: number) => s0.yardLine + (towardHome ? -yds : yds);
     // statYardage is 0 on turnovers and kicks, but end.yardLine stays the
@@ -151,10 +200,13 @@ export function mapFootball(data: any): FootballState {
     // where the ball came loose.
     const beforeFumble = text.split(/FUMBLES/i)[0];
     const fumbleGain = /FUMBLES/i.test(text) ? (beforeFumble.match(/for (-?\d+) yards?/i)?.[1] ?? (/for no gain/i.test(beforeFumble) ? "0" : undefined)) : undefined;
-    const kickYards = text.match(/punts (\d+) yards?/i)?.[1];
+    const kickYards = text.match(/(?:punts|kicks) (\d+) yards?/i)?.[1];
     const endTeam = last.end?.team?.id ?? last.end?.team;
     const startTeam = s0.team?.id ?? s0.team;
-    const lane = /\b(deep|short)?\s*left\b|left (end|tackle|guard)/i.test(text) ? "left" : /\b(deep|short)?\s*right\b|right (end|tackle|guard)/i.test(text) ? "right" : "middle";
+    const lane = laneOf(text);
+    const call = playCall(text);
+    const gap = call.match(/\b(?:left|right) (end|tackle|guard)\b/i)?.[1]?.toLowerCase() as "end" | "tackle" | "guard" | undefined;
+    const hash = hashes[runIdx - 1] ?? "middle";
     out.motion = {
       id: String(last.id ?? `${s0.yardLine}-${last.text}`),
       type: last.type.text,
@@ -162,7 +214,12 @@ export function mapFootball(data: any): FootballState {
       to: Math.max(-10, Math.min(110, typeof endSpot === "number" ? endSpot : s0.yardLine)),
       towardHome,
       lane,
-      depth: /pass deep/i.test(text) ? "deep" : /pass short/i.test(text) ? "short" : undefined,
+      depth: /\bdeep\b/i.test(call) ? "deep" : /\bshort\b/i.test(call) ? "short" : undefined,
+      formation: /shotgun/i.test(text) ? "shotgun" : /pistol/i.test(text) ? "pistol" : "under center",
+      gap: gap ?? (/up the middle/i.test(call) ? "middle" : undefined),
+      scramble: /scrambles/i.test(call) || undefined,
+      outOfBounds: /\b(?:pushed|ran|runs|stepped) ob\b|out of bounds/i.test(call) || undefined,
+      hash,
       pass: / pass /i.test(` ${text} `) && !/pass (?:attempt )?(?:is )?(?:blocked|aborted)/i.test(text),
       kickYards: kickYards ? Number(kickYards) : undefined,
       fumbleAt: fumbleGain !== undefined ? forward(Number(fumbleGain)) : undefined,

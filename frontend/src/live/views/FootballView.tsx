@@ -24,12 +24,10 @@ export function FootballSurface({ data }: { data: FootballState }) {
   const mid = FIELD_H / 2;
   const ball = data.ball;
   const towardHome = data.attackingHomeGoal; // home goal is on the right
-  // The next snap is spotted on the hash on the side the last play ended
-  // (offense's left or right, so it flips with the direction of that play),
-  // or in the middle.
+  const offense = (towardHome ?? data.possessionId !== home?.id) ? awayColor : homeColor;
+  // The next snap sits on the hash the last play ended toward, or in the middle.
+  const ballY = mid + (data.nextHash === "top" ? -1 : data.nextHash === "bottom" ? 1 : 0) * (mid - HASH_IN);
   const m = data.motion;
-  const laneSign = m ? (m.lane === "left" ? -1 : m.lane === "right" ? 1 : 0) * (m.towardHome ? 1 : -1) : 0;
-  const ballY = mid + laneSign * (mid - HASH_IN);
   return (
     <Field leftColor={awayColor} rightColor={homeColor} leftLabel={away?.abbr} rightLabel={home?.abbr}>
       {data.redZone && ball !== undefined && (
@@ -37,18 +35,21 @@ export function FootballSurface({ data }: { data: FootballState }) {
       )}
       {ball !== undefined && (
         <g>
-          {data.driveStart !== undefined && Math.abs(data.driveStart - ball) > 1 && (
+          {/* this drive, as a bar along the far sideline, out of the play's way */}
+          {data.driveStart !== undefined && Math.abs(data.driveStart - ball) > 0.5 && (
             <g>
-              <line x1={fx(data.driveStart)} x2={fx(ball)} y1={mid} y2={ballY} stroke="#fff" strokeOpacity={0.6} strokeWidth={0.35} strokeDasharray="1 0.8" />
-              <circle cx={fx(data.driveStart)} cy={mid} r={0.5} fill="#fff" fillOpacity={0.6} />
+              <rect x={Math.min(fx(data.driveStart), fx(ball))} width={Math.abs(data.driveStart - ball)} y={0.25} height={1.1} fill={offense} stroke="#fff" strokeWidth={0.12} />
+              <circle cx={fx(data.driveStart)} cy={0.8} r={0.75} fill="#fff" />
             </g>
           )}
-          <line x1={fx(ball)} x2={fx(ball)} y1={0} y2={FIELD_H} stroke="#3b82f6" strokeWidth={0.45} />
-          {data.firstDown !== undefined && <line x1={fx(data.firstDown)} x2={fx(data.firstDown)} y1={0} y2={FIELD_H} stroke={C.yellow} strokeWidth={0.45} />}
+          <line x1={fx(ball)} x2={fx(ball)} y1={0} y2={FIELD_H} stroke="#3b82f6" strokeWidth={0.6} />
+          {data.firstDown !== undefined && <line x1={fx(data.firstDown)} x2={fx(data.firstDown)} y1={0} y2={FIELD_H} stroke={C.yellow} strokeWidth={0.6} />}
         </g>
       )}
       <FootballPlay
-        motion={data.motion}
+        motion={m}
+        offense={m ? (m.towardHome ? awayColor : homeColor) : offense}
+        defense={m ? (m.towardHome ? homeColor : awayColor) : offense}
         rest={
           ball !== undefined && (
             <g>

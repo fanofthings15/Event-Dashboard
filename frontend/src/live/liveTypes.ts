@@ -42,6 +42,7 @@ export interface FootballState extends LiveCommon {
   spotText?: string;
   driveSummary?: string;
   lastPlay?: string;
+  nextHash?: "top" | "middle" | "bottom";
   motion?: {
     id: string;
     type: string;
@@ -50,6 +51,11 @@ export interface FootballState extends LiveCommon {
     towardHome: boolean;
     lane: "left" | "middle" | "right";
     depth?: "short" | "deep";
+    formation?: "shotgun" | "pistol" | "under center";
+    gap?: "end" | "tackle" | "guard" | "middle";
+    scramble?: boolean;
+    outOfBounds?: boolean;
+    hash?: "top" | "middle" | "bottom";
     pass?: boolean;
     kickYards?: number;
     fumbleAt?: number;

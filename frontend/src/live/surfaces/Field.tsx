@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 // American football field, top-down, in yards: 120 × 53⅓ including both
 // 10-yard end zones. Hash marks every yard at the sidelines and at the NFL
 // inbound lines (70 ft 9 in from each sideline); numbers every 10 yards with
-// arrows pointing to the nearer goal. x = 10 is the left goal line.
+// arrows. x = 10 is the left goal line.
 export const FIELD_W = 120;
 export const FIELD_H = 160 / 3;
 export const HASH_IN = 23.58;
@@ -62,26 +62,19 @@ export default function Field({
     const goal = yd === 0 || yd === 100;
     marks.push(<line key={`l${yd}`} x1={10 + yd} x2={10 + yd} y1={0} y2={FIELD_H} stroke="#fff" strokeWidth={goal ? 0.33 : 0.15} />);
   }
+  // Numbers read upright from both sidelines (on a real field the far ones
+  // face the other way), with arrows pointing to the nearer goal.
   for (let yd = 10; yd <= 90; yd += 10) {
     const n = yd <= 50 ? yd : 100 - yd;
     const x = 10 + yd;
     const arrowDir = yd < 50 ? -1 : yd > 50 ? 1 : 0;
-    for (const [y, rot] of [
-      [FIELD_H - 9, 0],
-      [9, 180],
-    ] as const) {
+    for (const y of [9, FIELD_H - 9]) {
       marks.push(
-        <g key={`n${yd}${y}`} transform={`rotate(${rot} ${x} ${y})`}>
+        <g key={`n${yd}${y}`}>
           <text x={x} y={y} fontSize={2.6} fontWeight={700} fill="#fff" fillOpacity={0.85} textAnchor="middle" dominantBaseline="central" letterSpacing={0.15}>
             {n}
           </text>
-          {arrowDir !== 0 && (
-            <path
-              d={`M${x + (rot ? -arrowDir : arrowDir) * 2.9} ${y - 0.45} l${(rot ? -arrowDir : arrowDir) * 0.8} 0.45 l${(rot ? arrowDir : -arrowDir) * 0.8} 0.45 z`}
-              fill="#fff"
-              fillOpacity={0.85}
-            />
-          )}
+          {arrowDir !== 0 && <path d={`M${x + arrowDir * 2.9} ${y - 0.45} l${arrowDir * 0.8} 0.45 l${-arrowDir * 0.8} 0.45 z`} fill="#fff" fillOpacity={0.85} />}
         </g>
       );
     }
