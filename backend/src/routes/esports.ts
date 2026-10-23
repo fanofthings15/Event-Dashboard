@@ -182,6 +182,53 @@ async function fetchGame(slug: string, sport: string, color: string, apiKey: str
   });
 }
 
+// Whether a Kick channel is broadcasting right now, from Kick's channel API
+// (checked to work server-side) — undefined when it can't be told, so an
+// outage there never reorders anything. PandaScore often lists an event's
+// main channel while the match is actually on a sister channel (CCT runs
+// cct_cs, cct_cs2, cct_cs3...), which embedded as a dead "offline" player.
+async function kickLive(channel: string): Promise<boolean | undefined> {
+  try {
+    return await cached(`kick-live:${channel.toLowerCase()}`, 60, async () => {
+      const r = await fetch(`https://kick.com/api/v2/channels/${encodeURIComponent(channel)}`, {
+        headers: { "User-Agent": "Mozilla/5.0", Accept: "application/json" },
+        signal: AbortSignal.timeout(5000),
+      });
+      if (!r.ok) throw new Error(`kick ${r.status}`);
+      const d: any = await r.json();
+      return Boolean(d?.livestream);
+    });
+  } catch {
+    return undefined;
+  }
+}
+
+const kickChannel = (url: string) => {
+  try {
+    const u = new URL(url);
+    return /(^|\.)kick\.com$/.test(u.hostname) ? u.pathname.split("/").filter(Boolean)[0] : undefined;
+  } catch {
+    return undefined;
+  }
+};
+
+// For matches under way (or about to be), an offline Kick channel goes to the
+// back of the stream list, so "Watch live" and the /live display pick a
+// stream that's actually on.
+export async function liveStreamsFirst(events: NormalizedEvent[]): Promise<NormalizedEvent[]> {
+  const soon = Date.now() + 10 * 60_000;
+  return Promise.all(
+    events.map(async (e) => {
+      if (e.status === "finished" || !e.streams?.length || new Date(e.startTime).getTime() > soon) return e;
+      if (!e.streams.some((st) => kickChannel(st.url))) return e;
+      const live = await Promise.all(e.streams.map((st) => (kickChannel(st.url) ? kickLive(kickChannel(st.url)!) : Promise.resolve(undefined))));
+      if (!live.some((l) => l === false)) return e;
+      const streams = e.streams.map((st, i) => ({ st, off: live[i] === false })).sort((a, b) => Number(a.off) - Number(b.off)).map((x) => x.st);
+      return { ...e, streams, streamUrl: streams[0].url };
+    })
+  );
+}
+
 router.get("/", async (req, res) => {
   const { pandaScoreApiKey } = readGlobalSettings();
   const { enabledEsportsGames } = readUserSettings(getUserId(req));
@@ -207,7 +254,7 @@ router.get("/", async (req, res) => {
   });
 
   res.json({
-    events,
+    events: await liveStreamsFirst(events),
     source: "pandascore (free tier — ~1000 req/month)",
     warnings: warnings.length ? warnings : undefined,
   });
