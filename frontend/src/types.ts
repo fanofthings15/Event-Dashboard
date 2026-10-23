@@ -37,7 +37,6 @@ export interface NormalizedEvent {
   tier?: "s" | "a" | "b" | "c" | "d"; // esports tournament tier (PandaScore)
   stage?: "group" | "playoffs" | "semifinal" | "final"; // esports — where in the tournament the match is
   postseason?: boolean; // ESPN sports: playoffs, World Series, bowls
-  eventType?: string; // FRC: TBA's event_type_string
 }
 
 export interface StandingsRow {

@@ -64,7 +64,8 @@ Several games at once (`live/multiGame.ts`, `live/GameTile.tsx`): with 2+
 games live, the RedZone (one big + up to 3) or Grid (up to 6) layout,
 picked by a switch next to Fullscreen ("Single" = the one-game display).
 Games are ranked by `interest()` = `importance()` (how big the event is:
-esports tier × stage from PandaScore, ESPN `postseason`, FRC event type —
+esports tier × stage from PandaScore, ESPN `postseason`; FRC always last,
+followed or not, since the user is usually there in person —
 the points table is in `multiGame.ts`; the user set NFL regular season =
 esports tier A, and a red-zone drive beats a Major's Swiss map but not its
 final) + the strongest live moment capped at +35 (red zone from the ESPN
@@ -76,7 +77,7 @@ settings. "Live" means `isLiveNow` (start time passed), same as the
 dashboard. Layout "Auto" (default) picks Single / RedZone / Grid
 from how the live games' standing (size + follow + stream, not moments)
 compares, so it only changes as games start or end. Beside a big game
-(55+), tier-D esports and FRC off-seasons stay in the strip unless pinned.
+(55+), tier-D esports and FRC events stay in the strip unless pinned.
 Quiet hours (`src/quietHours.ts`, per device, default 6 AM–12 PM — the user
 works nights): one game, every stream loads muted (its player can still be unmuted by
 hand), no in-tab chime, Streams tab main tile muted. The in-tab chime is only for an

@@ -51,7 +51,7 @@ export interface InterestHints {
 // How big the event is, before anything happens in it: a Worlds or Major
 // match or a playoff game outranks an NFL Sunday or a tier-A esports event,
 // which outrank a regular NBA/NHL/MLB night, and so on down to tier-D
-// esports and FRC off-seasons — still shown when nothing bigger is on (the
+// esports, with FRC last of all — still shown when nothing bigger is on (the
 // sources the user doesn't want are filtered out in settings, not here).
 export function importance(e: NormalizedEvent): number {
   if (ESPORTS_SPORTS.has(e.sport)) {
@@ -76,13 +76,10 @@ export function importance(e: NormalizedEvent): number {
     case "mlb":
     case "ncaaf":
       return 40;
-    case "frc": {
-      const t = e.eventType ?? "";
-      if (/^championship/i.test(t)) return 40;
-      if (/district championship/i.test(t)) return 30;
-      if (/regional|district/i.test(t)) return 25;
-      return 0; // off-season, preseason
-    }
+    case "frc":
+      // lowest of all, followed team or not: the user is usually at the
+      // event in person, or only cares who wins it, not every match
+      return -10;
   }
   return 10;
 }
@@ -142,13 +139,14 @@ const WATCHABLE_HERE = 10;
 // red-zone trip.
 function standing(e: NormalizedEvent): number {
   let s = importance(e);
+  if (e.sport === "frc") return s; // no follow bonus either (see importance)
   if (ESPORTS_SPORTS.has(e.sport) && embeddableStream((e.streams ?? []).map((x) => x.url).concat(e.streamUrl ?? []))) s += WATCHABLE_HERE;
   if (e.manuallyFollowed) s += 35;
   else if (e.followed) s += 30;
   return s;
 }
 
-// The smallest events (tier-D esports, FRC off-seasons) are welcome when
+// The smallest events (tier-D esports, any FRC event) are welcome when
 // nothing better is on, but not beside a big game (NFL / tier-A esports and
 // up): then they wait in the strip, unless pinned.
 const BIG = 55;
