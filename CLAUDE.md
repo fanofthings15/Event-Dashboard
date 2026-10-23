@@ -82,7 +82,11 @@ compares, so it only changes as games start or end. Beside a big game
 Quiet hours (`src/quietHours.ts`, per device, default 6 AM–12 PM — the user
 works nights): layout unchanged, every stream loads muted (its player can still be unmuted by
 hand), no in-tab chime, Streams tab main tile muted. The in-tab chime is only for an
-event going live; reminders are Discord's. Tap a
+event going live; reminders are Discord's. Esports streams are ordered English first,
+then main/official, then platform (PandaScore's language tags can be wrong:
+a JP co-stream was tagged "en"). Live events are no longer added to the
+Streams tab automatically (following or prestart) — it's likely being
+retired; "Watch live" still opens one there. Tap a
 strip game to pin it to the big spot; drag games onto spots (pin/swap) or
 onto the strip (hide). Layout, pins and hidden games are per device
 (localStorage), pruned when their games end. Tiles stay mounted while

@@ -20,7 +20,7 @@ import FollowStar from "./FollowStar";
 import StreamsView from "./StreamsView";
 // The live display only loads when its tab is opened.
 const LiveScreen = lazy(() => import("./live/LiveScreen"));
-import { eventStreamSlotId, withEventStreamSlot, hasWatchableStream, isWithinStreamWindow } from "./eventStreamSlots";
+import { eventStreamSlotId, withEventStreamSlot } from "./eventStreamSlots";
 
 function matchesSearch(e: NormalizedEvent, query: string): boolean {
   if (!query.trim()) return true;
@@ -203,12 +203,6 @@ export default function App() {
     setView("streams");
   }
 
-  // Once auto-added, an event stays out of consideration even if the user
-  // removes its tile — otherwise a manual remove on a still-live followed
-  // game would just reappear on the next poll. Session-only (a ref, not
-  // settings): a fresh page load is free to auto-add it again.
-  const autoAddedStreamIds = useRef<Set<string>>(new Set());
-
   // Session-only bookkeeping for event-linked slots the feed stops
   // returning outright, rather than ever showing them as "finished" first —
   // PandaScore's finished-match window is a recent-history slice (15
@@ -221,57 +215,15 @@ export default function App() {
   const missingSinceRef = useRef<Map<string, number>>(new Map());
   const MISSING_GRACE_MS = 10 * 60 * 1000;
 
-  // A prestarted slot gets exactly one "did something better come along"
-  // check, right as the event actually goes live — not on every poll, which
-  // would mean re-swapping (and reloading) the iframe each time PandaScore
-  // reorders its streams list.
-  const startRecheckedIds = useRef<Set<string>>(new Set());
-
-  // Drives the Streams tab hands-free: a followed game joins up to 5 minutes
-  // before its projected start if it already has a real broadcast link (no
-  // link yet just means nothing to prestart — it still joins the normal way
-  // once actually live), gets one recheck for a better stream right as it
-  // goes live, and drops off again once it's over — polling (useEvents' own
-  // interval) is what makes all of this happen without a manual refresh or
-  // another click of "Watch live". One effect (not two) so an add and a
-  // remove landing in the same poll can't race each other over the same
-  // settings.streamSlots snapshot.
+  // Keeps the Streams tab tidy: a tile opened with "Watch live" drops off once
+  // its event is over. Nothing is added here — live events aren't put on the
+  // Streams tab automatically any more (the /live display is for that).
   useEffect(() => {
     const eventById = new Map(allEvents.map((e) => [eventStreamSlotId(e), e]));
     const now = Date.now();
     let nextSlots = settings.streamSlots;
     let nextMain = settings.streamMainSlotId;
     let changed = false;
-
-    const existingIds = new Set(nextSlots.map((s) => s.id));
-    const closed = new Set(settings.closedStreamSlotIds);
-    for (const e of allEvents) {
-      if (!e.followed && !e.manuallyFollowed) continue;
-      if (hasEventEnded(e, now) || !hasWatchableStream(e)) continue;
-      const startMs = new Date(e.startTime).getTime();
-      const reachedStart = e.status === "live" || now >= startMs;
-      if (!isWithinStreamWindow(e, now)) continue; // too early — no prestart yet
-
-      const id = eventStreamSlotId(e);
-      if (existingIds.has(id)) {
-        // Already on the board (prestarted or otherwise) — the one-time
-        // upgrade check, once the event has actually gotten underway.
-        if (reachedStart && !startRecheckedIds.current.has(id)) {
-          startRecheckedIds.current.add(id);
-          const current = nextSlots.find((s) => s.id === id);
-          if (current && current.url !== e.streamUrl) {
-            nextSlots = withEventStreamSlot(nextSlots, e, e.streamUrl as string);
-            changed = true;
-          }
-        }
-        continue;
-      }
-      if (autoAddedStreamIds.current.has(id) || closed.has(id)) continue;
-      nextSlots = withEventStreamSlot(nextSlots, e, e.streamUrl as string);
-      autoAddedStreamIds.current.add(id);
-      nextMain = nextMain ?? id;
-      changed = true;
-    }
 
     const toRemove = new Set<string>();
     for (const slot of nextSlots) {
@@ -293,8 +245,7 @@ export default function App() {
       changed = true;
     }
 
-    // A closed tile only needs remembering while its event could still be
-    // auto-added; drop it once that event has ended.
+    // A closed tile is forgotten once its event has ended.
     const stillClosed = settings.closedStreamSlotIds.filter((id) => {
       const event = eventById.get(id);
       return !event || !hasEventEnded(event, now);
