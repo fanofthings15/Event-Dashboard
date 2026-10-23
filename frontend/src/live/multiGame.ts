@@ -171,11 +171,16 @@ export function autoLayout(live: NormalizedEvent[]): LiveLayout {
   return "redzone";
 }
 
+const BETWEEN_MAPS = 20;
+
 // Higher = more worth watching right now: how big the event is, plus what's
 // happening in it, plus a team the user follows, plus a stream that plays here. A late blowout sinks a
 // little, and among equals the closer game edges ahead.
 export function interest(e: NormalizedEvent, now: number, hints: InterestHints = {}): number {
   let score = standing(e) + moment(e, now, hints);
+  // a match on a break between maps gives way to one being played — by
+  // more than the on-screen bonus, so a comparable live map takes the spot
+  if (e.mapLive === false) score -= BETWEEN_MAPS;
   const diff = margin(e);
   const p = period(e);
   if (diff !== undefined && p !== undefined) {

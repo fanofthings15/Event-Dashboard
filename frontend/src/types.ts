@@ -36,6 +36,7 @@ export interface NormalizedEvent {
   situation?: { redZone: boolean; downDistance?: string }; // live football only, from the ESPN scoreboard
   tier?: "s" | "a" | "b" | "c" | "d"; // esports tournament tier (PandaScore)
   stage?: "group" | "playoffs" | "semifinal" | "final"; // esports — where in the tournament the match is
+  mapLive?: boolean; // esports, while the match runs: a map is being played (false = between maps)
   postseason?: boolean; // ESPN sports: playoffs, World Series, bowls
 }
 

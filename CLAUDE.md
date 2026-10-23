@@ -71,7 +71,8 @@ esports tier A, and a red-zone drive beats a Major's Swiss map but not its
 final) + the strongest live moment capped at +35 (red zone from the ESPN
 scoreboard's `situation`, a score in the last 3 minutes, a power play, a
 close finish, a deciding map) + followed teams + 10 for a stream that plays
-on the display — with a bonus for games already shown so they don't churn.
+on the display − 20 for an esports match between maps (`mapLive` false,
+from PandaScore's per-map status) — with a bonus for games already shown so they don't churn.
 Nothing is dropped for being small; unwanted sources are filtered in
 settings. "Live" means `isLiveNow` (start time passed), same as the
 dashboard. Layout "Auto" (default) picks Single / RedZone / Grid

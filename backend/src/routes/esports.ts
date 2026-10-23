@@ -116,7 +116,7 @@ async function fetchMatches(slug: string, apiKey: string, filterStatus: string, 
   return r.json();
 }
 
-async function fetchGame(slug: string, sport: string, color: string, apiKey: string): Promise<NormalizedEvent[]> {
+export async function fetchGame(slug: string, sport: string, color: string, apiKey: string): Promise<NormalizedEvent[]> {
   // Two separate calls, sorted in opposite directions: a single query
   // covering "finished" too and sorted by begin_at would put every finished
   // match ever (oldest first) ahead of what's live/upcoming now, since
@@ -176,6 +176,9 @@ async function fetchGame(slug: string, sport: string, color: string, apiKey: str
       seriesScore: seriesScore(m),
       tier: /^[sabcd]$/.test(m.tournament?.tier ?? "") ? m.tournament.tier : undefined,
       stage: stageOf(m),
+      // between maps (one finished, the next not started) a match is on a
+      // break; PandaScore lists each map's own status
+      mapLive: m.status === "running" && m.games?.length ? m.games.some((g: any) => g.status === "running") : undefined,
       extra: extra.length ? extra : undefined,
       detailUrl: m.league?.url ?? undefined,
     };

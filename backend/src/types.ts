@@ -37,6 +37,7 @@ export interface NormalizedEvent {
   // How big the event is, for ranking games on the /live display:
   tier?: "s" | "a" | "b" | "c" | "d"; // esports — PandaScore's tournament tier (Worlds and Majors are S)
   stage?: "group" | "playoffs" | "semifinal" | "final"; // esports — where in the tournament the match is
+  mapLive?: boolean; // esports, while the match runs: a map is being played (false = between maps)
   postseason?: boolean; // ESPN sports — playoffs / World Series / bowl season
 }
 
