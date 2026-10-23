@@ -50,6 +50,34 @@ export interface FootballMotion {
   turnover?: boolean;
 }
 
+// What kind of play it was, in the colour the field draws it — the label on
+// the play text and the lines on the field match, so a run (amber) and a
+// pass (sky) tell apart at a glance.
+export const PLAY_COLORS = { run: "#fbbf24", pass: "#38bdf8", kick: "#c4b5fd", loss: "#f87171", flag: "#facc15" };
+
+export function playKind(m: FootballMotion | undefined): { label: string; detail?: string; color: string } | null {
+  if (!m) return null;
+  const t = m.type.toLowerCase();
+  const gain = m.towardHome ? m.from - m.to : m.to - m.from;
+  const yds = gain === 0 ? "no gain" : `${gain > 0 ? "+" : "−"}${Math.abs(gain)} yd${Math.abs(gain) === 1 ? "" : "s"}`;
+  const dir = m.lane === "middle" ? "middle" : m.lane;
+  const gap = m.gap === "middle" ? "up the middle" : m.gap ? `${m.lane} ${m.gap}` : m.lane === "middle" ? undefined : dir;
+  const join = (...p: (string | undefined)[]) => p.filter(Boolean).join(" · ") || undefined;
+  if (/penalty/.test(t)) return { label: "PENALTY", color: PLAY_COLORS.flag };
+  if (/interception/.test(t)) return { label: "INTERCEPTED", detail: join(m.depth, dir), color: PLAY_COLORS.loss };
+  if (m.fumbleAt !== undefined && m.turnover) return { label: "FUMBLE LOST", color: PLAY_COLORS.loss };
+  if (/sack/.test(t)) return { label: "SACK", detail: yds, color: PLAY_COLORS.loss };
+  if (/incompletion/.test(t)) return { label: "PASS", detail: join("incomplete", m.depth, dir), color: PLAY_COLORS.pass };
+  if (/pass|reception/.test(t)) return { label: "PASS", detail: join(m.depth ? `${m.depth} ${dir}` : dir === "middle" ? undefined : dir, yds), color: PLAY_COLORS.pass };
+  if (m.scramble || /scramble/.test(t)) return { label: "QB SCRAMBLE", detail: join(gap, yds), color: PLAY_COLORS.run };
+  if (/rush|kneel/.test(t)) return { label: "RUN", detail: join(gap, yds), color: PLAY_COLORS.run };
+  if (/punt/.test(t)) return { label: "PUNT", detail: m.kickYards ? `${m.kickYards} yds` : undefined, color: PLAY_COLORS.kick };
+  if (/kickoff/.test(t)) return { label: "KICKOFF", color: PLAY_COLORS.kick };
+  if (/field goal/.test(t)) return { label: /good/.test(t) ? "FIELD GOAL" : "FIELD GOAL MISSED", color: PLAY_COLORS.kick };
+  if (/extra point|two-point/.test(t)) return { label: /two-point/.test(t) ? "2-PT TRY" : "EXTRA POINT", color: PLAY_COLORS.kick };
+  return null;
+}
+
 // A player's path: [ms, x, y] keyframes, standing still before the first and
 // after the last.
 type Key = [number, number, number];
@@ -289,7 +317,7 @@ function Arrow({ pts, color }: { pts: Pt[]; color: string }) {
 }
 
 const FADE_MS = 500;
-const DIAGRAM_OPACITY = 0.55;
+const DIAGRAM_OPACITY = 0.75;
 
 // The play drawn like a playbook diagram as it happens: players as dots in
 // their team's colour, routes as thin lines, the ball carrier's path heavier
@@ -313,13 +341,16 @@ export function FootballPlay({ motion, rest, offense, defense }: { motion: Footb
   const ball = idle ? null : ballAt(plan, now);
   const colorOf = (p: Player) => (p.side === "off" ? offense : defense);
   const visible = (p: Player) => p.from === undefined || now >= p.from;
+  const kicked = /punt|kickoff|field goal/i.test(motion.type);
+  // a rushing play's carry is drawn amber down the middle; after a catch it's white
+  const rushing = !plan.catchAt && /rush|scramble|kneel|two-point/i.test(motion.type) && !motion.pass;
   const throws = plan.ball.filter((p): p is Extract<BallPhase, { from: Pt }> => "from" in p && !p.loose && p.arc > 1 && now > p.start);
   return (
     <g pointerEvents="none">
       <g opacity={idle ? DIAGRAM_OPACITY : 1} strokeLinecap="round" strokeLinejoin="round" fill="none">
         {throws.map((p, i) => {
           const f = Math.min(1, (now - p.start) / (p.until - p.start));
-          return <line key={`t${i}`} x1={p.from[0]} y1={p.from[1]} x2={p.from[0] + (p.to[0] - p.from[0]) * f} y2={p.from[1] + (p.to[1] - p.from[1]) * f} stroke="#fff" strokeWidth={0.3} strokeDasharray="0.9 0.7" />;
+          return <line key={`t${i}`} x1={p.from[0]} y1={p.from[1]} x2={p.from[0] + (p.to[0] - p.from[0]) * f} y2={p.from[1] + (p.to[1] - p.from[1]) * f} stroke={kicked ? PLAY_COLORS.kick : PLAY_COLORS.pass} strokeWidth={0.42} strokeDasharray="1 0.6" />;
         })}
         {plan.players.map((p, i) => {
           if (!visible(p)) return null;
@@ -331,9 +362,9 @@ export function FootballPlay({ motion, rest, offense, defense }: { motion: Footb
               {!p.quiet && route.length > 1 && <polyline points={poly(route)} stroke="#fff" strokeOpacity={0.8} strokeWidth={0.22} />}
               {carry && carry.length > 1 && (
                 <g>
-                  <polyline points={poly(carry)} stroke={colorOf(p)} strokeWidth={0.75} />
-                  <polyline points={poly(carry)} stroke="#fff" strokeWidth={0.25} />
-                  {now === Infinity || now >= endTime(p.track) ? <Arrow pts={carry} color="#fff" /> : null}
+                  <polyline points={poly(carry)} stroke={rushing ? "#1c1f26" : colorOf(p)} strokeWidth={0.75} />
+                  <polyline points={poly(carry)} stroke={rushing ? PLAY_COLORS.run : "#fff"} strokeWidth={rushing ? 0.35 : 0.25} />
+                  {now === Infinity || now >= endTime(p.track) ? <Arrow pts={carry} color={rushing ? PLAY_COLORS.run : "#fff"} /> : null}
                 </g>
               )}
             </g>

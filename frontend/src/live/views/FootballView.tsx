@@ -2,7 +2,7 @@ import type { FootballState } from "../liveTypes";
 import { teamColors } from "../teamColors";
 import { Below, C, LiveFrame, Line, Scoreboard, Side, SideLabel, Surface, useScoreFlash } from "../Layout";
 import Field, { FIELD_H, HASH_IN } from "../surfaces/Field";
-import { FootballPlay } from "../surfaces/PlayAnimations";
+import { FootballPlay, playKind } from "../surfaces/PlayAnimations";
 
 // ESPN's yardLine counts from the HOME goal line. The field is drawn with the
 // away end zone on the left (same order as the scoreboard), so the home goal
@@ -68,6 +68,24 @@ export function FootballSurface({ data }: { data: FootballState }) {
   );
 }
 
+// Timeouts left, for the scoreboard — only while the game is on.
+export function timeoutsOf(data: FootballState, i: 0 | 1): { left: number; of: number } | undefined {
+  const left = data.teams[i]?.timeoutsRemaining;
+  return data.state === "in" && left !== undefined ? { left, of: Math.max(left, data.timeoutsPerHalf ?? 3) } : undefined;
+}
+
+// The last play's kind as a coloured tag (RUN · left guard · +4).
+export function PlayKind({ data }: { data: FootballState }) {
+  const k = playKind(data.motion);
+  if (!k) return null;
+  return (
+    <span className="lv-kind" style={{ background: k.color }}>
+      {k.label}
+      {k.detail && <small>{k.detail}</small>}
+    </span>
+  );
+}
+
 export default function FootballView({ data, league, leagueColor }: { data: FootballState; league: string; leagueColor: string }) {
   const [away, home] = data.teams;
   const [awayColor, homeColor] = teamColors(away, home);
@@ -88,7 +106,7 @@ export default function FootballView({ data, league, leagueColor }: { data: Foot
       league={league}
       leagueColor={leagueColor}
       live={data.state === "in"}
-      centre={<Scoreboard away={{ ...away, color: awayColor }} home={{ ...home, color: homeColor }} possession={data.state === "in" ? possession : undefined} />}
+      centre={<Scoreboard away={{ ...away, color: awayColor, timeouts: timeoutsOf(data, 0) }} home={{ ...home, color: homeColor, timeouts: timeoutsOf(data, 1) }} possession={data.state === "in" ? possession : undefined} />}
       status={data.detail}
     >
       {flash}
@@ -107,25 +125,19 @@ export default function FootballView({ data, league, leagueColor }: { data: Foot
                 </span>
               )}
             </div>
-            <Line primary>{data.lastPlay ?? ""}</Line>
+            <Line primary>
+              <PlayKind data={data} />
+              {data.lastPlay ?? ""}
+            </Line>
           </>
         }
         right={
-          (data.driveSummary || winPct !== undefined || away?.timeoutsRemaining !== undefined) && (
+          (data.driveSummary || winPct !== undefined) && (
             <Side>
               {data.driveSummary && (
                 <div className="lv-row">
                   <SideLabel>Drive</SideLabel>
                   <span>{data.driveSummary}</span>
-                </div>
-              )}
-              {(away?.timeoutsRemaining !== undefined || home?.timeoutsRemaining !== undefined) && (
-                <div className="lv-row">
-                  <SideLabel>Timeouts</SideLabel>
-                  <span>
-                    <span style={{ color: awayColor }}>{away?.abbr}</span> {away?.timeoutsRemaining ?? "–"} · <span style={{ color: homeColor }}>{home?.abbr}</span>{" "}
-                    {home?.timeoutsRemaining ?? "–"}
-                  </span>
                 </div>
               )}
               {winPct !== undefined && (

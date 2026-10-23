@@ -2,11 +2,11 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { NormalizedEvent } from "../types";
 import { useLiveDetail } from "./useLiveDetail";
 import { teamColors } from "./teamColors";
-import { C } from "./Layout";
+import { C, Timeouts } from "./Layout";
 import Stream, { embeddableStream } from "./Stream";
 import { ESPORTS_SPORTS } from "./selectLiveEvent";
 import type { BaseballState, BasketballState, F1State, FootballState, FrcState, HockeyState, LiveTeam } from "./liveTypes";
-import { FootballSurface } from "./views/FootballView";
+import { FootballSurface, PlayKind, timeoutsOf } from "./views/FootballView";
 import { HockeySurface } from "./views/HockeyView";
 import { BasketballSurface } from "./views/BasketballView";
 import { BaseballSurface } from "./views/BaseballView";
@@ -50,8 +50,8 @@ function useScoreGlow(scores: [number, number] | undefined, colors: [string, str
 }
 
 interface Row {
-  away: { name: string; color: string; score?: string };
-  home: { name: string; color: string; score?: string };
+  away: { name: string; color: string; score?: string; timeouts?: { left: number; of: number } };
+  home: { name: string; color: string; score?: string; timeouts?: { left: number; of: number } };
   clock?: string;
   tags: { text: string; bg: string; ink: string }[];
   surface: ReactNode;
@@ -84,8 +84,10 @@ function rowFor(event: NormalizedEvent, data: Detail | null, stream: { embed: st
   switch (data.kind) {
     case "football": {
       const redZone = data.redZone ?? event.situation?.redZone;
+      const teams = teamRow(data.teams);
       return {
-        ...teamRow(data.teams),
+        away: { ...teams.away, timeouts: timeoutsOf(data, 0) },
+        home: { ...teams.home, timeouts: timeoutsOf(data, 1) },
         clock: data.detail,
         tags: redZone ? [{ text: "RED ZONE", bg: C.live, ink: "#fff" }] : [],
         surface: <FootballSurface data={data} />,
@@ -98,6 +100,7 @@ function rowFor(event: NormalizedEvent, data: Detail | null, stream: { embed: st
               </b>
             )}
             {data.downText && data.lastPlay ? " · " : ""}
+            <PlayKind data={data} />
             {data.lastPlay}
           </>
         ),
@@ -220,12 +223,14 @@ export default function GameTile({
         {row ? (
           <>
             <span style={{ color: row.away.color }}>{row.away.name}</span>
+            {row.away.timeouts && <Timeouts {...row.away.timeouts} color={row.away.color} />}
             {row.away.score !== undefined && row.home.score !== undefined && (
               <span className="n">
                 {row.away.score} – {row.home.score}
               </span>
             )}
             {row.home.name && <span style={{ color: row.home.color }}>{row.home.name}</span>}
+            {row.home.timeouts && <Timeouts {...row.home.timeouts} color={row.home.color} />}
             {row.tags.map((t) => (
               <span key={t.text} className="lv-tile-tag" style={{ background: t.bg, color: t.ink }}>
                 {t.text}

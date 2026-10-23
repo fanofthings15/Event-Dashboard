@@ -97,6 +97,7 @@ export interface FootballState extends LiveCommon {
   spotText?: string; // "SF 40"
   driveSummary?: string;
   lastPlay?: string;
+  timeoutsPerHalf?: number; // for drawing used/left timeouts
   nextHash?: Hash; // where the next snap sits
   // The latest play, for animating it on the field. ESPN gives no catch or
   // ball location, so passes and runs are placed from the play's start and
@@ -144,6 +145,18 @@ function laneOf(text: string): "left" | "middle" | "right" {
 export function mapFootball(data: any): FootballState {
   const common = commonFrom(data);
   const out: FootballState = { kind: "football", ...common };
+  // ESPN sends football timeouts as `timeoutsUsed`, counted per half (it
+  // read 0 for both teams in the 3rd quarter after each used two before
+  // halftime), and only while the game is on. Three a half; overtime is two
+  // each in the NFL, one per period in college.
+  const comp = data.header?.competitions?.[0] ?? {};
+  const period = comp.status?.period ?? 0;
+  const perHalf = period >= 5 ? (/college/i.test(data.header?.league?.slug ?? "") ? 1 : 2) : 3;
+  out.timeoutsPerHalf = perHalf;
+  for (const c of comp.competitors ?? []) {
+    const t = out.teams.find((x) => x.id === String(c.id ?? c.team?.id));
+    if (t && t.timeoutsRemaining === undefined && typeof c.timeoutsUsed === "number" && common.state === "in") t.timeoutsRemaining = Math.max(0, perHalf - c.timeoutsUsed);
+  }
   const drive = data.drives?.current ?? data.drives?.previous?.at?.(-1);
   const plays: any[] = drive?.plays ?? [];
   const last = plays.at(-1);

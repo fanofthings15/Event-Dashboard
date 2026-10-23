@@ -42,6 +42,7 @@ export interface FootballState extends LiveCommon {
   spotText?: string;
   driveSummary?: string;
   lastPlay?: string;
+  timeoutsPerHalf?: number;
   nextHash?: "top" | "middle" | "bottom";
   motion?: {
     id: string;

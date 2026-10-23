@@ -126,6 +126,53 @@ body.live-body {
   object-fit: contain;
 }
 
+.lv-team-name {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2em;
+  line-height: 1;
+}
+
+/* timeouts left: one bar each, used ones an outline */
+.lv-tos {
+  display: inline-flex;
+  gap: 0.18em;
+}
+
+.lv-tos i {
+  width: 0.62em;
+  height: 0.2em;
+  border-radius: 0.1em;
+  background: rgb(255 255 255 / 0.14);
+}
+
+.lv-tile-score .lv-tos {
+  font-size: 0.8em;
+  margin-left: -0.15em;
+}
+
+/* what the last play was — run, pass, kick — in the colour the field draws it */
+.lv-kind {
+  display: inline-block;
+  font-size: 0.72em;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  padding: 0.15em 0.5em;
+  border-radius: 0.3em;
+  margin-right: 0.5em;
+  vertical-align: 0.12em;
+  color: #0b0d12;
+}
+
+.lv-kind small {
+  font-size: 0.85em;
+  font-weight: 700;
+  letter-spacing: 0;
+  margin-left: 0.4em;
+  text-transform: none;
+}
+
 .lv-poss {
   width: 0.4em;
   height: 0.4em;
@@ -297,6 +344,10 @@ body.live-body {
 .lv-line-primary {
   color: var(--text);
   font-size: 1.1em;
+  /* the latest play wraps so the whole of it can be read */
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.35;
 }
 
 .lv-source {
@@ -1073,10 +1124,15 @@ body.live-body {
 .lv-tile-status {
   min-width: 0;
   font-size: 0.85em;
+  line-height: 1.35;
   color: #8b92a3;
-  white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
+  /* wraps to show the whole play; a very long one (penalty enforcement
+     text) stops at four lines so the field keeps its room */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
 }
 
 .lv-tile-status b {

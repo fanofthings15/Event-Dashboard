@@ -25,6 +25,18 @@ export interface ScoreTeam {
   score?: string;
   logo?: string;
   color: string;
+  timeouts?: { left: number; of: number };
+}
+
+// Timeouts left as a row of bars, used ones dimmed — the TV-graphic way.
+export function Timeouts({ left, of, color }: { left: number; of: number; color: string }) {
+  return (
+    <span className="lv-tos" aria-label={`${left} timeout${left === 1 ? "" : "s"} left`} title={`${left} of ${of} timeouts left`}>
+      {Array.from({ length: of }, (_, i) => (
+        <i key={i} style={{ background: i < left ? color : undefined }} />
+      ))}
+    </span>
+  );
 }
 
 export function LiveFrame({
@@ -76,7 +88,10 @@ export function Scoreboard({ away, home, possession }: { away: ScoreTeam; home: 
     <span className={`lv-team lv-team-${side}`}>
       {possession === side && side === "away" && <i className="lv-poss" aria-label="has possession" />}
       {t.logo && <img src={t.logo} alt="" />}
-      <span style={{ color: t.color }}>{t.abbr}</span>
+      <span className="lv-team-name">
+        <span style={{ color: t.color }}>{t.abbr}</span>
+        {t.timeouts && <Timeouts {...t.timeouts} color={t.color} />}
+      </span>
       {possession === side && side === "home" && <i className="lv-poss" aria-label="has possession" />}
     </span>
   );
