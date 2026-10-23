@@ -25,6 +25,7 @@ export interface ScoreTeam {
   score?: string;
   logo?: string;
   color: string;
+  nickname?: string;
   timeouts?: { left: number; of: number };
 }
 
@@ -89,7 +90,7 @@ export function Scoreboard({ away, home, possession }: { away: ScoreTeam; home: 
       {possession === side && side === "away" && <i className="lv-poss" aria-label="has possession" />}
       {t.logo && <img src={t.logo} alt="" />}
       <span className="lv-team-name">
-        <span style={{ color: t.color }}>{t.abbr}</span>
+        <span style={{ color: t.color }}>{t.nickname || t.abbr}</span>
         {t.timeouts && <Timeouts {...t.timeouts} color={t.color} />}
       </span>
       {possession === side && side === "home" && <i className="lv-poss" aria-label="has possession" />}
@@ -163,7 +164,7 @@ export function StatGrid({ teams, cols }: { teams: { abbr: string; color: string
 // null for an edge-only flash, e.g. ordinary baskets) and how long it shows.
 export function useScoreFlash(
   scores: [number, number] | undefined,
-  teams: { abbr: string; color: string }[],
+  teams: { abbr: string; label?: string; color: string }[],
   describe: (delta: number, team: string) => { banner: string | null; ms: number }
 ): ReactNode {
   const prev = useRef<{ key: string; scores: [number, number] } | null>(null);
@@ -177,7 +178,7 @@ export function useScoreFlash(
     if (!before || before.key !== key) return; // first reading of this game: nothing to compare
     const i: 0 | 1 | null = scores[0] > before.scores[0] ? 0 : scores[1] > before.scores[1] ? 1 : null;
     if (i === null || !teams[i]) return;
-    const d = describe(scores[i] - before.scores[i], teams[i].abbr);
+    const d = describe(scores[i] - before.scores[i], teams[i].label ?? teams[i].abbr);
     setFlash({ id: Date.now(), color: teams[i].color, banner: d.banner, ms: d.ms });
     // describe/teams are read only at the moment of a change
     // eslint-disable-next-line react-hooks/exhaustive-deps

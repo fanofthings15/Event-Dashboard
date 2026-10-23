@@ -443,6 +443,14 @@ export default function LiveScreen({ onBack }: { onBack?: () => void } = {}) {
     );
   }
 
+  // Anything placed by hand — pinned spots, games hidden or swapped out, a
+  // game picked in Single — is undone in one tap, back to automatic picking.
+  const manual = Object.keys(prefs.pins).length > 0 || prefs.hidden.length > 0 || (prefs.benched?.length ?? 0) > 0 || chosenKey !== null;
+  const backToAuto = () => {
+    setPrefs({ pins: {}, hidden: [] });
+    setChosenKey(null);
+  };
+
   const stripGames = multi ? placement.strip.map((k) => byKey.get(k)).filter((e): e is NormalizedEvent => Boolean(e)) : others;
   const hidden = new Set(prefs.hidden);
   const tapStrip = (key: string) => {
@@ -457,7 +465,7 @@ export default function LiveScreen({ onBack }: { onBack?: () => void } = {}) {
       {/* Bottom strip: Back/Fullscreen first, then the other live games. The
           buttons sit in the strip's flow (not floating over it) so they can
           never cover a game, and the whole row hides while fullscreen. */}
-      {(stripGames.length > 0 || !fullscreen) && (
+      {(stripGames.length > 0 || !fullscreen || (manual && !pinned)) && (
         <nav className={`lv-others${drag && drag.over === "strip" ? " drop" : ""}`} aria-label="Other live games">
           {!fullscreen && (
             <span className="lv-strip-controls">
@@ -479,6 +487,11 @@ export default function LiveScreen({ onBack }: { onBack?: () => void } = {}) {
                 </span>
               )}
             </span>
+          )}
+          {manual && !pinned && (
+            <button className="lv-strip-btn lv-auto-btn" onClick={backToAuto} title="Unpin everything and let the display pick">
+              ↺ Auto
+            </button>
           )}
           {stripGames.map((e) => (
             <button

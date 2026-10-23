@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { HockeyState } from "../liveTypes";
-import { teamColors } from "../teamColors";
+import { teamColors, teamLabel } from "../teamColors";
 import { Below, LiveFrame, Line, Scoreboard, Side, StatGrid, Surface, useScoreFlash } from "../Layout";
 import Rink, { rinkPoint } from "../surfaces/Rink";
 import { HockeyShotPlay } from "../surfaces/PlayAnimations";
@@ -34,8 +34,8 @@ export function HockeySurface({ data }: { data: HockeyState }) {
   const [awayColor, homeColor] = teamColors(away, home);
   const colorOf = (teamId: string) => (teamId === home?.id ? homeColor : awayColor);
   const teams = [
-    { abbr: away?.abbr ?? "", color: awayColor },
-    { abbr: home?.abbr ?? "", color: homeColor },
+    { abbr: teamLabel(away), color: awayColor },
+    { abbr: teamLabel(home), color: homeColor },
   ];
   const lastShot = data.shots.find((s) => s.last);
   const faceoff = data.faceoff;
@@ -116,8 +116,8 @@ export default function HockeyView({ data, leagueColor }: { data: HockeyState; l
     return g !== undefined && o !== undefined ? `${g}/${o}` : undefined;
   };
   const teams = [
-    { abbr: away?.abbr ?? "", color: awayColor },
-    { abbr: home?.abbr ?? "", color: homeColor },
+    { abbr: away?.abbr ?? "", label: teamLabel(away), color: awayColor },
+    { abbr: home?.abbr ?? "", label: teamLabel(home), color: homeColor },
   ];
   const flash = useScoreFlash(away && home ? [Number(away.score), Number(home.score)] : undefined, teams, (_d, team) => ({ banner: `Goal · ${team}`, ms: 9000 }));
 
@@ -139,7 +139,7 @@ export default function HockeyView({ data, leagueColor }: { data: HockeyState; l
           <>
             {pp && (
               <span className="lv-pill" style={{ background: colorOf(pp.id), color: "#fff", alignSelf: "flex-start" }}>
-                Power play · {pp.abbr}
+                Power play · {teamLabel(pp)}
                 {ppLeft !== undefined ? ` · ${fmt(ppLeft)}` : ""}
               </span>
             )}

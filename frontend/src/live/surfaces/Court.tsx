@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { fitLabel } from "./fitLabel";
 
 // NBA regulation court, top-down, in feet: 94 × 50. Rim centre 5.25 ft from
 // the baseline, backboard at 4 ft, 16 ft lane 19 ft deep, 6 ft free-throw
@@ -40,6 +41,7 @@ function Half({ side, paint }: { side: 0 | 1; paint: string }) {
 function EndBand({ side, team }: { side: 0 | 1; team: { abbr: string; color: string } }) {
   const x = side ? COURT_W + 1.2 : -6.2;
   const cx = x + 2.5;
+  const { label, fit } = fitLabel(team.abbr, 2.6, 0.5, COURT_H - 14);
   return (
     <g>
       <rect x={x} y={5} width={5} height={COURT_H - 10} rx={1.2} fill={team.color} />
@@ -53,8 +55,9 @@ function EndBand({ side, team }: { side: 0 | 1; team: { abbr: string; color: str
         dominantBaseline="central"
         letterSpacing={0.5}
         transform={`rotate(${side ? 90 : -90} ${cx} ${COURT_H / 2})`}
+        {...fit}
       >
-        {team.abbr}
+        {label}
       </text>
     </g>
   );

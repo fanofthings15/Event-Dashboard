@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { fitLabel } from "./fitLabel";
 
 // American football field, top-down, in yards: 120 × 53⅓ including both
 // 10-yard end zones. Hash marks every yard at the sidelines and at the NFL
@@ -11,6 +12,7 @@ export const HASH_IN = 23.58;
 function EndZone({ x, color, label, rotate }: { x: number; color: string; label?: string; rotate: number }) {
   const cx = x + 5;
   const cy = FIELD_H / 2;
+  const { label: text, fit } = fitLabel(label ?? "", 5, 1.2, FIELD_H - 6);
   return (
     <g>
       <rect x={x} width={10} height={FIELD_H} fill={color} />
@@ -25,8 +27,9 @@ function EndZone({ x, color, label, rotate }: { x: number; color: string; label?
         dominantBaseline="central"
         letterSpacing={1.2}
         transform={`rotate(${rotate} ${cx} ${cy})`}
+        {...fit}
       >
-        {label}
+        {text}
       </text>
     </g>
   );

@@ -1084,12 +1084,20 @@ body.live-body {
 
 .lv-tile-pin {
   flex: none;
-  background: none;
-  border: 0;
-  padding: 0 0.1em;
-  color: #4f8dfd;
-  font-size: 0.9em;
+  background: rgb(79 141 253 / 0.16);
+  border: 1px solid rgb(79 141 253 / 0.5);
+  border-radius: 999px;
+  padding: 0.15em 0.6em;
+  color: #8db4ff;
+  font: inherit;
+  font-size: 0.78em;
+  font-weight: 700;
   cursor: pointer;
+}
+
+.lv-others button.lv-auto-btn {
+  color: #8db4ff;
+  border-color: rgb(79 141 253 / 0.5);
 }
 
 /* Every tile fills its cell, and the surface is a size container, so a

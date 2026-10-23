@@ -1,5 +1,5 @@
 import type { BaseballState } from "../liveTypes";
-import { teamColors } from "../teamColors";
+import { teamColors, teamLabel } from "../teamColors";
 import { C, LiveFrame, Line, Scoreboard, Side, Surface, useScoreFlash } from "../Layout";
 import Ballpark, { BASES, Base } from "../surfaces/Ballpark";
 import BallFlight from "../surfaces/BallFlight";
@@ -55,8 +55,8 @@ export default function BaseballView({ data, leagueColor }: { data: BaseballStat
   const flash = useScoreFlash(
     away && home ? [Number(away.score), Number(home.score)] : undefined,
     [
-      { abbr: away?.abbr ?? "", color: awayColor },
-      { abbr: home?.abbr ?? "", color: homeColor },
+      { abbr: away?.abbr ?? "", label: teamLabel(away), color: awayColor },
+      { abbr: home?.abbr ?? "", label: teamLabel(home), color: homeColor },
     ],
     (d, team) => ({
       banner: `${lastHit?.result === "Home Run" ? (d >= 4 ? "Grand slam" : "Home run") : d === 1 ? "Run scores" : `${d} runs score`} · ${team}`,

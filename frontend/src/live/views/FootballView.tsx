@@ -1,5 +1,5 @@
 import type { FootballState } from "../liveTypes";
-import { teamColors } from "../teamColors";
+import { teamColors, teamLabel } from "../teamColors";
 import { Below, C, LiveFrame, Line, Scoreboard, Side, SideLabel, Surface, useScoreFlash } from "../Layout";
 import Field, { FIELD_H, HASH_IN } from "../surfaces/Field";
 import { FootballPlay, playKind } from "../surfaces/PlayAnimations";
@@ -29,7 +29,7 @@ export function FootballSurface({ data }: { data: FootballState }) {
   const ballY = mid + (data.nextHash === "top" ? -1 : data.nextHash === "bottom" ? 1 : 0) * (mid - HASH_IN);
   const m = data.motion;
   return (
-    <Field leftColor={awayColor} rightColor={homeColor} leftLabel={away?.abbr} rightLabel={home?.abbr}>
+    <Field leftColor={awayColor} rightColor={homeColor} leftLabel={teamLabel(away)} rightLabel={teamLabel(home)}>
       {data.redZone && ball !== undefined && (
         <rect x={towardHome ? fx(20) : fx(100)} width={20} height={FIELD_H} fill={C.live} fillOpacity={0.16} />
       )}
@@ -76,7 +76,8 @@ export function timeoutsOf(data: FootballState, i: 0 | 1): { left: number; of: n
 
 // The last play's kind as a coloured tag (RUN · left guard · +4).
 export function PlayKind({ data }: { data: FootballState }) {
-  const k = playKind(data.motion);
+  // only beside the play it describes — not a timeout or "End Game" after it
+  const k = data.lastPlayIsMotion === false ? null : playKind(data.motion);
   if (!k) return null;
   return (
     <span className="lv-kind" style={{ background: k.color }}>
@@ -92,8 +93,8 @@ export default function FootballView({ data, league, leagueColor }: { data: Foot
   const possession = data.possessionId === home?.id ? "home" : data.possessionId === away?.id ? "away" : undefined;
   const winPct = data.homeWinPct;
   const teams = [
-    { abbr: away?.abbr ?? "", color: awayColor },
-    { abbr: home?.abbr ?? "", color: homeColor },
+    { abbr: away?.abbr ?? "", label: teamLabel(away), color: awayColor },
+    { abbr: home?.abbr ?? "", label: teamLabel(home), color: homeColor },
   ];
   const flash = useScoreFlash(away && home ? [Number(away.score), Number(home.score)] : undefined, teams, (d, team) => ({
     banner: `${scoringLabel(d)} · ${team}`,
@@ -145,7 +146,7 @@ export default function FootballView({ data, league, leagueColor }: { data: Foot
                   <div className="lv-row">
                     <SideLabel>Win probability</SideLabel>
                     <span>
-                      {away?.abbr} {Math.round((1 - winPct) * 100)}% · {home?.abbr} {Math.round(winPct * 100)}%
+                      {teamLabel(away)} {Math.round((1 - winPct) * 100)}% · {teamLabel(home)} {Math.round(winPct * 100)}%
                     </span>
                   </div>
                   <div className="lv-bar">

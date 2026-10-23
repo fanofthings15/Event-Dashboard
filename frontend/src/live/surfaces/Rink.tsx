@@ -1,4 +1,5 @@
 import { useId, type ReactNode } from "react";
+import { fitLabel } from "./fitLabel";
 
 // NHL regulation rink, top-down, in feet: 200 × 85 with 28 ft corner radii.
 // Goal lines 11 ft from the end boards, blue lines 64 ft out from those,
@@ -77,6 +78,7 @@ function End({ side }: { side: 0 | 1 }) {
 function EndBand({ side, team }: { side: 0 | 1; team: { abbr: string; color: string } }) {
   const x = side ? RINK_W + 2.5 : -12.5;
   const cx = x + 5;
+  const { label, fit } = fitLabel(team.abbr, 5, 1, RINK_H - 22);
   return (
     <g>
       <rect x={x} y={8} width={10} height={RINK_H - 16} rx={3} fill={team.color} />
@@ -90,8 +92,9 @@ function EndBand({ side, team }: { side: 0 | 1; team: { abbr: string; color: str
         dominantBaseline="central"
         letterSpacing={1}
         transform={`rotate(${side ? 90 : -90} ${cx} ${RINK_H / 2})`}
+        {...fit}
       >
-        {team.abbr}
+        {label}
       </text>
     </g>
   );

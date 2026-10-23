@@ -16,6 +16,7 @@ export interface LiveTeam {
   homeAway: "home" | "away";
   abbr: string;
   name: string;
+  nickname?: string; // "Bruins" — what the display labels a team with
   color?: string; // hex without "#", as ESPN sends it
   altColor?: string;
   logo?: string;
@@ -43,6 +44,7 @@ function commonFrom(data: any): LiveCommon {
     homeAway: c.homeAway,
     abbr: c.team?.abbreviation ?? "",
     name: c.team?.displayName ?? c.team?.name ?? "",
+    nickname: c.team?.name && c.team.name !== c.team?.location ? c.team.name : undefined,
     color: c.team?.color,
     altColor: c.team?.alternateColor,
     logo: c.team?.logos?.[0]?.href ?? c.team?.logo,
@@ -97,6 +99,7 @@ export interface FootballState extends LiveCommon {
   spotText?: string; // "SF 40"
   driveSummary?: string;
   lastPlay?: string;
+  lastPlayIsMotion?: boolean; // lastPlay is the play in `motion` (not a timeout or end-of-game marker after it)
   timeoutsPerHalf?: number; // for drawing used/left timeouts
   nextHash?: Hash; // where the next snap sits
   // The latest play, for animating it on the field. ESPN gives no catch or
@@ -199,7 +202,8 @@ export function mapFootball(data: any): FootballState {
   // The play just run, for the field animation — stoppages (timeouts,
   // end of a quarter) don't replace it.
   let runIdx = plays.length - 1;
-  while (runIdx > 0 && /timeout|end of|two-minute|end period|end quarter/i.test(plays[runIdx].type?.text ?? "")) runIdx--;
+  while (runIdx > 0 && /timeout|end of|end game|two-minute|end period|end quarter/i.test(plays[runIdx].type?.text ?? "")) runIdx--;
+  out.lastPlayIsMotion = runIdx === plays.length - 1;
   const run = plays[runIdx];
   const s0 = run?.start ?? {};
   if (run && typeof s0.yardLine === "number" && run.type?.text) {

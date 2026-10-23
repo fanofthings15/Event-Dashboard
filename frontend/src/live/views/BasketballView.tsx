@@ -1,5 +1,5 @@
 import type { BasketballState } from "../liveTypes";
-import { teamColors } from "../teamColors";
+import { teamColors, teamLabel } from "../teamColors";
 import { Below, LiveFrame, Line, Scoreboard, Side, StatGrid, Surface, useScoreFlash } from "../Layout";
 import Court, { COURT_H, COURT_W, RIM_X } from "../surfaces/Court";
 import { BasketballShotPlay } from "../surfaces/PlayAnimations";
@@ -10,8 +10,8 @@ export function BasketballSurface({ data }: { data: BasketballState }) {
   const [away, home] = data.teams;
   const [awayColor, homeColor] = teamColors(away, home);
   const teams = [
-    { abbr: away?.abbr ?? "", color: awayColor },
-    { abbr: home?.abbr ?? "", color: homeColor },
+    { abbr: teamLabel(away), color: awayColor },
+    { abbr: teamLabel(home), color: homeColor },
   ];
   // ESPN shot spots are half-court feet: x across the width, y out from the
   // rim (not the baseline). Each team's band marks the basket it defends
@@ -64,8 +64,8 @@ export default function BasketballView({ data, leagueColor }: { data: Basketball
   const [awayColor, homeColor] = teamColors(away, home);
   const s = (name: string) => [data.stats[away?.id ?? ""]?.[name], data.stats[home?.id ?? ""]?.[name]];
   const teams = [
-    { abbr: away?.abbr ?? "", color: awayColor },
-    { abbr: home?.abbr ?? "", color: homeColor },
+    { abbr: away?.abbr ?? "", label: teamLabel(away), color: awayColor },
+    { abbr: home?.abbr ?? "", label: teamLabel(home), color: homeColor },
   ];
   // Baskets come every few seconds, so they get a short edge flash only.
   const flash = useScoreFlash(away && home ? [Number(away.score), Number(home.score)] : undefined, teams, () => ({ banner: null, ms: 1800 }));

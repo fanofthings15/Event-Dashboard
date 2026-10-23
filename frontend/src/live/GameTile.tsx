@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { NormalizedEvent } from "../types";
 import { useLiveDetail } from "./useLiveDetail";
-import { teamColors } from "./teamColors";
+import { teamColors, teamLabel } from "./teamColors";
 import { C, Timeouts } from "./Layout";
 import Stream, { embeddableStream } from "./Stream";
 import { ESPORTS_SPORTS } from "./selectLiveEvent";
@@ -62,8 +62,8 @@ function teamRow(teams: LiveTeam[]): Pick<Row, "away" | "home"> {
   const [away, home] = teams;
   const [ac, hc] = teamColors(away, home);
   return {
-    away: { name: away?.abbr ?? "", color: ac, score: away?.score },
-    home: { name: home?.abbr ?? "", color: hc, score: home?.score },
+    away: { name: teamLabel(away), color: ac, score: away?.score },
+    home: { name: teamLabel(home), color: hc, score: home?.score },
   };
 }
 
@@ -111,7 +111,7 @@ function rowFor(event: NormalizedEvent, data: Detail | null, stream: { embed: st
       return {
         ...teamRow(data.teams),
         clock: data.detail,
-        tags: pp ? [{ text: `PP ${pp.abbr}`, bg: C.yellow, ink: "#1a1600" }] : [],
+        tags: pp ? [{ text: `PP ${teamLabel(pp)}`, bg: C.yellow, ink: "#1a1600" }] : [],
         surface: <HockeySurface data={data} />,
         status: data.lastGoal ? (
           <>
@@ -245,11 +245,11 @@ export default function GameTile({
           <button
             className="lv-tile-pin"
             aria-label="Unpin"
-            title="Unpin"
+            title="Unpin — let the display pick this spot again"
             onPointerDown={(e) => e.stopPropagation()}
             onClick={onUnpin}
           >
-            ●
+            Pinned ✕
           </button>
         )}
       </div>

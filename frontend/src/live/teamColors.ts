@@ -48,3 +48,9 @@ export function teamColors(away: LiveTeam | undefined, home: LiveTeam | undefine
   const homeColor = h.find((c) => distance(c, awayColor) > 90) ?? (distance(h[0], awayColor) > 90 ? h[0] : lighten(h[0], 0.5));
   return [awayColor, homeColor];
 }
+
+// How the display names a team: the nickname ("Bruins", "Patriots"), falling
+// back to the abbreviation. Narrow stat-table columns keep the abbreviation.
+export function teamLabel(t: { nickname?: string; abbr?: string } | undefined): string {
+  return t?.nickname || t?.abbr || "";
+}

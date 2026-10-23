@@ -7,6 +7,7 @@ export interface LiveTeam {
   homeAway: "home" | "away";
   abbr: string;
   name: string;
+  nickname?: string;
   color?: string;
   altColor?: string;
   logo?: string;
@@ -42,6 +43,7 @@ export interface FootballState extends LiveCommon {
   spotText?: string;
   driveSummary?: string;
   lastPlay?: string;
+  lastPlayIsMotion?: boolean;
   timeoutsPerHalf?: number;
   nextHash?: "top" | "middle" | "bottom";
   motion?: {
