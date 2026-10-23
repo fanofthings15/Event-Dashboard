@@ -78,8 +78,8 @@ from how the live games' standing (size + follow + stream, not moments)
 compares, so it only changes as games start or end. Beside a big game
 (55+), tier-D esports and FRC off-seasons stay in the strip unless pinned.
 Quiet hours (`src/quietHours.ts`, per device, default 6 AM–12 PM — the user
-works nights): one game, every stream muted and its player unclickable, no
-in-tab chime, Streams tab main tile muted. The in-tab chime is only for an
+works nights): one game, every stream loads muted (its player can still be unmuted by
+hand), no in-tab chime, Streams tab main tile muted. The in-tab chime is only for an
 event going live; reminders are Discord's. Tap a
 strip game to pin it to the big spot; drag games onto spots (pin/swap) or
 onto the strip (hide). Layout, pins and hidden games are per device

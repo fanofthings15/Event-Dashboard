@@ -488,7 +488,7 @@ export default function LiveScreen({ onBack }: { onBack?: () => void } = {}) {
   };
 
   return (
-    <div className={`live-root${controlsVisible ? "" : " live-idle"}${drag ? " lv-dragging" : ""}${quiet ? " lv-quiet-mode" : ""}`} onPointerMove={poke} onPointerDown={poke}>
+    <div className={`live-root${controlsVisible ? "" : " live-idle"}${drag ? " lv-dragging" : ""}`} onPointerMove={poke} onPointerDown={poke}>
       <div className="live-view">{body}</div>
       {/* Bottom strip: Back/Fullscreen first, then the other live games. The
           buttons sit in the strip's flow (not floating over it) so they can

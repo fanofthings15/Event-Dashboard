@@ -1095,12 +1095,6 @@ body.live-body {
   cursor: pointer;
 }
 
-/* quiet hours: streams are loaded muted, and their players can't be clicked
-   so nothing can be unmuted from the player's own controls */
-.lv-quiet-mode iframe {
-  pointer-events: none;
-}
-
 .lv-quiet-wrap {
   display: inline-flex;
   flex: none;
