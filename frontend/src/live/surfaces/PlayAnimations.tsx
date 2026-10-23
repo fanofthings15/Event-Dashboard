@@ -48,6 +48,7 @@ export interface FootballMotion {
   kickYards?: number;
   fumbleAt?: number;
   turnover?: boolean;
+  pat?: { kick: boolean; good: boolean };
 }
 
 // What kind of play it was, in the colour the field draws it — the label on
@@ -56,6 +57,13 @@ export interface FootballMotion {
 export const PLAY_COLORS = { run: "#fbbf24", pass: "#38bdf8", kick: "#c4b5fd", loss: "#f87171", flag: "#facc15" };
 
 export function playKind(m: FootballMotion | undefined): { label: string; detail?: string; color: string } | null {
+  const k = kindOf(m);
+  if (!k || !m?.pat || !/touchdown/i.test(m.type)) return k;
+  const pat = `${m.pat.kick ? "XP" : "2-pt"} ${m.pat.good ? "good" : "no good"}`;
+  return { ...k, label: `${k.label} TD`, detail: k.detail ? `${k.detail} · ${pat}` : pat };
+}
+
+function kindOf(m: FootballMotion | undefined): { label: string; detail?: string; color: string } | null {
   if (!m) return null;
   const t = m.type.toLowerCase();
   const gain = m.towardHome ? m.from - m.to : m.to - m.from;
@@ -119,13 +127,14 @@ interface Player {
   side: "off" | "def";
   track: Key[];
   from?: number; // appears at this time (an interceptor or punt returner)
+  until?: number; // gone after this time (cleared off for the extra point)
   ballAt?: number; // runs with the ball from this time: the path after it is drawn heavier
   quiet?: boolean; // the QB: his drop isn't drawn, only a scramble or a sack
 }
 
 // The ball is either carried by a player or travelling on its own (a snap,
 // a throw, a kick, a loose ball) — `arc` is its peak height in yards.
-type BallPhase = { until: number } & ({ holder: number } | { from: Pt; to: Pt; start: number; arc: number; loose?: boolean });
+type BallPhase = { until: number } & ({ holder: number } | { from: Pt; to: Pt; start: number; arc: number; loose?: boolean; kick?: boolean });
 
 interface FootballPlan {
   players: Player[];
@@ -162,15 +171,15 @@ function footballPlan(m: FootballMotion): FootballPlan | null {
   // pushed out of bounds on it
   const downAt = (from: Pt, x: number, drift: number): Pt => [x, m.outOfBounds ? sideline(side || (from[1] < mid ? -1 : 1)) : clampY(from[1] + drift)];
 
-  if (/field goal|punt|kickoff/.test(t)) {
-    if (/field goal/.test(t)) {
+  if (/field goal|extra point|punt|kickoff/.test(t)) {
+    if (/field goal|extra point/.test(t)) {
       const hold: Pt = [los - 7 * d, hy];
       const wide = /missed|no good|blocked/.test(t) ? 7 : 0;
-      return { players: [], ball: [{ from: [los, hy], to: hold, start: 0, until: 300, arc: 0.6 }, { from: hold, to: [m.towardHome ? 120 : 0, mid + wide], start: 600, until: 2200, arc: 14 }] };
+      return { players: [], ball: [{ from: [los, hy], to: hold, start: 0, until: 300, arc: 0.6 }, { from: hold, to: [m.towardHome ? 120 : 0, mid + wide], start: 600, until: 2200, arc: 14, kick: true }] };
     }
     const kicker: Pt = /punt/.test(t) ? [los - 14 * d, hy] : [los, mid];
     const land: Pt = [m.kickYards ? kicker[0] + m.kickYards * d : end, mid + (side || 0) * 8];
-    const kick: BallPhase = { from: kicker, to: land, start: /punt/.test(t) ? 400 : 0, until: /punt/.test(t) ? 2600 : 2200, arc: 24 };
+    const kick: BallPhase = { from: kicker, to: land, start: /punt/.test(t) ? 400 : 0, until: /punt/.test(t) ? 2600 : 2200, arc: 24, kick: true };
     const ball: BallPhase[] = /punt/.test(t) ? [{ from: [los, hy], to: kicker, start: 0, until: 400, arc: 1 }, kick] : [kick];
     // returned unless it went into the end zone or was fair caught where it fell
     const returned = Math.abs(land[0] - end) > 1 && land[0] > 0 && land[0] < 120;
@@ -283,6 +292,31 @@ function footballPlan(m: FootballMotion): FootballPlan | null {
   return m.fumbleAt !== undefined && looseFrom ? withFumble(plan, looseFrom, end, mid) : plan;
 }
 
+// A touchdown's extra point: once the scorer is brought back, the ball is
+// snapped at the 15, held 7 yards deep and kicked at the posts — through
+// them, or wide when it was missed. A two-point try isn't drawn (ESPN gives
+// no detail of it in the touchdown play).
+function withPat(plan: FootballPlan | null, m: FootballMotion): FootballPlan | null {
+  if (!plan || !m.pat?.kick || !/touchdown/i.test(m.type)) return plan;
+  const d = m.towardHome ? 1 : -1;
+  const goal = m.towardHome ? 110 : 10;
+  const mid = FIELD_H / 2;
+  const tdEnd = Math.max(...plan.ball.map((p) => p.until), ...plan.players.map((p) => endTime(p.track)));
+  const start = tdEnd + 1100;
+  const spot: Pt = [goal - 15 * d, mid];
+  const hold: Pt = [goal - 22 * d, mid];
+  return {
+    ...plan,
+    players: plan.players.map((p) => ({ ...p, until: tdEnd + 700 })),
+    ball: [
+      ...plan.ball,
+      { from: spot, to: spot, start: tdEnd, until: start, arc: 0 }, // spotted for the try
+      { from: spot, to: hold, start, until: start + 300, arc: 0.6 },
+      { from: hold, to: [goal + 10 * d, mid + (m.pat.good ? 0 : 6)], start: start + 550, until: start + 1900, arc: 9, kick: true },
+    ],
+  };
+}
+
 // The ball squirts loose where the carrier stopped and is recovered at the end spot.
 function withFumble(plan: FootballPlan, loose: Pt, end: number, mid: number): FootballPlan {
   const start = plan.ball[plan.ball.length - 1].until;
@@ -325,7 +359,7 @@ const DIAGRAM_OPACITY = 0.75;
 // play ends the players fade out and the diagram stays, dimmed, until the
 // next play; `rest` (the ball spotted for the next snap) fades in.
 export function FootballPlay({ motion, rest, offense, defense }: { motion: FootballMotion | undefined; rest?: ReactNode; offense: string; defense: string }) {
-  const plan = motion ? footballPlan(motion) : null;
+  const plan = motion ? withPat(footballPlan(motion), motion) : null;
   const playMs = plan ? Math.max(...plan.ball.map((p) => p.until), ...plan.players.map((p) => endTime(p.track))) : 0;
   const elapsed = usePlayClock(motion?.id, playMs + FADE_MS);
   const idle = elapsed === Infinity;
@@ -340,8 +374,7 @@ export function FootballPlay({ motion, rest, offense, defense }: { motion: Footb
   const actorOpacity = fading ? Math.max(0, 1 - (elapsed - playMs) / FADE_MS) : 1;
   const ball = idle ? null : ballAt(plan, now);
   const colorOf = (p: Player) => (p.side === "off" ? offense : defense);
-  const visible = (p: Player) => p.from === undefined || now >= p.from;
-  const kicked = /punt|kickoff|field goal/i.test(motion.type);
+  const visible = (p: Player) => (p.from === undefined || now >= p.from) && (p.until === undefined || now <= p.until || idle);
   // a rushing play's carry is drawn amber down the middle; after a catch it's white
   const rushing = !plan.catchAt && /rush|scramble|kneel|two-point/i.test(motion.type) && !motion.pass;
   const throws = plan.ball.filter((p): p is Extract<BallPhase, { from: Pt }> => "from" in p && !p.loose && p.arc > 1 && now > p.start);
@@ -350,7 +383,7 @@ export function FootballPlay({ motion, rest, offense, defense }: { motion: Footb
       <g opacity={idle ? DIAGRAM_OPACITY : 1} strokeLinecap="round" strokeLinejoin="round" fill="none">
         {throws.map((p, i) => {
           const f = Math.min(1, (now - p.start) / (p.until - p.start));
-          return <line key={`t${i}`} x1={p.from[0]} y1={p.from[1]} x2={p.from[0] + (p.to[0] - p.from[0]) * f} y2={p.from[1] + (p.to[1] - p.from[1]) * f} stroke={kicked ? PLAY_COLORS.kick : PLAY_COLORS.pass} strokeWidth={0.42} strokeDasharray="1 0.6" />;
+          return <line key={`t${i}`} x1={p.from[0]} y1={p.from[1]} x2={p.from[0] + (p.to[0] - p.from[0]) * f} y2={p.from[1] + (p.to[1] - p.from[1]) * f} stroke={p.kick ? PLAY_COLORS.kick : PLAY_COLORS.pass} strokeWidth={0.42} strokeDasharray="1 0.6" />;
         })}
         {plan.players.map((p, i) => {
           if (!visible(p)) return null;

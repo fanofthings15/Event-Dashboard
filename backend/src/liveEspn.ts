@@ -123,6 +123,9 @@ export interface FootballState extends LiveCommon {
     kickYards?: number; // punts and kickoffs: distance in the air, from "punts 56 yards" / "kicks 63 yards"
     fumbleAt?: number; // where the ball came loose (yards from home goal)
     turnover?: boolean; // the other team ended up with the ball
+    // The try after a touchdown — ESPN folds it into the touchdown play
+    // (`pointAfterAttempt`, "Extra Point Good") rather than sending its own.
+    pat?: { kick: boolean; good: boolean };
   };
 }
 
@@ -236,6 +239,9 @@ export function mapFootball(data: any): FootballState {
       pass: / pass /i.test(` ${text} `) && !/pass (?:attempt )?(?:is )?(?:blocked|aborted)/i.test(text),
       kickYards: kickYards ? Number(kickYards) : undefined,
       fumbleAt: fumbleGain !== undefined ? forward(Number(fumbleGain)) : undefined,
+      pat: run.pointAfterAttempt?.text
+        ? { kick: /extra point/i.test(run.pointAfterAttempt.text), good: /good/i.test(run.pointAfterAttempt.text) && !/no good/i.test(run.pointAfterAttempt.text) }
+        : undefined,
       turnover: Boolean(endTeam && startTeam && String(endTeam) !== String(startTeam) && !/punt|kickoff/i.test(last.type.text)) || /interception|\(opponent\)|opp fumble/i.test(last.type.text),
     };
   }

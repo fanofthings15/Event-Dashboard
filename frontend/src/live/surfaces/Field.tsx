@@ -90,6 +90,14 @@ export default function Field({
       <EndZone x={110} color={rightColor} label={rightLabel} rotate={90} />
       {marks}
       <rect width={FIELD_W} height={FIELD_H} fill="none" stroke="#fff" strokeWidth={0.35} />
+      {/* goalposts on the end lines, 18 ft 6 in between the uprights */}
+      {[0, FIELD_W].map((x) => (
+        <g key={x} fill="#facc15">
+          <rect x={x - 0.3} y={FIELD_H / 2 - 37 / 12} width={0.6} height={37 / 6} />
+          <circle cx={x} cy={FIELD_H / 2 - 37 / 12} r={0.45} />
+          <circle cx={x} cy={FIELD_H / 2 + 37 / 12} r={0.45} />
+        </g>
+      ))}
       {children}
     </svg>
   );

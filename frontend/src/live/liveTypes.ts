@@ -61,6 +61,7 @@ export interface FootballState extends LiveCommon {
     kickYards?: number;
     fumbleAt?: number;
     turnover?: boolean;
+    pat?: { kick: boolean; good: boolean };
   };
 }
 
