@@ -260,8 +260,10 @@ export const tapToBig = (prefs: MultiPrefs, key: string): MultiPrefs => {
   return { pins: { ...pins, [key]: 0 }, hidden: without(prefs.hidden, key), benched: without(prefs.benched, key) };
 };
 
-// A game dropped on a spot takes it, pinned. From another spot it's a swap
-// (both stay pinned); from the strip, the game it replaces goes to the strip
+// A game dropped on a spot takes it, pinned. From another spot it's a swap:
+// the game it displaced isn't pinned — it drops into the spot just left
+// (the only gap, since every other game keeps its place) and is ranked as
+// usual from there. From the strip, the game it replaces goes to the strip
 // (benched) and every other game stays where it is.
 export const dropOnSlot = (prefs: MultiPrefs, key: string, slot: number, slots: string[]): MultiPrefs => {
   const occupant = slots[slot];
@@ -269,8 +271,10 @@ export const dropOnSlot = (prefs: MultiPrefs, key: string, slot: number, slots: 
   const pins = { ...prefs.pins, [key]: slot };
   let benched = without(prefs.benched, key);
   if (occupant && occupant !== key) {
-    if (from >= 0) pins[occupant] = from;
-    else {
+    if (from >= 0) {
+      delete pins[occupant];
+      benched = without(benched, occupant);
+    } else {
       delete pins[occupant];
       benched = [...without(benched, occupant), occupant];
     }
