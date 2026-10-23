@@ -3,6 +3,7 @@ import { useSettings } from "../SettingsContext";
 import { useEvents } from "../useEvents";
 import { sportMeta } from "../sportMeta";
 import type { NormalizedEvent } from "../types";
+import { isLiveNow } from "../eventStatus";
 import { ESPORTS_SPORTS, eventKey, LIVE_VIEW_SPORTS, selectLiveEvent } from "./selectLiveEvent";
 import { useLiveDetail } from "./useLiveDetail";
 import { embeddableStream } from "./Stream";
@@ -186,7 +187,12 @@ export default function LiveScreen({ onBack }: { onBack?: () => void } = {}) {
   // it stays live; once it ends, selection goes back to selectLiveEvent.
   const [chosenKey, setChosenKey] = useState<string | null>(null);
   const [currentKey, setCurrentKey] = useState<string | null>(null);
-  const liveEvents = useMemo(() => events.filter((e) => e.status === "live" && LIVE_VIEW_SPORTS.has(e.sport)), [events]);
+  // Same idea of "live" as the dashboard's LIVE badge, so a game shown live
+  // there is never missing here.
+  const liveEvents = useMemo(() => {
+    const now = new Date();
+    return events.filter((e) => isLiveNow(e, now) && LIVE_VIEW_SPORTS.has(e.sport));
+  }, [events]);
   const chosen = chosenKey ? liveEvents.find((e) => eventKey(e) === chosenKey) : undefined;
   useEffect(() => {
     if (chosenKey && !chosen && events.length > 0) setChosenKey(null);

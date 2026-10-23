@@ -1,4 +1,5 @@
 import type { NormalizedEvent } from "../types";
+import { isLiveNow } from "../eventStatus";
 
 // Esports titles the display shows (as their live stream). Dota 2 and
 // StarCraft II are deliberately left out — the display never picks them.
@@ -12,14 +13,18 @@ export const eventKey = (e: NormalizedEvent) => `${e.sport}-${e.id}`;
 // PLACEHOLDER POLICY — this is the one function that decides what the
 // display shows, so changing how games get picked only means editing this.
 // Current behaviour, until a real rule is chosen:
-//   1. only live events in a sport the display can render
+//   1. only live events in a sport the display can render — "live" as the
+//      dashboard counts it (isLiveNow): past its start time and not over,
+//      even before the source flips its status (small PandaScore events
+//      can sit at not_started long after they've begun)
 //   2. ranked: manually followed event > followed team > everything else,
 //      then most recently started
 //   3. sticky: the game already on screen stays until it ends or something
 //      ranked strictly higher goes live, so the screen doesn't flip back and
 //      forth between two equal games every poll
 export function selectLiveEvent(events: NormalizedEvent[], currentKey: string | null): NormalizedEvent | null {
-  const live = events.filter((e) => e.status === "live" && LIVE_VIEW_SPORTS.has(e.sport));
+  const now = new Date();
+  const live = events.filter((e) => isLiveNow(e, now) && LIVE_VIEW_SPORTS.has(e.sport));
   if (live.length === 0) return null;
 
   const rank = (e: NormalizedEvent) => (e.manuallyFollowed ? 0 : e.followed ? 1 : 2);
