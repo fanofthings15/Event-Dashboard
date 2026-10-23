@@ -63,10 +63,18 @@ pick until that game ends.
 Several games at once (`live/multiGame.ts`, `live/GameTile.tsx`): with 2+
 games live, the RedZone (one big + up to 3) or Grid (up to 6) layout,
 picked by a switch next to Fullscreen ("Single" = the one-game display).
-Games are ranked by `interest()` — red zone (from the ESPN scoreboard's
-`situation`, so it works for games not on screen), a score in the last 3
-minutes, a power play (reported by the tile), a close finish, followed
-teams — with a bonus for games already shown so they don't churn. Tap a
+Games are ranked by `interest()` = `importance()` (how big the event is:
+esports tier × stage from PandaScore, ESPN `postseason`, FRC event type —
+the points table is in `multiGame.ts`; the user set NFL regular season =
+esports tier A, and a red-zone drive beats a Major's Swiss map but not its
+final) + the strongest live moment capped at +35 (red zone from the ESPN
+scoreboard's `situation`, a score in the last 3 minutes, a power play, a
+close finish, a deciding map) + followed teams + 10 for a stream that plays
+on the display — with a bonus for games already shown so they don't churn.
+Nothing is dropped for being small; unwanted sources are filtered in
+settings. "Live" means `isLiveNow` (start time passed), same as the
+dashboard. Quiet hours (per device, default 6 AM–12 PM — the user works
+nights) switch the screen to one game. Tap a
 strip game to pin it to the big spot; drag games onto spots (pin/swap) or
 onto the strip (hide). Layout, pins and hidden games are per device
 (localStorage), pruned when their games end. Tiles stay mounted while
