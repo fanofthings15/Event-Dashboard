@@ -88,15 +88,17 @@ export default function FrcView({
   leagueColor,
   streamUrl,
   onSaveStream,
+  muted = true,
 }: {
   data: FrcState;
   eventName: string;
   leagueColor: string;
   streamUrl?: string;
   onSaveStream: (url: string) => void;
+  muted?: boolean;
 }) {
   const [editing, setEditing] = useState(false);
-  const stream = streamUrl ? embeddableStream([streamUrl]) : null;
+  const stream = streamUrl ? embeddableStream([streamUrl], muted) : null;
   const mine = data.myTeam?.number;
   const last = data.last;
   const total = (last?.red.score ?? 0) + (last?.blue.score ?? 0);

@@ -9,6 +9,7 @@ import { sameDay } from "./calendarUtils";
 import { formatEventTime } from "./dateFormat";
 import { useNewlySeen } from "./useNewlySeen";
 import { playNotificationPing } from "./notifySound";
+import { isQuietNow, loadQuiet } from "./quietHours";
 import { CORE_SPORT_META, type NormalizedEvent } from "./types";
 import SettingsDrawer from "./SettingsDrawer";
 import CalendarView from "./CalendarView";
@@ -144,12 +145,16 @@ export default function App() {
   // whoever already has the page open when something goes live, on the
   // same gating (notifyOnLive/notifyMode) so the two stay in sync.
   const notifyEvent = useCallback(
-    (e: NormalizedEvent, _reason: NotifyReason, _leadMinutes?: number) => {
+    (e: NormalizedEvent, reason: NotifyReason, _leadMinutes?: number) => {
+      // only an event going live chimes here; "starting in N minutes"
+      // reminders are Discord's job
+      if (reason !== "live") return;
       if (!settings.notifyOnLive) return;
       if (settings.notifyMode === "followed" && !e.followed && !e.manuallyFollowed) return;
-      if (settings.notifySoundEnabled) playNotificationPing();
+      // never a sound during this device's quiet hours
+      if (settings.notifySoundEnabled && !isQuietNow(loadQuiet(), settings.timezone)) playNotificationPing();
     },
-    [settings.notifyOnLive, settings.notifyMode, settings.notifySoundEnabled]
+    [settings.notifyOnLive, settings.notifyMode, settings.notifySoundEnabled, settings.timezone]
   );
 
   const { events, allEvents, warnings, loading, refreshing, lastUpdated, isOffline, refetch } = useEvents(

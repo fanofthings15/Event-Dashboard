@@ -4,6 +4,7 @@ import { useEvents } from "../useEvents";
 import { sportMeta } from "../sportMeta";
 import type { NormalizedEvent } from "../types";
 import { isLiveNow } from "../eventStatus";
+import { loadQuiet, saveQuiet, useQuietHours, type QuietHours } from "../quietHours";
 import { ESPORTS_SPORTS, eventKey, LIVE_VIEW_SPORTS, selectLiveEvent } from "./selectLiveEvent";
 import { useLiveDetail } from "./useLiveDetail";
 import { embeddableStream } from "./Stream";
@@ -23,9 +24,6 @@ import {
   hideGame,
   interest,
   loadLayout,
-  loadQuiet,
-  saveQuiet,
-  type QuietHours,
   loadPrefs,
   multiTemplate,
   placeGames,
@@ -35,6 +33,8 @@ import {
   tapToBig,
   unpinGame,
   type LiveLayout,
+  type LayoutChoice,
+  autoLayout,
   type MultiPrefs,
 } from "./multiGame";
 import "./live.css";
@@ -59,12 +59,14 @@ function SportView({
   color,
   frcStreamUrl,
   onSaveFrcStream,
+  muted = true,
 }: {
   event: NormalizedEvent;
   label: string;
   color: string;
   frcStreamUrl?: string;
   onSaveFrcStream: (url: string) => void;
+  muted?: boolean;
 }) {
   const url = ESPN_SPORTS.has(event.sport)
     ? `/api/live/espn/${event.sport}/${event.id}`
@@ -94,7 +96,7 @@ function SportView({
     case "f1":
       return <F1View data={data as F1State} leagueColor={color} />;
     case "frc":
-      return <FrcView data={data as FrcState} eventName={event.name} leagueColor={color} streamUrl={frcStreamUrl} onSaveStream={onSaveFrcStream} />;
+      return <FrcView data={data as FrcState} eventName={event.name} leagueColor={color} streamUrl={frcStreamUrl} onSaveStream={onSaveFrcStream} muted={muted} />;
     default:
       return (
         <LiveFrame league={label} leagueColor={color} live={false} centre={event.name}>
@@ -109,29 +111,6 @@ function SportView({
 // window covering the full screen counts too. Not on touch devices: an
 // installed home-screen app is screen-sized without being "fullscreen", and
 // treating it as such would hide the Back button with no way to get it back.
-// Whether it's quiet hours right now, in the dashboard's timezone (or the
-// display's own clock).
-function useQuietHours(q: QuietHours, timezone: string): boolean {
-  const check = () => {
-    if (!q.on || q.start === q.end) return false;
-    let h = new Date().getHours();
-    try {
-      if (timezone) h = Number(new Intl.DateTimeFormat("en-US", { hour: "numeric", hourCycle: "h23", timeZone: timezone }).format(new Date()));
-    } catch {
-      /* unknown zone: the display's clock */
-    }
-    return q.start < q.end ? h >= q.start && h < q.end : h >= q.start || h < q.end;
-  };
-  const [quiet, setQuiet] = useState(check);
-  useEffect(() => {
-    setQuiet(check());
-    const id = setInterval(() => setQuiet(check()), 60_000);
-    return () => clearInterval(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q.on, q.start, q.end, timezone]);
-  return quiet;
-}
-
 const HOURS = Array.from({ length: 24 }, (_, h) => h);
 const hourLabel = (h: number) => (h === 0 ? "12 AM" : h === 12 ? "12 PM" : h < 12 ? `${h} AM` : `${h - 12} PM`);
 
@@ -165,7 +144,8 @@ function useIsPortrait(): boolean {
   return portrait;
 }
 
-const LAYOUTS: [LiveLayout, string][] = [
+const LAYOUTS: [LayoutChoice, string][] = [
+  ["auto", "Auto"],
   ["redzone", "RedZone"],
   ["grid", "Grid"],
   ["single", "Single"],
@@ -246,7 +226,7 @@ export default function LiveScreen({ onBack }: { onBack?: () => void } = {}) {
   );
 
   // ----- several games at once -----
-  const [savedLayout, setLayoutState] = useState<LiveLayout>(loadLayout);
+  const [savedLayout, setLayoutState] = useState<LayoutChoice>(loadLayout);
   // Quiet hours (the user works nights and sleeps through the morning): one
   // game on screen instead of RedZone/Grid. Picking a layout during them
   // keeps that choice until they end.
@@ -261,8 +241,9 @@ export default function LiveScreen({ onBack }: { onBack?: () => void } = {}) {
   useEffect(() => {
     if (!quiet) setQuietOverride(false);
   }, [quiet]);
-  const layout: LiveLayout = quiet && !quietOverride ? "single" : savedLayout;
-  const setLayout = (l: LiveLayout) => {
+  const autoPick = useMemo(() => autoLayout(liveEvents), [liveEvents]);
+  const layout: LiveLayout = quiet && !quietOverride ? "single" : savedLayout === "auto" ? autoPick : savedLayout;
+  const setLayout = (l: LayoutChoice) => {
     setLayoutState(l);
     saveLayout(l);
     if (quiet) setQuietOverride(true);
@@ -412,8 +393,9 @@ export default function LiveScreen({ onBack }: { onBack?: () => void } = {}) {
   }, []);
 
   const stream = useMemo(
-    () => (selected && ESPORTS_SPORTS.has(selected.sport) ? embeddableStream((selected.streams ?? []).map((s) => s.url).concat(selected.streamUrl ?? [])) : null),
-    [selected]
+    // the one game on screen has sound — never during quiet hours
+    () => (selected && ESPORTS_SPORTS.has(selected.sport) ? embeddableStream((selected.streams ?? []).map((s) => s.url).concat(selected.streamUrl ?? []), quiet) : null),
+    [selected, quiet]
   );
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -447,7 +429,7 @@ export default function LiveScreen({ onBack }: { onBack?: () => void } = {}) {
               event={e}
               slot={i}
               big={(layout === "redzone" && i === 0 && !portrait) || shown.length === 1}
-              withSound={layout === "redzone" && i === 0}
+              withSound={!quiet && layout === "redzone" && i === 0}
               pinned={prefs.pins[k] !== undefined}
               dropping={drag !== null && drag.over === i && drag.key !== k}
               lifted={drag?.key === k}
@@ -483,6 +465,7 @@ export default function LiveScreen({ onBack }: { onBack?: () => void } = {}) {
         label={meta.label}
         color={meta.color}
         frcStreamUrl={sel.sport === "frc" ? settings.frcStreamUrls?.[sel.id] : undefined}
+        muted={quiet}
         onSaveFrcStream={(url) => saveFrcStream(sel.id, url)}
       />
     );
@@ -505,7 +488,7 @@ export default function LiveScreen({ onBack }: { onBack?: () => void } = {}) {
   };
 
   return (
-    <div className={`live-root${controlsVisible ? "" : " live-idle"}${drag ? " lv-dragging" : ""}`} onPointerMove={poke} onPointerDown={poke}>
+    <div className={`live-root${controlsVisible ? "" : " live-idle"}${drag ? " lv-dragging" : ""}${quiet ? " lv-quiet-mode" : ""}`} onPointerMove={poke} onPointerDown={poke}>
       <div className="live-view">{body}</div>
       {/* Bottom strip: Back/Fullscreen first, then the other live games. The
           buttons sit in the strip's flow (not floating over it) so they can
@@ -525,8 +508,8 @@ export default function LiveScreen({ onBack }: { onBack?: () => void } = {}) {
               {!pinned && (
                 <span className="lv-layout-switch" role="group" aria-label="Layout">
                   {LAYOUTS.map(([value, label]) => (
-                    <button key={value} className="lv-strip-btn" aria-pressed={(quiet && !quietOverride ? savedLayout : layout) === value} onClick={() => setLayout(value)}>
-                      {label}
+                    <button key={value} className="lv-strip-btn" aria-pressed={savedLayout === value} onClick={() => setLayout(value)}>
+                      {value === "auto" && savedLayout === "auto" && !(quiet && !quietOverride) ? `Auto · ${LAYOUTS.find(([v]) => v === autoPick)?.[1]}` : label}
                     </button>
                   ))}
                 </span>
@@ -564,7 +547,7 @@ export default function LiveScreen({ onBack }: { onBack?: () => void } = {}) {
           )}
           {manual && !pinned && (
             <button className="lv-strip-btn lv-auto-btn" onClick={backToAuto} title="Unpin everything and let the display pick">
-              ↺ Auto
+              ↺ Unpin all
             </button>
           )}
           {stripGames.map((e) => (

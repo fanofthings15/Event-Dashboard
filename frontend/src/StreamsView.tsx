@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { useSettings } from "./SettingsContext";
 import type { StreamLayout, StreamSlot } from "./settingsTypes";
 import { toEmbedUrl, isYoutubeEmbed } from "./streamEmbed";
+import { loadQuiet, useQuietHours } from "./quietHours";
 import { forceMaxQuality } from "./youtubeQuality";
 import ConfirmDialog from "./ConfirmDialog";
 
@@ -32,7 +33,10 @@ function StreamTile({
   onRemove: () => void;
 }): ReactNode {
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
-  const embedUrl = toEmbedUrl(slot.url, { muted: !isMain });
+  const { settings } = useSettings();
+  // the main tile has sound — except during this device's quiet hours
+  const quiet = useQuietHours(loadQuiet(), settings.timezone);
+  const embedUrl = toEmbedUrl(slot.url, { muted: !isMain || quiet });
 
   // Re-attaches every time embedUrl actually changes — toggling "Make main"
   // changes the mute param, which reloads the iframe's content and

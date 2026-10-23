@@ -10,6 +10,8 @@ import { embeddableStream } from "./Stream";
 // a spot (tap or drag) or hidden it (drag to the strip).
 
 export type LiveLayout = "redzone" | "grid" | "single";
+// What the screen is set to: a layout, or "auto" (autoLayout picks one).
+export type LayoutChoice = LiveLayout | "auto";
 
 export interface MultiPrefs {
   pins: Record<string, number>; // event key -> slot index
@@ -134,14 +136,48 @@ function moment(e: NormalizedEvent, now: number, hints: InterestHints): number {
 // the big one with the sound.
 const WATCHABLE_HERE = 10;
 
+// A game's worth before anything happens in it: event size, a followed
+// team, a stream that plays here. Steady for the whole game, so the Auto
+// layout (which uses it) only changes when games start or end, not on every
+// red-zone trip.
+function standing(e: NormalizedEvent): number {
+  let s = importance(e);
+  if (ESPORTS_SPORTS.has(e.sport) && embeddableStream((e.streams ?? []).map((x) => x.url).concat(e.streamUrl ?? []))) s += WATCHABLE_HERE;
+  if (e.manuallyFollowed) s += 35;
+  else if (e.followed) s += 30;
+  return s;
+}
+
+// The smallest events (tier-D esports, FRC off-seasons) are welcome when
+// nothing better is on, but not beside a big game (NFL / tier-A esports and
+// up): then they wait in the strip, unless pinned.
+const BIG = 55;
+const MINOR = 5;
+export function spotEligible(live: NormalizedEvent[]): NormalizedEvent[] {
+  if (!live.some((e) => standing(e) >= BIG)) return live;
+  return live.filter((e) => importance(e) > MINOR);
+}
+
+// The Auto layout, from how the live games that can take a spot compare:
+//   single  — one game, or the top one is 35+ ahead of the next (a Major
+//             final against regular-season hockey)
+//   grid    — four or more games within 10 of the top (an NFL Sunday, a
+//             full NHL night)
+//   redzone — otherwise: one standout and some smaller games
+export function autoLayout(live: NormalizedEvent[]): LiveLayout {
+  const games = spotEligible(live);
+  if (games.length <= 1) return "single";
+  const s = games.map(standing).sort((a, b) => b - a);
+  if (s[0] - s[1] >= 35) return "single";
+  if (s.filter((x) => x >= s[0] - 10).length >= 4) return "grid";
+  return "redzone";
+}
+
 // Higher = more worth watching right now: how big the event is, plus what's
 // happening in it, plus a team the user follows, plus a stream that plays here. A late blowout sinks a
 // little, and among equals the closer game edges ahead.
 export function interest(e: NormalizedEvent, now: number, hints: InterestHints = {}): number {
-  let score = importance(e) + moment(e, now, hints);
-  if (ESPORTS_SPORTS.has(e.sport) && embeddableStream((e.streams ?? []).map((s) => s.url).concat(e.streamUrl ?? []))) score += WATCHABLE_HERE;
-  if (e.manuallyFollowed) score += 35;
-  else if (e.followed) score += 30;
+  let score = standing(e) + moment(e, now, hints);
   const diff = margin(e);
   const p = period(e);
   if (diff !== undefined && p !== undefined) {
@@ -174,7 +210,9 @@ export function placeGames(
 ): { slots: string[]; strip: string[] } {
   const hidden = new Set(prefs.hidden);
   const visible = live.filter((e) => !hidden.has(eventKey(e)));
-  const n = capacity(layout, visible.length);
+  // tier-D-sized games beside a big one only get a spot if pinned there
+  const eligible = new Set(spotEligible(visible).map(eventKey));
+  const n = capacity(layout, visible.filter((e) => eligible.has(eventKey(e)) || prefs.pins[eventKey(e)] !== undefined).length);
   const slots: (string | null)[] = Array(n).fill(null);
 
   // pinned games keep their spot (or the nearest free one if the layout shrank)
@@ -190,7 +228,7 @@ export function placeGames(
   const free = slots.filter((s) => s === null).length;
   const chosen = visible
     .map(eventKey)
-    .filter((k) => !slots.includes(k))
+    .filter((k) => !slots.includes(k) && eligible.has(k))
     .sort((a, b) => rank(b) - rank(a))
     .slice(0, free);
 
@@ -267,48 +305,18 @@ export const pruneTo = (prefs: MultiPrefs, liveKeys: Set<string>): MultiPrefs =>
 // this browser's storage, not the shared settings.
 
 const LAYOUT_KEY = "live-layout";
-const QUIET_KEY = "live-quiet-hours";
-
-// Quiet hours: one game on screen instead of RedZone/Grid. Per device like
-// the layout — a TV at home and a laptop at work keep different hours.
-// Local hours, [start, end), wrapping past midnight when end < start.
-export interface QuietHours {
-  on: boolean;
-  start: number;
-  end: number;
-}
-
-const QUIET_DEFAULT: QuietHours = { on: true, start: 6, end: 12 };
-
-export function loadQuiet(): QuietHours {
-  try {
-    const v = JSON.parse(localStorage.getItem(QUIET_KEY) ?? "null");
-    if (v && typeof v.on === "boolean" && Number.isInteger(v.start) && Number.isInteger(v.end)) return v;
-  } catch {
-    /* fall through */
-  }
-  return QUIET_DEFAULT;
-}
-
-export function saveQuiet(q: QuietHours): void {
-  try {
-    localStorage.setItem(QUIET_KEY, JSON.stringify(q));
-  } catch {
-    /* storage unavailable: lasts this visit */
-  }
-}
 const PREFS_KEY = "live-multi-prefs";
 
-export function loadLayout(): LiveLayout {
+export function loadLayout(): LayoutChoice {
   try {
     const v = localStorage.getItem(LAYOUT_KEY);
-    return v === "grid" || v === "single" || v === "redzone" ? v : "redzone";
+    return v === "grid" || v === "single" || v === "redzone" || v === "auto" ? v : "auto";
   } catch {
-    return "redzone";
+    return "auto";
   }
 }
 
-export function saveLayout(layout: LiveLayout): void {
+export function saveLayout(layout: LayoutChoice): void {
   try {
     localStorage.setItem(LAYOUT_KEY, layout);
   } catch {
