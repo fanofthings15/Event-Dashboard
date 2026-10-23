@@ -227,9 +227,8 @@ export default function LiveScreen({ onBack }: { onBack?: () => void } = {}) {
 
   // ----- several games at once -----
   const [savedLayout, setLayoutState] = useState<LayoutChoice>(loadLayout);
-  // Quiet hours (the user works nights and sleeps through the morning): one
-  // game on screen instead of RedZone/Grid. Picking a layout during them
-  // keeps that choice until they end.
+  // Quiet hours (the user works nights and sleeps through the morning):
+  // nothing makes a sound on its own; the layout is unchanged.
   const [quietHours, setQuietHoursState] = useState<QuietHours>(loadQuiet);
   const setQuietHours = (q: QuietHours) => {
     setQuietHoursState(q);
@@ -237,16 +236,11 @@ export default function LiveScreen({ onBack }: { onBack?: () => void } = {}) {
   };
   const [quietOpen, setQuietOpen] = useState(false);
   const quiet = useQuietHours(quietHours, settings.timezone);
-  const [quietOverride, setQuietOverride] = useState(false);
-  useEffect(() => {
-    if (!quiet) setQuietOverride(false);
-  }, [quiet]);
   const autoPick = useMemo(() => autoLayout(liveEvents), [liveEvents]);
-  const layout: LiveLayout = quiet && !quietOverride ? "single" : savedLayout === "auto" ? autoPick : savedLayout;
+  const layout: LiveLayout = savedLayout === "auto" ? autoPick : savedLayout;
   const setLayout = (l: LayoutChoice) => {
     setLayoutState(l);
     saveLayout(l);
-    if (quiet) setQuietOverride(true);
   };
   const [prefs, setPrefsState] = useState<MultiPrefs>(loadPrefs);
   const prefsRef = useRef(prefs);
@@ -509,14 +503,14 @@ export default function LiveScreen({ onBack }: { onBack?: () => void } = {}) {
                 <span className="lv-layout-switch" role="group" aria-label="Layout">
                   {LAYOUTS.map(([value, label]) => (
                     <button key={value} className="lv-strip-btn" aria-pressed={savedLayout === value} onClick={() => setLayout(value)}>
-                      {value === "auto" && savedLayout === "auto" && !(quiet && !quietOverride) ? `Auto · ${LAYOUTS.find(([v]) => v === autoPick)?.[1]}` : label}
+                      {value === "auto" && savedLayout === "auto" ? `Auto · ${LAYOUTS.find(([v]) => v === autoPick)?.[1]}` : label}
                     </button>
                   ))}
                 </span>
               )}
               {!pinned && (
                 <span className="lv-quiet-wrap">
-                  <button className="lv-strip-btn" aria-pressed={quiet && !quietOverride} aria-expanded={quietOpen} onClick={() => setQuietOpen(!quietOpen)} title="Quiet hours on this screen: one game instead of RedZone/Grid">
+                  <button className="lv-strip-btn" aria-pressed={quiet} aria-expanded={quietOpen} onClick={() => setQuietOpen(!quietOpen)} title="Quiet hours on this screen: every stream starts muted">
                     {quietHours.on ? `Quiet ${hourLabel(quietHours.start)}–${hourLabel(quietHours.end)}` : "Quiet off"}
                   </button>
                   {quietOpen && (

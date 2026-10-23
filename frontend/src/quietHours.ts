@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 
-// Quiet hours: on this device, the Live display shows one game and nothing
-// makes a sound on its own (every stream loads muted, no notification chime,
-// the Streams tab's main tile muted). A player can still be unmuted by hand. Per device like
+// Quiet hours: on this device nothing makes a sound on its own (every stream
+// loads muted, no notification chime, the Streams tab's main tile muted); the
+// layout is unchanged. A player can still be unmuted by hand. Per device like
 // the Live layout — a TV at home and a laptop at work keep different hours.
 // Local hours, [start, end), wrapping past midnight when end < start.
 const QUIET_KEY = "live-quiet-hours";
