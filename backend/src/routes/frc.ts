@@ -193,6 +193,7 @@ router.get("/", async (req, res) => {
           extra: location ? [{ label: "Location", value: location }] : undefined,
           followed: followedKeys.has(e.key) || undefined,
           region: districtRegion || e.state_prov || undefined,
+          eventType: e.event_type_string || undefined,
         };
       });
 

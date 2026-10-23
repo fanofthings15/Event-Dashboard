@@ -23,6 +23,9 @@ import {
   hideGame,
   interest,
   loadLayout,
+  loadQuiet,
+  saveQuiet,
+  type QuietHours,
   loadPrefs,
   multiTemplate,
   placeGames,
@@ -106,6 +109,32 @@ function SportView({
 // window covering the full screen counts too. Not on touch devices: an
 // installed home-screen app is screen-sized without being "fullscreen", and
 // treating it as such would hide the Back button with no way to get it back.
+// Whether it's quiet hours right now, in the dashboard's timezone (or the
+// display's own clock).
+function useQuietHours(q: QuietHours, timezone: string): boolean {
+  const check = () => {
+    if (!q.on || q.start === q.end) return false;
+    let h = new Date().getHours();
+    try {
+      if (timezone) h = Number(new Intl.DateTimeFormat("en-US", { hour: "numeric", hourCycle: "h23", timeZone: timezone }).format(new Date()));
+    } catch {
+      /* unknown zone: the display's clock */
+    }
+    return q.start < q.end ? h >= q.start && h < q.end : h >= q.start || h < q.end;
+  };
+  const [quiet, setQuiet] = useState(check);
+  useEffect(() => {
+    setQuiet(check());
+    const id = setInterval(() => setQuiet(check()), 60_000);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q.on, q.start, q.end, timezone]);
+  return quiet;
+}
+
+const HOURS = Array.from({ length: 24 }, (_, h) => h);
+const hourLabel = (h: number) => (h === 0 ? "12 AM" : h === 12 ? "12 PM" : h < 12 ? `${h} AM` : `${h - 12} PM`);
+
 function useIsFullscreen(): boolean {
   const check = () =>
     Boolean(document.fullscreenElement) ||
@@ -217,10 +246,26 @@ export default function LiveScreen({ onBack }: { onBack?: () => void } = {}) {
   );
 
   // ----- several games at once -----
-  const [layout, setLayoutState] = useState<LiveLayout>(loadLayout);
+  const [savedLayout, setLayoutState] = useState<LiveLayout>(loadLayout);
+  // Quiet hours (the user works nights and sleeps through the morning): one
+  // game on screen instead of RedZone/Grid. Picking a layout during them
+  // keeps that choice until they end.
+  const [quietHours, setQuietHoursState] = useState<QuietHours>(loadQuiet);
+  const setQuietHours = (q: QuietHours) => {
+    setQuietHoursState(q);
+    saveQuiet(q);
+  };
+  const [quietOpen, setQuietOpen] = useState(false);
+  const quiet = useQuietHours(quietHours, settings.timezone);
+  const [quietOverride, setQuietOverride] = useState(false);
+  useEffect(() => {
+    if (!quiet) setQuietOverride(false);
+  }, [quiet]);
+  const layout: LiveLayout = quiet && !quietOverride ? "single" : savedLayout;
   const setLayout = (l: LiveLayout) => {
     setLayoutState(l);
     saveLayout(l);
+    if (quiet) setQuietOverride(true);
   };
   const [prefs, setPrefsState] = useState<MultiPrefs>(loadPrefs);
   const prefsRef = useRef(prefs);
@@ -480,10 +525,39 @@ export default function LiveScreen({ onBack }: { onBack?: () => void } = {}) {
               {!pinned && (
                 <span className="lv-layout-switch" role="group" aria-label="Layout">
                   {LAYOUTS.map(([value, label]) => (
-                    <button key={value} className="lv-strip-btn" aria-pressed={layout === value} onClick={() => setLayout(value)}>
+                    <button key={value} className="lv-strip-btn" aria-pressed={(quiet && !quietOverride ? savedLayout : layout) === value} onClick={() => setLayout(value)}>
                       {label}
                     </button>
                   ))}
+                </span>
+              )}
+              {!pinned && (
+                <span className="lv-quiet-wrap">
+                  <button className="lv-strip-btn" aria-pressed={quiet && !quietOverride} aria-expanded={quietOpen} onClick={() => setQuietOpen(!quietOpen)} title="Quiet hours on this screen: one game instead of RedZone/Grid">
+                    {quietHours.on ? `Quiet ${hourLabel(quietHours.start)}–${hourLabel(quietHours.end)}` : "Quiet off"}
+                  </button>
+                  {quietOpen && (
+                    <span className="lv-quiet-pop" role="group" aria-label="Quiet hours on this screen">
+                      <button className="lv-strip-btn" aria-pressed={quietHours.on} onClick={() => setQuietHours({ ...quietHours, on: !quietHours.on })}>
+                        {quietHours.on ? "On" : "Off"}
+                      </button>
+                      <select aria-label="Quiet from" value={quietHours.start} onChange={(e) => setQuietHours({ ...quietHours, start: Number(e.target.value) })}>
+                        {HOURS.map((h) => (
+                          <option key={h} value={h}>
+                            {hourLabel(h)}
+                          </option>
+                        ))}
+                      </select>
+                      to
+                      <select aria-label="Quiet until" value={quietHours.end} onChange={(e) => setQuietHours({ ...quietHours, end: Number(e.target.value) })}>
+                        {HOURS.map((h) => (
+                          <option key={h} value={h}>
+                            {hourLabel(h)}
+                          </option>
+                        ))}
+                      </select>
+                    </span>
+                  )}
                 </span>
               )}
             </span>

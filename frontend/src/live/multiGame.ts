@@ -1,5 +1,6 @@
 import type { NormalizedEvent } from "../types";
 import { ESPORTS_SPORTS, eventKey } from "./selectLiveEvent";
+import { embeddableStream } from "./Stream";
 
 // Several live games on one screen. Two arrangements:
 //   "redzone": the most interesting game big, up to three beside it
@@ -45,19 +46,59 @@ export interface InterestHints {
   powerPlay?: boolean; // hockey, from the tile's own live data
 }
 
-// Higher = more worth watching right now. Red zone beats a fresh score beats
-// a power play beats a close finish beats a followed team; late blowouts sink.
-export function interest(e: NormalizedEvent, now: number, hints: InterestHints = {}): number {
-  let score = 0;
-  if (e.manuallyFollowed) score += 35;
-  else if (e.followed) score += 30;
-  if (e.situation?.redZone) score += 100;
-  if (hints.scoredAt && now - hints.scoredAt < 3 * 60_000) score += 80;
-  if (hints.powerPlay) score += 70;
-  // An FRC event is "live" for its whole multi-day run, overnight included,
-  // so with nothing else going on it shouldn't crowd out a game being played.
-  if (e.sport === "frc") score -= 5;
+// How big the event is, before anything happens in it: a Worlds or Major
+// match or a playoff game outranks an NFL Sunday or a tier-A esports event,
+// which outrank a regular NBA/NHL/MLB night, and so on down to tier-D
+// esports and FRC off-seasons — still shown when nothing bigger is on (the
+// sources the user doesn't want are filtered out in settings, not here).
+export function importance(e: NormalizedEvent): number {
+  if (ESPORTS_SPORTS.has(e.sport)) {
+    // the stage matters inside a tier: an NFL red-zone drive (55 + 35)
+    // outranks a Major's Swiss/group map but not its playoffs or final
+    const byStage = {
+      s: { group: 75, playoffs: 90, semifinal: 100, final: 110 },
+      a: { group: 50, playoffs: 55, semifinal: 60, final: 70 },
+      b: { group: 20, playoffs: 25, semifinal: 30, final: 35 },
+      c: { group: 8, playoffs: 10, semifinal: 12, final: 15 },
+      d: { group: 0, playoffs: 0, semifinal: 3, final: 5 },
+    }[e.tier ?? "c"];
+    return e.stage ? byStage[e.stage] : byStage.playoffs;
+  }
+  if (e.postseason) return 90;
+  switch (e.sport) {
+    case "nfl":
+    case "f1":
+      return 55;
+    case "nba":
+    case "nhl":
+    case "mlb":
+    case "ncaaf":
+      return 40;
+    case "frc": {
+      const t = e.eventType ?? "";
+      if (/^championship/i.test(t)) return 40;
+      if (/district championship/i.test(t)) return 30;
+      if (/regional|district/i.test(t)) return 25;
+      return 0; // off-season, preseason
+    }
+  }
+  return 10;
+}
 
+// The most a moment in the game can add (red zone, a fresh score, a close
+// finish). Event levels a step apart (40 vs 55) can swap on a big moment,
+// but nothing passes an event 35+ bigger: an NFL red-zone drive (55 + 35)
+// only draws level with a Worlds or Major match (90), which then keeps its
+// spot through the on-screen bonus.
+const MOMENT_CAP = 35;
+
+// What's happening in the game right now, 0..MOMENT_CAP — the strongest one
+// counts, they don't stack.
+function moment(e: NormalizedEvent, now: number, hints: InterestHints): number {
+  let m = 0;
+  if (e.situation?.redZone) m = Math.max(m, 35);
+  if (hints.scoredAt && now - hints.scoredAt < 3 * 60_000) m = Math.max(m, 32);
+  if (hints.powerPlay) m = Math.max(m, 28);
   const diff = margin(e);
   const p = period(e);
   const clock = clockSeconds(e);
@@ -65,29 +106,49 @@ export function interest(e: NormalizedEvent, now: number, hints: InterestHints =
     switch (e.sport) {
       case "nfl":
       case "ncaaf":
-        if (p >= 4 && diff <= 8) score += 60;
-        else if (p >= 4 && diff >= 17) score -= 30;
+        if (p >= 4 && diff <= 8) m = Math.max(m, 30);
         break;
       case "nba":
-        if (p >= 4 && diff <= 6 && (clock === undefined || clock <= 300 || p === 99)) score += 60;
-        else if (p >= 4 && diff >= 20) score -= 30;
+        if (p >= 4 && diff <= 6 && (clock === undefined || clock <= 300 || p === 99)) m = Math.max(m, 30);
         break;
       case "nhl":
-        if (p >= 3 && diff <= 1) score += clock !== undefined && clock <= 300 ? 65 : 55;
-        else if (p >= 3 && diff >= 3) score -= 30;
+        if (p >= 3 && diff <= 1) m = Math.max(m, clock !== undefined && clock <= 300 ? 32 : 25);
         break;
       case "mlb":
-        if (p >= 8 && diff <= 2) score += 50;
-        else if (p >= 8 && diff >= 6) score -= 30;
+        if (p >= 8 && diff <= 2) m = Math.max(m, 25);
         break;
     }
-    score -= Math.min(diff, 30) * 0.5; // closer games edge ahead
   }
   if (ESPORTS_SPORTS.has(e.sport)) {
-    // a deciding map: "2-2 (Bo5)"
+    // a deciding map: "2-2 (Bo5)", "1-1 (Bo3)" — a Bo1 doesn't count
     const w = e.seriesScore?.match(/(\d+)-(\d+)/);
     const bo = e.seriesScore?.match(/Bo(\d+)/i);
-    if (w && bo && w[1] === w[2] && Number(w[1]) === Math.floor(Number(bo[1]) / 2)) score += 40;
+    if (w && bo && w[1] === w[2] && Number(bo[1]) > 1 && Number(w[1]) === Math.floor(Number(bo[1]) / 2)) m = Math.max(m, 25);
+  }
+  return Math.min(m, MOMENT_CAP);
+}
+
+// A match whose stream plays right here (esports) — the display is often the
+// only place it's being watched, while a big football game is usually on its
+// own broadcast elsewhere — so among equals it gets the spot, and in RedZone
+// the big one with the sound.
+const WATCHABLE_HERE = 10;
+
+// Higher = more worth watching right now: how big the event is, plus what's
+// happening in it, plus a team the user follows, plus a stream that plays here. A late blowout sinks a
+// little, and among equals the closer game edges ahead.
+export function interest(e: NormalizedEvent, now: number, hints: InterestHints = {}): number {
+  let score = importance(e) + moment(e, now, hints);
+  if (ESPORTS_SPORTS.has(e.sport) && embeddableStream((e.streams ?? []).map((s) => s.url).concat(e.streamUrl ?? []))) score += WATCHABLE_HERE;
+  if (e.manuallyFollowed) score += 35;
+  else if (e.followed) score += 30;
+  const diff = margin(e);
+  const p = period(e);
+  if (diff !== undefined && p !== undefined) {
+    const late = { nfl: 4, ncaaf: 4, nba: 4, nhl: 3, mlb: 8 }[e.sport as "nfl"];
+    const blowout = { nfl: 17, ncaaf: 17, nba: 20, nhl: 3, mlb: 6 }[e.sport as "nfl"];
+    if (late && p >= late && diff >= blowout) score -= 20;
+    score -= Math.min(diff, 30) * 0.2;
   }
   return score;
 }
@@ -102,7 +163,7 @@ export function capacity(layout: LiveLayout, count: number): number {
 
 // A game already on screen gets this much extra, so two games of about the
 // same interest don't swap places on every poll.
-const STAY_BONUS = 15;
+export const STAY_BONUS = 15;
 
 export function placeGames(
   live: NormalizedEvent[],
@@ -206,6 +267,36 @@ export const pruneTo = (prefs: MultiPrefs, liveKeys: Set<string>): MultiPrefs =>
 // this browser's storage, not the shared settings.
 
 const LAYOUT_KEY = "live-layout";
+const QUIET_KEY = "live-quiet-hours";
+
+// Quiet hours: one game on screen instead of RedZone/Grid. Per device like
+// the layout — a TV at home and a laptop at work keep different hours.
+// Local hours, [start, end), wrapping past midnight when end < start.
+export interface QuietHours {
+  on: boolean;
+  start: number;
+  end: number;
+}
+
+const QUIET_DEFAULT: QuietHours = { on: true, start: 6, end: 12 };
+
+export function loadQuiet(): QuietHours {
+  try {
+    const v = JSON.parse(localStorage.getItem(QUIET_KEY) ?? "null");
+    if (v && typeof v.on === "boolean" && Number.isInteger(v.start) && Number.isInteger(v.end)) return v;
+  } catch {
+    /* fall through */
+  }
+  return QUIET_DEFAULT;
+}
+
+export function saveQuiet(q: QuietHours): void {
+  try {
+    localStorage.setItem(QUIET_KEY, JSON.stringify(q));
+  } catch {
+    /* storage unavailable: lasts this visit */
+  }
+}
 const PREFS_KEY = "live-multi-prefs";
 
 export function loadLayout(): LiveLayout {

@@ -1095,6 +1095,32 @@ body.live-body {
   cursor: pointer;
 }
 
+.lv-quiet-wrap {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 0.5em;
+}
+
+/* quiet hours editor, opening inline in the strip (it scrolls, so a pop-up
+   above it would be clipped) */
+.lv-quiet-pop {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em;
+  white-space: nowrap;
+  color: #8b92a3;
+}
+
+.lv-quiet-pop select {
+  font: inherit;
+  color: #e8eaed;
+  background: #262b35;
+  border: 1px solid #333a47;
+  border-radius: 0.4em;
+  padding: 0.3em 0.4em;
+}
+
 .lv-others button.lv-auto-btn {
   color: #8db4ff;
   border-color: rgb(79 141 253 / 0.5);

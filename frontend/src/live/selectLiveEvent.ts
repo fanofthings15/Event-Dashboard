@@ -1,5 +1,6 @@
 import type { NormalizedEvent } from "../types";
 import { isLiveNow } from "../eventStatus";
+import { interest, STAY_BONUS } from "./multiGame";
 
 // Esports titles the display shows (as their live stream). Dota 2 and
 // StarCraft II are deliberately left out — the display never picks them.
@@ -10,25 +11,21 @@ export const LIVE_VIEW_SPORTS = new Set(["nfl", "ncaaf", "nba", "nhl", "mlb", "f
 
 export const eventKey = (e: NormalizedEvent) => `${e.sport}-${e.id}`;
 
-// PLACEHOLDER POLICY — this is the one function that decides what the
-// display shows, so changing how games get picked only means editing this.
-// Current behaviour, until a real rule is chosen:
+// The one-game display's pick, ranked the same way as the multi-game
+// layouts (interest() in multiGame.ts: how big the event is, what's
+// happening in it, followed teams):
 //   1. only live events in a sport the display can render — "live" as the
 //      dashboard counts it (isLiveNow): past its start time and not over,
 //      even before the source flips its status (small PandaScore events
 //      can sit at not_started long after they've begun)
-//   2. ranked: manually followed event > followed team > everything else,
-//      then most recently started
-//   3. sticky: the game already on screen stays until it ends or something
-//      ranked strictly higher goes live, so the screen doesn't flip back and
-//      forth between two equal games every poll
+//   2. highest interest first
+//   3. sticky: the game already on screen keeps a margin, so two games of
+//      about the same interest don't swap on every poll
 export function selectLiveEvent(events: NormalizedEvent[], currentKey: string | null): NormalizedEvent | null {
   const now = new Date();
   const live = events.filter((e) => isLiveNow(e, now) && LIVE_VIEW_SPORTS.has(e.sport));
   if (live.length === 0) return null;
-
-  const rank = (e: NormalizedEvent) => (e.manuallyFollowed ? 0 : e.followed ? 1 : 2);
-  const best = [...live].sort((a, b) => rank(a) - rank(b) || new Date(b.startTime).getTime() - new Date(a.startTime).getTime())[0];
-  const current = live.find((e) => eventKey(e) === currentKey);
-  return current && rank(current) <= rank(best) ? current : best;
+  const t = now.getTime();
+  const score = (e: NormalizedEvent) => interest(e, t) + (eventKey(e) === currentKey ? STAY_BONUS : 0);
+  return [...live].sort((a, b) => score(b) - score(a) || new Date(b.startTime).getTime() - new Date(a.startTime).getTime())[0];
 }

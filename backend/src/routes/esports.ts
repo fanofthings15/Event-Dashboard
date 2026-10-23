@@ -7,6 +7,20 @@ import type { NormalizedEvent, ExtraFact } from "../types.js";
 
 const router = Router();
 
+// Where in its tournament a match is, from PandaScore's names: the
+// tournament ("Group Stage", "Group A", "Regular season", "Playoffs") and the
+// match's prefix ("Grand Final: A vs B", "Semifinal 1", "Upper Bracket
+// Final", "Quarterfinal 2") — checked against real Worlds, CBLOL and CS data.
+export function stageOf(m: any): NormalizedEvent["stage"] {
+  const match = String(m.name ?? "").split(":")[0].trim();
+  const tournament = String(m.tournament?.name ?? "");
+  if (/grand final|^final$/i.test(match)) return "final";
+  if (/semi-?final|bracket final/i.test(match)) return "semifinal";
+  if (/playoff|knockout|bracket|elimination stage|final/i.test(tournament) || /quarter|round of|bracket/i.test(match)) return "playoffs";
+  if (/group|swiss|regular|stage|round robin|play-?in|opening|league/i.test(tournament)) return "group";
+  return undefined;
+}
+
 function mapStatus(status: string): NormalizedEvent["status"] {
   if (status === "running") return "live";
   if (status === "finished" || status === "canceled") return "finished";
@@ -160,6 +174,8 @@ async function fetchGame(slug: string, sport: string, color: string, apiKey: str
       streamUrl: streams[0]?.url,
       streams: streams.length ? streams : undefined,
       seriesScore: seriesScore(m),
+      tier: /^[sabcd]$/.test(m.tournament?.tier ?? "") ? m.tournament.tier : undefined,
+      stage: stageOf(m),
       extra: extra.length ? extra : undefined,
       detailUrl: m.league?.url ?? undefined,
     };

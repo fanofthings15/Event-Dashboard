@@ -34,6 +34,11 @@ export interface NormalizedEvent {
   region?: string; // state/province code, e.g. "MI" — currently FRC only
   liveDetail?: string; // in-progress game clock/period, e.g. "Q3 8:42" — only set while live, when the source provides it
   situation?: { redZone: boolean; downDistance?: string }; // live football only, from the ESPN scoreboard
+  // How big the event is, for ranking games on the /live display:
+  tier?: "s" | "a" | "b" | "c" | "d"; // esports — PandaScore's tournament tier (Worlds and Majors are S)
+  stage?: "group" | "playoffs" | "semifinal" | "final"; // esports — where in the tournament the match is
+  postseason?: boolean; // ESPN sports — playoffs / World Series / bowl season
+  eventType?: string; // FRC — TBA's event_type_string ("Regional", "District Championship", "Offseason")
 }
 
 export interface StandingsRow {

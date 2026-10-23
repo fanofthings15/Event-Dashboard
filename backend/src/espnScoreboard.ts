@@ -152,6 +152,7 @@ export function buildEspnScoreboardRouter(espnPath: string, sport: string, leagu
           seriesScore,
           liveDetail,
           situation,
+          postseason: e.season?.type === 3 || undefined,
           extra: extra.length ? extra : undefined,
         };
       });
