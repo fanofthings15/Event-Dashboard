@@ -54,6 +54,9 @@ export function interest(e: NormalizedEvent, now: number, hints: InterestHints =
   if (e.situation?.redZone) score += 100;
   if (hints.scoredAt && now - hints.scoredAt < 3 * 60_000) score += 80;
   if (hints.powerPlay) score += 70;
+  // An FRC event is "live" for its whole multi-day run, overnight included,
+  // so with nothing else going on it shouldn't crowd out a game being played.
+  if (e.sport === "frc") score -= 5;
 
   const diff = margin(e);
   const p = period(e);
