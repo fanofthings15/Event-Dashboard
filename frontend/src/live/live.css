@@ -560,6 +560,14 @@ body.live-body {
   border-top: 1px solid #262b35;
 }
 
+/* With a mouse there's no swipe, so show a slim scrollbar to grab. */
+@media (hover: hover) and (pointer: fine) {
+  .lv-others {
+    scrollbar-width: thin;
+    scrollbar-color: #3a4150 transparent;
+  }
+}
+
 .lv-others button {
   flex: none;
   display: grid;

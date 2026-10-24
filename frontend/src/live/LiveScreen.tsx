@@ -171,7 +171,20 @@ function dropTargetAt(x: number, y: number): DropTarget {
   return el?.closest(".lv-others") ? "strip" : null;
 }
 
-const followedFirst = (a: NormalizedEvent, b: NormalizedEvent) =>
+// The strip is a sideways row, so turn a mouse wheel's up/down into left/right
+// (a trackpad's own sideways swipe passes straight through).
+function wheelScrollsSideways(el: HTMLElement | null) {
+  if (!el) return;
+  const onWheel = (e: WheelEvent) => {
+    if (Math.abs(e.deltaY) <= Math.abs(e.deltaX) || el.scrollWidth <= el.clientWidth) return;
+    e.preventDefault();
+    el.scrollLeft += e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY;
+  };
+  el.addEventListener("wheel", onWheel, { passive: false });
+  return () => el.removeEventListener("wheel", onWheel);
+}
+
+const followedFirst =(a: NormalizedEvent, b: NormalizedEvent) =>
   Number(Boolean(b.followed || b.manuallyFollowed)) - Number(Boolean(a.followed || a.manuallyFollowed));
 
 // `onBack` is set when the display is opened as a tab inside the dashboard;
@@ -488,7 +501,7 @@ export default function LiveScreen({ onBack }: { onBack?: () => void } = {}) {
           buttons sit in the strip's flow (not floating over it) so they can
           never cover a game, and the whole row hides while fullscreen. */}
       {(stripGames.length > 0 || !fullscreen || (manual && !pinned)) && (
-        <nav className={`lv-others${drag && drag.over === "strip" ? " drop" : ""}`} aria-label="Other live games">
+        <nav ref={wheelScrollsSideways} className={`lv-others${drag && drag.over === "strip" ? " drop" : ""}`} aria-label="Other live games">
           {!fullscreen && (
             <span className="lv-strip-controls">
               {onBack && (
