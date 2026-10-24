@@ -472,13 +472,26 @@ export function HockeyShotPlay({ shot }: { shot: { id: string; at: Pt; goal: boo
 // The latest shot's arc from where it was taken to the rim it was aimed at
 // (court drawing coordinates, feet): through the net on a make, off the rim
 // on a miss. The ball grows with height so the arc reads top-down.
+// The ball waits in the shooter's hands this long before it's put up, so
+// there's a moment to spot where the shot came from (the new mark, and the
+// ring on a make) before following it to the rim.
+const SHOT_HOLD_MS = 700;
+
 export function BasketballShotPlay({ shot }: { shot: { id: string; at: Pt; rimLeft: boolean; made: boolean } | undefined }) {
-  const elapsed = usePlayClock(shot?.id, 1500);
-  if (!shot || elapsed === Infinity) return null;
-  const rim: Pt = [shot.rimLeft ? RIM_X : COURT_W - RIM_X, 25];
-  const [x, y] = shot.at;
+  const rim: Pt = [shot?.rimLeft ? RIM_X : COURT_W - RIM_X, 25];
+  const [x, y] = shot?.at ?? rim;
   const dist = Math.hypot(rim[0] - x, rim[1] - y);
   const flight = 650 + dist * 14;
+  const clock = usePlayClock(shot?.id, SHOT_HOLD_MS + flight + 500);
+  if (!shot || clock === Infinity) return null;
+  if (clock < SHOT_HOLD_MS) {
+    return (
+      <g pointerEvents="none">
+        <circle cx={x} cy={y} r={0.8} fill="#f97316" stroke="#7c2d12" strokeWidth={0.15} />
+      </g>
+    );
+  }
+  const elapsed = clock - SHOT_HOLD_MS;
   const apex = 4 + dist * 0.25;
   let at: Pt;
   let h = 0;
