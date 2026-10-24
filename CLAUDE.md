@@ -66,7 +66,9 @@ picked by a switch next to Fullscreen ("Single" = the one-game display).
 Games are ranked by `interest()` = `importance()` (how big the event is:
 esports tier × stage from PandaScore, ESPN `postseason`; FRC always last,
 followed or not, since the user is usually there in person —
-the points table is in `multiGame.ts`; the user set NFL regular season =
+the points table is `DEFAULT_RANKING` in `multiGame.ts`, and each user can
+override any entry in Settings → Live display ranking (`eventRanking`, only
+changed keys stored); the user set NFL regular season =
 esports tier A, and a red-zone drive beats a Major's Swiss map but not its
 final) + the strongest live moment capped at +35 (red zone from the ESPN
 scoreboard's `situation`, a score in the last 3 minutes, a power play, a

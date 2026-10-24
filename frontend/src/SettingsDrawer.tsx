@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useSettings } from "./SettingsContext";
 import SourceSettings from "./SourceSettings";
+import LiveRankingSettings from "./LiveRankingSettings";
 import { COMMON_TIMEZONES } from "./dateFormat";
 import type { NormalizedEvent } from "./types";
 
@@ -130,26 +131,28 @@ export default function SettingsDrawer({ onClose, allEvents }: Props) {
       <div className="drawer" onClick={(e) => e.stopPropagation()}>
         <h2>Settings</h2>
 
-        <section className="settings-section">
-          <h3>PandaScore API key</h3>
-          <label className="field">
-            <span>{settings.pandaScoreApiKeySet && <span className="ok-tag">set</span>}</span>
-            <input
-              type="password"
-              placeholder={settings.pandaScoreApiKeySet ? "•••••••• (set — enter to replace)" : "Paste your free PandaScore API key"}
-              value={newPandaKey}
-              onChange={(e) => {
-                setNewPandaKey(e.target.value);
-                setPandaKeySaved(false);
-              }}
-            />
-            <span className="hint">Free key at pandascore.co — shared across every esports title below.</span>
-          </label>
-          <button className="btn primary" onClick={savePandaKey} disabled={!newPandaKey}>
-            Save key
-          </button>
-          {pandaKeySaved && <span className="ok-tag">Saved</span>}
-        </section>
+        {settings.isAdmin && (
+          <section className="settings-section">
+            <h3>PandaScore API key</h3>
+            <label className="field">
+              <span>{settings.pandaScoreApiKeySet && <span className="ok-tag">set</span>}</span>
+              <input
+                type="password"
+                placeholder={settings.pandaScoreApiKeySet ? "•••••••• (set — enter to replace)" : "Paste your free PandaScore API key"}
+                value={newPandaKey}
+                onChange={(e) => {
+                  setNewPandaKey(e.target.value);
+                  setPandaKeySaved(false);
+                }}
+              />
+              <span className="hint">Free key at pandascore.co — shared across every esports title below.</span>
+            </label>
+            <button className="btn primary" onClick={savePandaKey} disabled={!newPandaKey}>
+              Save key
+            </button>
+            {pandaKeySaved && <span className="ok-tag">Saved</span>}
+          </section>
+        )}
 
         {/* Everything that only affects one source — on/off, color, league
             filters, and (for FRC) its own API key/team/regions — lives in
@@ -313,6 +316,8 @@ export default function SettingsDrawer({ onClose, allEvents }: Props) {
             </button>
           </div>
         </section>
+
+        <LiveRankingSettings />
 
         <section className="settings-section">
           <h3>Timezone</h3>

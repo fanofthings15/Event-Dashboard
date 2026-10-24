@@ -1,6 +1,6 @@
 import type { NormalizedEvent } from "../types";
 import { isLiveNow } from "../eventStatus";
-import { interest, STAY_BONUS } from "./multiGame";
+import { interest, STAY_BONUS, type Ranking } from "./multiGame";
 
 // Esports titles the display shows (as their live stream). Dota 2 and
 // StarCraft II are deliberately left out — the display never picks them.
@@ -21,11 +21,11 @@ export const eventKey = (e: NormalizedEvent) => `${e.sport}-${e.id}`;
 //   2. highest interest first
 //   3. sticky: the game already on screen keeps a margin, so two games of
 //      about the same interest don't swap on every poll
-export function selectLiveEvent(events: NormalizedEvent[], currentKey: string | null): NormalizedEvent | null {
+export function selectLiveEvent(events: NormalizedEvent[], currentKey: string | null, ranking?: Ranking): NormalizedEvent | null {
   const now = new Date();
   const live = events.filter((e) => isLiveNow(e, now) && LIVE_VIEW_SPORTS.has(e.sport));
   if (live.length === 0) return null;
   const t = now.getTime();
-  const score = (e: NormalizedEvent) => interest(e, t) + (eventKey(e) === currentKey ? STAY_BONUS : 0);
+  const score = (e: NormalizedEvent) => interest(e, t, {}, ranking) + (eventKey(e) === currentKey ? STAY_BONUS : 0);
   return [...live].sort((a, b) => score(b) - score(a) || new Date(b.startTime).getTime() - new Date(a.startTime).getTime())[0];
 }

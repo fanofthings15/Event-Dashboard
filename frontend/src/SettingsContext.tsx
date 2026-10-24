@@ -33,6 +33,8 @@ const EMPTY: SettingsState = {
   closedStreamSlotIds: [],
   streamLayout: "grid",
   frcStreamUrls: {},
+  eventRanking: {},
+  isAdmin: false,
 };
 
 interface SettingsContextValue {
@@ -59,7 +61,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     const [userRes, globalRes] = await Promise.all([fetch("/api/settings"), fetch("/api/global-settings")]);
     const userData = await userRes.json();
     const globalData = globalRes.ok ? await globalRes.json() : { pandaScoreApiKeySet: false, tbaApiKeySet: false };
-    const data = { ...userData, ...globalData } as SettingsState;
+    const data = { ...userData, ...globalData, isAdmin: globalRes.ok } as SettingsState;
 
     // Defensive: the backend migrates an old single-number notifyLeadMinutes
     // to an array, but guard here too in case anything ever slips through —

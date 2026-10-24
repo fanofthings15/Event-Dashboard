@@ -178,6 +178,11 @@ export interface UserSettings {
   // /live display: a webcast link per FRC event key (e.g. "2026miket"),
   // pasted in on the display — TBA's data the app reads has no stream.
   frcStreamUrls: Record<string, string>;
+  // /live display: this user's own points for how big each kind of event is
+  // (keys from frontend/src/live/multiGame.ts's DEFAULT_RANKING, e.g. "nfl",
+  // "postseason", "esports-s-final"). Only the ones changed from the default
+  // are stored; everything else falls back to the built-in table.
+  eventRanking: Record<string, number>;
   // Web Push endpoints this user has subscribed from (one per browser/device
   // that hit "Enable push notifications" — a user can have several). Lets
   // notifyOnLive/notifyMode/notifyLeadMinutes/snoozedEventIds keep driving
@@ -228,6 +233,7 @@ const USER_DEFAULTS: UserSettings = {
   closedStreamSlotIds: [],
   streamLayout: "grid",
   frcStreamUrls: {},
+  eventRanking: {},
   pushSubscriptions: [],
 };
 

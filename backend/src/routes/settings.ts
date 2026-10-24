@@ -43,6 +43,7 @@ router.get("/", (req, res) => {
     closedStreamSlotIds: settings.closedStreamSlotIds,
     streamLayout: settings.streamLayout,
     frcStreamUrls: settings.frcStreamUrls,
+    eventRanking: settings.eventRanking,
     esportsCatalog: ESPORTS_CATALOG,
   });
 });
@@ -148,6 +149,16 @@ router.post("/", (req, res) => {
       if (/^\d{4}[a-z0-9]+$/.test(key) && typeof url === "string" && /^https:\/\//.test(url) && url.length < 500) clean[key] = url;
     }
     next.frcStreamUrls = clean;
+  }
+
+  if (body.eventRanking && typeof body.eventRanking === "object") {
+    const clean: Record<string, number> = {};
+    for (const [key, value] of Object.entries(body.eventRanking as Record<string, unknown>)) {
+      if (/^[a-z0-9-]{1,40}$/.test(key) && typeof value === "number" && Number.isFinite(value)) {
+        clean[key] = Math.max(-100, Math.min(200, Math.round(value)));
+      }
+    }
+    next.eventRanking = clean;
   }
 
   writeUserSettings(getUserId(req), next);

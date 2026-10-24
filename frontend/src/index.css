@@ -221,6 +221,17 @@ section h2 {
 .settings-section:first-of-type { border-top: none; padding-top: 0; margin-top: 0; }
 .settings-section h3 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin: 0 0 8px; }
 
+.ranking-list { display: flex; flex-direction: column; gap: 6px; margin: 10px 0 12px; }
+.ranking-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 13px; }
+.text-input.ranking-input { width: 4.5em; min-height: 34px; margin: 0; padding: 6px 8px; text-align: right; flex-shrink: 0; }
+.text-input.ranking-input.changed { border-color: var(--accent, #4f8dfd); }
+.ranking-esports { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 12px; margin-bottom: 8px; }
+.ranking-esports th { font-weight: 600; color: var(--muted); text-align: left; padding: 2px 4px 4px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ranking-esports th:first-child { width: 4.6em; }
+.ranking-esports thead th:not(:first-child) { text-align: right; padding-right: 0; }
+.ranking-esports td { padding: 2px 0 2px 4px; text-align: right; }
+.ranking-esports .text-input.ranking-input { width: 100%; min-width: 0; padding: 6px 6px; }
+
 .followed-chip {
   display: inline-block;
   background: rgba(250, 204, 21, 0.15);

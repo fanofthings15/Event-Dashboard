@@ -223,8 +223,8 @@ export default function LiveScreen({ onBack }: { onBack?: () => void } = {}) {
   // A pinned event is looked up before league/region filters, so a
   // hand-picked game shows even from a league hidden on the dashboard.
   const selected = useMemo(
-    () => (pinned ? allEvents.find((e) => eventKey(e) === pinned) : undefined) ?? chosen ?? selectLiveEvent(events, currentKey),
-    [events, allEvents, currentKey, pinned, chosen]
+    () => (pinned ? allEvents.find((e) => eventKey(e) === pinned) : undefined) ?? chosen ?? selectLiveEvent(events, currentKey, settings.eventRanking),
+    [events, allEvents, currentKey, pinned, chosen, settings.eventRanking]
   );
   useEffect(() => {
     setCurrentKey(selected ? eventKey(selected) : null);
@@ -249,7 +249,7 @@ export default function LiveScreen({ onBack }: { onBack?: () => void } = {}) {
   };
   const [quietOpen, setQuietOpen] = useState(false);
   const quiet = useQuietHours(quietHours, settings.timezone);
-  const autoPick = useMemo(() => autoLayout(liveEvents), [liveEvents]);
+  const autoPick = useMemo(() => autoLayout(liveEvents, settings.eventRanking), [liveEvents, settings.eventRanking]);
   const layout: LiveLayout = savedLayout === "auto" ? autoPick : savedLayout;
   const setLayout = (l: LayoutChoice) => {
     setLayoutState(l);
@@ -291,17 +291,17 @@ export default function LiveScreen({ onBack }: { onBack?: () => void } = {}) {
       const seen = lastScore.current.get(k);
       if (!seen) lastScore.current.set(k, { score: e.seriesScore });
       else if (seen.score !== e.seriesScore) lastScore.current.set(k, { score: e.seriesScore, at: now });
-      out.set(k, interest(e, now, { scoredAt: lastScore.current.get(k)?.at, powerPlay: powerPlays[k] }));
+      out.set(k, interest(e, now, { scoredAt: lastScore.current.get(k)?.at, powerPlay: powerPlays[k] }, settings.eventRanking));
     }
     return out;
-  }, [liveEvents, powerPlays]);
+  }, [liveEvents, powerPlays, settings.eventRanking]);
 
   const prevSlots = useRef<string[]>([]);
   const placement = useMemo(() => {
-    const r = placeGames(liveEvents, scores, prevSlots.current, prefs, layout);
+    const r = placeGames(liveEvents, scores, prevSlots.current, prefs, layout, settings.eventRanking);
     prevSlots.current = r.slots;
     return r;
-  }, [liveEvents, scores, prefs, layout]);
+  }, [liveEvents, scores, prefs, layout, settings.eventRanking]);
   const slotsRef = useRef(placement.slots);
   slotsRef.current = placement.slots;
   const byKey = useMemo(() => new Map(liveEvents.map((e) => [eventKey(e), e])), [liveEvents]);

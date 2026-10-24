@@ -208,25 +208,29 @@ export default function SourceSettings({ allEvents }: Props) {
 
                 {isFrc && (
                   <div style={{ marginTop: 10 }}>
-                    <label className="field">
-                      <span>
-                        Blue Alliance API key {settings.tbaApiKeySet && <span className="ok-tag">set</span>}
-                      </span>
-                      <input
-                        type="password"
-                        placeholder={settings.tbaApiKeySet ? "•••••••• (set — enter to replace)" : "Paste your free TBA Read API key"}
-                        value={newTbaKey}
-                        onChange={(e) => {
-                          setNewTbaKey(e.target.value);
-                          setTbaKeySaved(false);
-                        }}
-                      />
-                      <span className="hint">Free key at thebluealliance.com/account.</span>
-                    </label>
-                    <button className="btn primary" onClick={saveTbaKey} disabled={!newTbaKey}>
-                      Save key
-                    </button>
-                    {tbaKeySaved && <span className="ok-tag">Saved</span>}
+                    {settings.isAdmin && (
+                      <>
+                        <label className="field">
+                          <span>
+                            Blue Alliance API key {settings.tbaApiKeySet && <span className="ok-tag">set</span>}
+                          </span>
+                          <input
+                            type="password"
+                            placeholder={settings.tbaApiKeySet ? "•••••••• (set — enter to replace)" : "Paste your free TBA Read API key"}
+                            value={newTbaKey}
+                            onChange={(e) => {
+                              setNewTbaKey(e.target.value);
+                              setTbaKeySaved(false);
+                            }}
+                          />
+                          <span className="hint">Free key at thebluealliance.com/account.</span>
+                        </label>
+                        <button className="btn primary" onClick={saveTbaKey} disabled={!newTbaKey}>
+                          Save key
+                        </button>
+                        {tbaKeySaved && <span className="ok-tag">Saved</span>}
+                      </>
+                    )}
 
                     <span className="hint" style={{ display: "block", marginTop: 12, marginBottom: 10 }}>
                       To follow a specific team, add its number under{" "}

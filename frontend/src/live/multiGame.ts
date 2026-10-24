@@ -53,35 +53,58 @@ export interface InterestHints {
 // which outrank a regular NBA/NHL/MLB night, and so on down to tier-D
 // esports, with FRC last of all — still shown when nothing bigger is on (the
 // sources the user doesn't want are filtered out in settings, not here).
-export function importance(e: NormalizedEvent): number {
-  if (ESPORTS_SPORTS.has(e.sport)) {
-    // the stage matters inside a tier: an NFL red-zone drive (55 + 35)
-    // outranks a Major's Swiss/group map but not its playoffs or final
-    const byStage = {
-      s: { group: 75, playoffs: 90, semifinal: 100, final: 110 },
-      a: { group: 50, playoffs: 55, semifinal: 60, final: 70 },
-      b: { group: 20, playoffs: 25, semifinal: 30, final: 35 },
-      c: { group: 8, playoffs: 10, semifinal: 12, final: 15 },
-      d: { group: 0, playoffs: 0, semifinal: 3, final: 5 },
-    }[e.tier ?? "c"];
-    return e.stage ? byStage[e.stage] : byStage.playoffs;
-  }
-  if (e.postseason) return 90;
-  switch (e.sport) {
-    case "nfl":
-    case "f1":
-      return 55;
-    case "nba":
-    case "nhl":
-    case "mlb":
-    case "ncaaf":
-      return 40;
-    case "frc":
-      // lowest of all, followed team or not: the user is usually at the
-      // event in person, or only cares who wins it, not every match
-      return -10;
-  }
-  return 10;
+// These are the defaults; each user can change any of them in Settings
+// (settings.eventRanking holds only the ones they changed).
+const ESPORTS_TIERS = ["s", "a", "b", "c", "d"] as const;
+const ESPORTS_STAGES = ["group", "playoffs", "semifinal", "final"] as const;
+// the stage matters inside a tier: an NFL red-zone drive (55 + 35) outranks
+// a Major's Swiss/group map but not its playoffs or final
+const ESPORTS_DEFAULTS: Record<(typeof ESPORTS_TIERS)[number], number[]> = {
+  s: [75, 90, 100, 110],
+  a: [50, 55, 60, 70],
+  b: [20, 25, 30, 35],
+  c: [8, 10, 12, 15],
+  d: [0, 0, 3, 5],
+};
+
+export type Ranking = Record<string, number>;
+
+export const DEFAULT_RANKING: Ranking = {
+  postseason: 90,
+  nfl: 55,
+  f1: 55,
+  nba: 40,
+  nhl: 40,
+  mlb: 40,
+  ncaaf: 40,
+  // lowest of all, followed team or not: the user is usually at the event
+  // in person, or only cares who wins it, not every match
+  frc: -10,
+  other: 10,
+  ...Object.fromEntries(
+    ESPORTS_TIERS.flatMap((t) => ESPORTS_STAGES.map((st, i) => [`esports-${t}-${st}`, ESPORTS_DEFAULTS[t][i]]))
+  ),
+};
+
+// What the Settings page lists, in order.
+export const RANKING_ROWS: { key: string; label: string }[] = [
+  { key: "postseason", label: "Playoff game (NFL, NBA, NHL, MLB)" },
+  { key: "nfl", label: "NFL" },
+  { key: "f1", label: "F1" },
+  { key: "ncaaf", label: "College football" },
+  { key: "nba", label: "NBA" },
+  { key: "nhl", label: "NHL" },
+  { key: "mlb", label: "MLB" },
+  { key: "frc", label: "FRC" },
+  { key: "other", label: "Anything else" },
+];
+export const RANKING_ESPORTS = { tiers: ESPORTS_TIERS, stages: ESPORTS_STAGES };
+
+export function importance(e: NormalizedEvent, ranking: Ranking = {}): number {
+  const r = (key: string) => ranking[key] ?? DEFAULT_RANKING[key];
+  if (ESPORTS_SPORTS.has(e.sport)) return r(`esports-${e.tier ?? "c"}-${e.stage ?? "playoffs"}`);
+  if (e.postseason) return r("postseason");
+  return e.sport in DEFAULT_RANKING ? r(e.sport) : r("other");
 }
 
 // The most a moment in the game can add (red zone, a fresh score, a close
@@ -137,8 +160,8 @@ const WATCHABLE_HERE = 10;
 // team, a stream that plays here. Steady for the whole game, so the Auto
 // layout (which uses it) only changes when games start or end, not on every
 // red-zone trip.
-function standing(e: NormalizedEvent): number {
-  let s = importance(e);
+function standing(e: NormalizedEvent, ranking?: Ranking): number {
+  let s = importance(e, ranking);
   if (e.sport === "frc") return s; // no follow bonus either (see importance)
   if (ESPORTS_SPORTS.has(e.sport) && embeddableStream((e.streams ?? []).map((x) => x.url).concat(e.streamUrl ?? []))) s += WATCHABLE_HERE;
   if (e.manuallyFollowed) s += 35;
@@ -151,9 +174,9 @@ function standing(e: NormalizedEvent): number {
 // up): then they wait in the strip, unless pinned.
 const BIG = 55;
 const MINOR = 5;
-export function spotEligible(live: NormalizedEvent[]): NormalizedEvent[] {
-  if (!live.some((e) => standing(e) >= BIG)) return live;
-  return live.filter((e) => importance(e) > MINOR);
+export function spotEligible(live: NormalizedEvent[], ranking?: Ranking): NormalizedEvent[] {
+  if (!live.some((e) => standing(e, ranking) >= BIG)) return live;
+  return live.filter((e) => importance(e, ranking) > MINOR);
 }
 
 // The Auto layout, from how the live games that can take a spot compare:
@@ -162,10 +185,10 @@ export function spotEligible(live: NormalizedEvent[]): NormalizedEvent[] {
 //   grid    — four or more games within 10 of the top (an NFL Sunday, a
 //             full NHL night)
 //   redzone — otherwise: one standout and some smaller games
-export function autoLayout(live: NormalizedEvent[]): LiveLayout {
-  const games = spotEligible(live);
+export function autoLayout(live: NormalizedEvent[], ranking?: Ranking): LiveLayout {
+  const games = spotEligible(live, ranking);
   if (games.length <= 1) return "single";
-  const s = games.map(standing).sort((a, b) => b - a);
+  const s = games.map((e) => standing(e, ranking)).sort((a, b) => b - a);
   if (s[0] - s[1] >= 35) return "single";
   if (s.filter((x) => x >= s[0] - 10).length >= 4) return "grid";
   return "redzone";
@@ -176,8 +199,8 @@ const BETWEEN_MAPS = 20;
 // Higher = more worth watching right now: how big the event is, plus what's
 // happening in it, plus a team the user follows, plus a stream that plays here. A late blowout sinks a
 // little, and among equals the closer game edges ahead.
-export function interest(e: NormalizedEvent, now: number, hints: InterestHints = {}): number {
-  let score = standing(e) + moment(e, now, hints);
+export function interest(e: NormalizedEvent, now: number, hints: InterestHints = {}, ranking?: Ranking): number {
+  let score = standing(e, ranking) + moment(e, now, hints);
   // a match on a break between maps gives way to one being played — by
   // more than the on-screen bonus, so a comparable live map takes the spot
   if (e.mapLive === false) score -= BETWEEN_MAPS;
@@ -209,12 +232,13 @@ export function placeGames(
   scores: Map<string, number>,
   prev: string[],
   prefs: MultiPrefs,
-  layout: LiveLayout
+  layout: LiveLayout,
+  ranking?: Ranking
 ): { slots: string[]; strip: string[] } {
   const hidden = new Set(prefs.hidden);
   const visible = live.filter((e) => !hidden.has(eventKey(e)));
   // tier-D-sized games beside a big one only get a spot if pinned there
-  const eligible = new Set(spotEligible(visible).map(eventKey));
+  const eligible = new Set(spotEligible(visible, ranking).map(eventKey));
   const n = capacity(layout, visible.filter((e) => eligible.has(eventKey(e)) || prefs.pins[eventKey(e)] !== undefined).length);
   const slots: (string | null)[] = Array(n).fill(null);
 

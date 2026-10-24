@@ -55,4 +55,7 @@ export interface SettingsState {
   closedStreamSlotIds: string[];
   streamLayout: StreamLayout;
   frcStreamUrls: Record<string, string>;
+  eventRanking: Record<string, number>;
+  // whether this user can see/change the shared API keys (/api/global-settings answered)
+  isAdmin: boolean;
 }
