@@ -281,6 +281,11 @@ export interface BasketballState extends LiveCommon {
   // y out from the baseline (seen 0..28 in a live game). Free throws carry
   // a -214748340 sentinel instead of a real spot, so they're dropped here.
   shots: { x: number; y: number; made: boolean; teamId: string; three: boolean }[];
+  // The most recent shot of any kind, for the "latest" ring and the ball
+  // animation — free throws included (they have no spot in ESPN's data, so
+  // they're placed at the line); n counts every shooting play, so each new
+  // one, free throws too, is a new latest.
+  latest?: { n: number; x: number; y: number; made: boolean; teamId: string; freeThrow: boolean };
   recent: string[];
   stats: Record<string, Record<string, string>>;
 }
@@ -296,10 +301,18 @@ export function mapBasketball(data: any): BasketballState {
       teamId: String(p.team?.id ?? ""),
       three: /three point/i.test(p.text ?? "") || p.scoreValue === 3,
     }));
+  const shooting = plays.filter((p) => p.shootingPlay);
+  const last = shooting.at(-1);
+  const located = last?.coordinate && last.coordinate.x > -1000 && last.coordinate.y > -1000;
+  // the free-throw line is 15 ft from the backboard, 13.75 ft out from the rim
+  const latest = last
+    ? { n: shooting.length, x: located ? last.coordinate.x : 25, y: located ? last.coordinate.y : 13.75, made: Boolean(last.scoringPlay), teamId: String(last.team?.id ?? ""), freeThrow: !located }
+    : undefined;
   return {
     kind: "basketball",
     ...commonFrom(data),
     shots,
+    latest,
     recent: plays.slice(-3).reverse().map((p) => p.text).filter(Boolean),
     stats: teamStats(data),
   };

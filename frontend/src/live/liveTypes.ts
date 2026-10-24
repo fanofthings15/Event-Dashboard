@@ -70,6 +70,7 @@ export interface FootballState extends LiveCommon {
 export interface BasketballState extends LiveCommon {
   kind: "basketball";
   shots: { x: number; y: number; made: boolean; teamId: string; three: boolean }[];
+  latest?: { n: number; x: number; y: number; made: boolean; teamId: string; freeThrow: boolean };
   recent: string[];
   stats: Record<string, Record<string, string>>;
 }

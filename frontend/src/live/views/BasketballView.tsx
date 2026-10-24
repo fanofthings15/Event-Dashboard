@@ -23,7 +23,8 @@ export function BasketballSurface({ data }: { data: BasketballState }) {
     const cy = isHome ? shot.x : COURT_H - shot.x;
     return [Math.min(COURT_W - 0.5, Math.max(0.5, cx)), Math.min(COURT_H - 0.5, Math.max(0.5, cy))];
   };
-  const lastShot = data.shots.at(-1);
+  // the latest shot of any kind — a free throw sits at the line
+  const lastShot = data.latest;
   return (
     <Court awayPaint="#b97a45" homePaint="#b97a45" left={teams[0]} right={teams[1]}>
       {data.shots.map((shot, i) => {
@@ -42,7 +43,7 @@ export function BasketballSurface({ data }: { data: BasketballState }) {
           // new one restarts the pulse
           return (
             <circle
-              key={data.shots.length}
+              key={lastShot.n}
               cx={cx}
               cy={cy}
               r={2}
@@ -54,7 +55,7 @@ export function BasketballSurface({ data }: { data: BasketballState }) {
           );
         })()}
       <BasketballShotPlay
-        shot={lastShot ? { id: `${data.shots.length}`, at: spot(lastShot), rimLeft: lastShot.teamId === home?.id, made: lastShot.made } : undefined}
+        shot={lastShot ? { id: `${lastShot.n}`, at: spot(lastShot), rimLeft: lastShot.teamId === home?.id, made: lastShot.made } : undefined}
       />
     </Court>
   );
