@@ -35,10 +35,11 @@ export function BasketballSurface({ data }: { data: BasketballState }) {
           <path key={i} d={`M${cx - 0.55} ${cy - 0.55} L${cx + 0.55} ${cy + 0.55} M${cx + 0.55} ${cy - 0.55} L${cx - 0.55} ${cy + 0.55}`} stroke={color} strokeWidth={0.28} />
         );
       })}
-      {lastShot &&
+      {lastShot?.made &&
         (() => {
           const [cx, cy] = spot(lastShot);
-          // keyed per shot so each new one restarts the pulse
+          // the latest basket — a miss gets no ring; keyed per shot so each
+          // new one restarts the pulse
           return (
             <circle
               key={data.shots.length}
@@ -80,7 +81,7 @@ export default function BasketballView({ data, leagueColor }: { data: Basketball
       status={data.detail}
     >
       {flash}
-      <Surface caption={<span>● made · ✕ missed · ◯ latest shot</span>}>
+      <Surface caption={<span>● made · ✕ missed · ◯ latest basket</span>}>
         <BasketballSurface data={data} />
       </Surface>
       <Below
