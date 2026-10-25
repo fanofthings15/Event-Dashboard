@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import type { F1State } from "../liveTypes";
 import { C, LiveFrame, Message, Side, Surface } from "../Layout";
 
@@ -104,54 +104,139 @@ function useTrackGeometry(circuit: F1State["circuit"]) {
 }
 
 // F1 doesn't send car x/y to anonymous viewers, so the backend places each
-// car by the mini-sectors it has completed this lap (see f1Live.ts). Between
-// polls the dot moves on at the car's lap pace, never past the end of its
-// current mini-sector, so a car slowed by a safety car waits there instead
-// of running ahead. Mini-sector marks arrive in bursts, so in a race only
-// the leader is placed that way and everyone else sits their official time
-// gap behind (the outline is sampled at a steady rate round a lap, so time
-// converts straight to outline points): the order and spacing then match
-// the timing tower. Lapped cars, and every car in practice or qualifying
-// (where the gap is to the fastest lap), use their own mini-sectors.
-function useEstimatedSpots(data: F1State): Map<string, [number, number]> | null {
-  const estimated = Boolean(data.positionsEstimated && data.circuit);
-  const receivedAt = useMemo(() => Date.now(), [data]);
-  const [now, setNow] = useState(Date.now);
-  useEffect(() => {
-    if (!estimated) return;
-    const id = setInterval(() => setNow(Date.now()), 200);
-    return () => clearInterval(id);
-  }, [estimated]);
-  if (!estimated || !data.circuit) return null;
-  const { x, y } = data.circuit;
-  const n = x.length;
-  const wrap = (i: number) => ((i % n) + n) % n;
-  const own = (t: NonNullable<F1State["drivers"][number]["track"]>) =>
-    t.from + Math.min(Math.max(0, t.to - t.from), ((t.ageMs + Math.max(0, now - receivedAt)) / 1000) * t.perSec);
+// car by the mini-sectors it has completed this lap (see f1Live.ts), as an
+// outline index; the outline is sampled at a steady rate round a lap, so
+// index runs with time and a car's pace is points-per-second from its last
+// lap. Mini-sector marks arrive in bursts, so in a race only the leader is
+// placed that way and everyone else sits their official time gap behind:
+// the order and spacing then match the timing tower. Lapped cars, and every
+// car in practice or qualifying (where the gap is to the fastest lap), use
+// their own mini-sectors.
+type Driver = F1State["drivers"][number];
 
-  const race = /race|sprint/i.test(data.session?.name ?? "") && !/qualifying|shootout/i.test(data.session?.name ?? "");
+function estimateTargets(data: F1State, now: number, receivedAt: number): Map<string, { at: number; perSec: number }> {
+  const out = new Map<string, { at: number; perSec: number }>();
+  // where the timing puts the car, run on at its pace for as long as the
+  // next mark is overdue (they come late, not early) — up to one more
+  // mini-sector beyond the one it's in
+  const own = (t: NonNullable<Driver["track"]>) =>
+    t.from + Math.min(2 * Math.max(0, t.to - t.from), ((t.ageMs + Math.max(0, now - receivedAt)) / 1000) * t.perSec);
+  const name = data.session?.name ?? "";
+  const race = /race|sprint/i.test(name) && !/qualifying|shootout/i.test(name);
   const leader = data.drivers.find((d) => d.position === 1 && d.track && !d.inPit && !d.out);
   const leaderAt = race && leader?.track ? own(leader.track) : undefined;
-
-  const spots = new Map<string, [number, number]>();
   for (const d of data.drivers) {
     const t = d.track;
     if (!t || d.inPit || d.out) continue;
     const gap = d === leader ? 0 : Number(d.gap?.match(/^\+?(\d+(?:\.\d+)?)$/)?.[1]);
-    const at = wrap(leaderAt !== undefined && Number.isFinite(gap) ? leaderAt - gap * t.perSec : own(t));
-    const i = Math.floor(at);
-    const j = (i + 1) % n;
-    const f = at - i;
-    spots.set(d.number, [x[i] + (x[j] - x[i]) * f, y[i] + (y[j] - y[i]) * f]);
+    out.set(d.number, { at: leaderAt !== undefined && Number.isFinite(gap) ? leaderAt - gap * t.perSec : own(t), perSec: t.perSec });
   }
-  return spots;
+  return out;
+}
+
+// Each car drives on smoothly at its own pace every frame and is steered
+// toward where the timing says it is (half the difference closed per
+// second), instead of jumping on every update. It never reverses: a car
+// ahead of its estimate eases off to no less than 30% pace. A big miss (out
+// of the pits, a tab coming back from the background) snaps straight there.
+const STEER = 0.5;
+const MIN_PACE = 0.3;
+
+function useSmoothCars(data: F1State, geo: ReturnType<typeof useTrackGeometry>) {
+  const estimated = Boolean(data.positionsEstimated && data.circuit && geo);
+  const els = useRef(new Map<string, SVGGElement>());
+  const cars = useRef(new Map<string, number>());
+  const latest = useRef({ data, receivedAt: Date.now() });
+  const receivedAt = useMemo(() => Date.now(), [data]);
+  latest.current = { data, receivedAt };
+
+  const place = useCallback(
+    (el: SVGGElement, at: number) => {
+      const c = latest.current.data.circuit;
+      if (!c || !geo) return;
+      const n = c.x.length;
+      const i = Math.floor(at) % n;
+      const j = (i + 1) % n;
+      const f = at - Math.floor(at);
+      const [x, y] = geo.toView(c.x[i] + (c.x[j] - c.x[i]) * f, c.y[i] + (c.y[j] - c.y[i]) * f);
+      el.setAttribute("transform", `translate(${x.toFixed(1)} ${y.toFixed(1)})`);
+    },
+    [geo]
+  );
+
+  useEffect(() => {
+    if (!estimated) return;
+    let raf = 0;
+    let last = performance.now();
+    const frame = (t: number) => {
+      const dt = Math.min(0.25, (t - last) / 1000);
+      last = t;
+      const { data: d, receivedAt: at0 } = latest.current;
+      const n = d.circuit?.x.length ?? 0;
+      if (n > 1) {
+        const wrap = (i: number) => ((i % n) + n) % n;
+        for (const [num, target] of estimateTargets(d, Date.now(), at0)) {
+          const el = els.current.get(num);
+          if (!el) continue;
+          const goal = wrap(target.at);
+          const prev = cars.current.get(num);
+          let p = goal;
+          if (prev !== undefined) {
+            let err = goal - prev;
+            if (err > n / 2) err -= n;
+            if (err < -n / 2) err += n;
+            if (Math.abs(err) <= n / 8) {
+              const pace = target.perSec * dt;
+              p = wrap(prev + Math.max(pace * MIN_PACE, pace + err * STEER * dt));
+            }
+          }
+          cars.current.set(num, p);
+          place(el, p);
+        }
+      }
+      raf = requestAnimationFrame(frame);
+    };
+    raf = requestAnimationFrame(frame);
+    return () => cancelAnimationFrame(raf);
+  }, [estimated, place]);
+
+  // ref for a car's <g>: placed straight away so it doesn't flash at 0,0
+  const carRef = useCallback(
+    (num: string) => (el: SVGGElement | null) => {
+      if (!el) {
+        els.current.delete(num);
+        return;
+      }
+      els.current.set(num, el);
+      const { data: d, receivedAt: at0 } = latest.current;
+      const at = cars.current.get(num) ?? estimateTargets(d, Date.now(), at0).get(num)?.at;
+      const n = d.circuit?.x.length ?? 0;
+      if (at !== undefined && n > 1) place(el, ((at % n) + n) % n);
+    },
+    [place]
+  );
+
+  return estimated ? carRef : null;
+}
+
+function CarDot({ color, tla }: { color: string; tla?: string }) {
+  return (
+    <>
+      <circle r={11} fill={color} stroke={C.bg} strokeWidth={2} />
+      {tla && (
+        <text x={16} fontSize={22} fontWeight={700} fill={C.text} dominantBaseline="central">
+          {tla}
+        </text>
+      )}
+    </>
+  );
 }
 
 // The circuit with yellow sectors, the pit lane and the cars — shared by
 // the full view and the multi-game tiles.
 export function F1Track({ data }: { data: F1State }) {
   const geo = useTrackGeometry(data.circuit);
-  const estimated = useEstimatedSpots(data);
+  const carRef = useSmoothCars(data, geo);
   const yellow = new Set(data.yellowSectors);
   const pad = 36;
   const inPit = data.drivers.filter((d) => d.inPit && !d.out);
@@ -216,22 +301,26 @@ export function F1Track({ data }: { data: F1State }) {
         );
       })}
       <circle cx={geo.start[0]} cy={geo.start[1]} r={10} fill="#fff" />
-      {(data.positionsAvailable || estimated) &&
+      {data.positionsAvailable &&
         [...data.drivers].reverse().map((d) => {
-          const raw = data.positionsAvailable ? (d.x !== undefined && d.y !== undefined ? [d.x, d.y] : undefined) : estimated?.get(d.number);
-          if (!raw) return null;
-          const [x, y] = geo.toView(raw[0], raw[1]);
+          if (d.x === undefined || d.y === undefined) return null;
+          const [x, y] = geo.toView(d.x, d.y);
           return (
-            <g key={d.number} opacity={d.out ? 0.3 : 1}>
-              <circle cx={x} cy={y} r={11} fill={d.color} stroke={C.bg} strokeWidth={2} />
-              {d.position <= 3 && (
-                <text x={x + 16} y={y} fontSize={22} fontWeight={700} fill={C.text} dominantBaseline="central">
-                  {d.tla}
-                </text>
-              )}
+            <g key={d.number} opacity={d.out ? 0.3 : 1} transform={`translate(${x} ${y})`}>
+              <CarDot color={d.color} tla={d.position <= 3 ? d.tla : undefined} />
             </g>
           );
         })}
+      {/* estimated: moved every frame by useSmoothCars, not by React */}
+      {!data.positionsAvailable &&
+        carRef &&
+        [...data.drivers].reverse().map((d) =>
+          d.track && !d.inPit && !d.out ? (
+            <g key={d.number} ref={carRef(d.number)}>
+              <CarDot color={d.color} tla={d.position <= 3 ? d.tla : undefined} />
+            </g>
+          ) : null
+        )}
     </svg>
   );
 }
