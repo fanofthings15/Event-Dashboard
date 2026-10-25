@@ -110,7 +110,7 @@ regardless of source.
 | FRC | The Blue Alliance API | Yes (free) | Full events only, not individual matches |
 | Esports | PandaScore | Yes (free tier) | ~1000 req/month cap |
 | /live team sports | ESPN game summary (unofficial) | No | Shot/pitch coordinates, drives, box stats — quirks below |
-| /live F1 | F1 live timing, SignalR Core | No | Anonymous; old /signalr and /static/ archive 401 as of 2026-10-20 |
+| /live F1 | F1 live timing, SignalR Core | No | Anonymous; old /signalr and /static/ archive 401 as of 2026-10-20. `Position.z`/`CarData.z` are NOT sent anonymously (checked live, 2026 US GP) — cars are placed from TimingData mini-sectors instead, and in a race by gap to the leader (`f1Live.ts`, `F1View.tsx`) |
 | /live F1 circuit | MultiViewer circuits API | No | Outline + marshal sectors, same coords as Position.z (no pit lane shape — it's drawn beside the S/F straight) |
 | /live MLB extras | MLB Stats API (statsapi.mlb.com) | No | Ballpark fence distances (venue fieldInfo) and every batted ball (hitData); matched to the ESPN game by date + team names (`liveMlb.ts`) |
 
@@ -218,9 +218,7 @@ calling array methods on what was actually still a number.
 - `backend/src/espnScoreboard.ts`'s `liveDetail` field — **confirmed**
   2026-10-20 against live games: NBA `"1:23 - 2nd"`/`"Halftime"`, NHL
   `"16:34 - 2nd"`/`"End of 1st"`.
-- /live, not yet seen against real data: F1 car positions (`Position.z`
-  wasn't in the post-session snapshot — may need a live session, may not
-  be anonymous), the esports stream crop with a real PandaScore match (only
+- /live, not yet seen against real data: the esports stream crop with a real PandaScore match (only
   tested with a faked event + YouTube video, no PandaScore key on the dev
   box), the FRC view (no TBA key on the dev box), and NFL/MLB mid-game
   (mapping tested on finished games and a replayed mid-drive play). The

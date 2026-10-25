@@ -8,10 +8,12 @@ import { cached } from "./cache.js";
 // full snapshot of the most recent session (DriverList, TimingData,
 // TrackStatus, RaceControlMessages, LapCount, SessionInfo all present).
 //
-// NOT yet verified: whether Position.z (car x/y) streams anonymously
-// during a live session — it was absent from the post-session snapshot.
-// The display treats car dots as optional and falls back to the timing
-// tower alone when no positions arrive.
+// Position.z (car x/y) and CarData.z are NOT sent to an anonymous
+// connection: checked live during the 2026 US GP, the Subscribe reply and
+// 20 s of feed carried TimingData but neither .z topic (OpenF1 also locks
+// its API to paid keys while a session is live). So cars are placed from
+// timing instead — see "estimated positions" below — and real positions
+// are only used if they ever do arrive.
 //
 // The connection is opened on demand — only while the /live display is
 // actually asking for F1 data — and dropped after IDLE_MS without a
@@ -68,6 +70,42 @@ function decodeZ(data: unknown): any {
   }
 }
 
+// ---------- estimated positions ----------
+//
+// Each driver's TimingData line has the lap split into mini-sectors (22 at
+// Austin: 6 + 8 + 8), each given a status as the car passes it and all
+// cleared when it starts a new lap. The leading run of filled-in ones is
+// how far round the lap the car is, to within one mini-sector (~250 m),
+// refreshed every 4–5 s. We note when that count last changed so the
+// display can move the car on at its lap pace until the next one fills.
+const segProgress = new Map<string, { done: number; total: number; at: number }>();
+
+function segmentsDone(line: any): { done: number; total: number } {
+  const sectors: any[] = Object.values(line?.Sectors ?? {});
+  let done = 0;
+  let total = 0;
+  let gap = false;
+  for (const sec of sectors) {
+    for (const seg of Object.values<any>(sec?.Segments ?? {})) {
+      total++;
+      if (!gap && seg?.Status) done++;
+      else gap = true;
+    }
+  }
+  return { done, total };
+}
+
+function noteSegments(numbers: string[]) {
+  const lines = state.TimingData?.Lines ?? {};
+  const now = Date.now();
+  for (const num of numbers) {
+    const { done, total } = segmentsDone(lines[num]);
+    if (!total) continue;
+    const prev = segProgress.get(num);
+    if (!prev || prev.done !== done || prev.total !== total) segProgress.set(num, { done, total, at: now });
+  }
+}
+
 function applyTopic(topic: string, data: any) {
   if (topic.endsWith(".z")) {
     const decoded = decodeZ(data);
@@ -75,6 +113,42 @@ function applyTopic(topic: string, data: any) {
     return;
   }
   state[topic] = deepMerge(state[topic], data);
+  if (topic === "TimingData" && data?.Lines) noteSegments(Object.keys(data.Lines));
+}
+
+// "1:41.346" -> 101.346
+function lapSeconds(v: unknown): number | undefined {
+  const m = typeof v === "string" ? v.match(/^(?:(\d+):)?(\d+(?:\.\d+)?)$/) : null;
+  if (!m) return undefined;
+  const s = Number(m[1] ?? 0) * 60 + Number(m[2]);
+  return s > 40 && s < 300 ? s : undefined;
+}
+
+// Where mini-sector k starts, as a fractional index into the outline. The
+// outline begins at the start line and runs in race direction (checked:
+// marshal sector 1 is point 0, corners number upwards). MultiViewer lists
+// each mini-sector's end point, but for whatever year it last processed
+// (Austin's is 2021, with 21 of them against 22 live), so it's only used
+// when the count matches; otherwise the lap is split evenly by distance.
+function segmentBounds(circuit: Circuit, total: number): number[] {
+  const n = circuit.x.length;
+  const ends = circuit.miniSectors;
+  if (ends && ends.length === total) return [0, ...ends.slice(0, -1), n];
+  const cum = [0];
+  for (let i = 1; i <= n; i++) {
+    const j = i % n;
+    cum.push(cum[i - 1] + Math.hypot(circuit.x[j] - circuit.x[i - 1], circuit.y[j] - circuit.y[i - 1]));
+  }
+  const len = cum[n];
+  const bounds: number[] = [];
+  let i = 0;
+  for (let k = 0; k <= total; k++) {
+    const want = (k / total) * len;
+    while (i < n - 1 && cum[i + 1] < want) i++;
+    const span = cum[i + 1] - cum[i];
+    bounds.push(i + (span > 0 ? Math.min(1, (want - cum[i]) / span) : 0));
+  }
+  return bounds;
 }
 
 function onMessage(raw: string) {
@@ -154,6 +228,7 @@ export interface Circuit {
   y: number[];
   rotation: number;
   marshalSectors: { number: number; x: number; y: number }[];
+  miniSectors?: number[]; // outline index where each mini-sector ends
 }
 
 // MultiViewer's circuit API (same coordinate space as Position.z). It only
@@ -172,6 +247,7 @@ async function fetchCircuit(circuitKey: number, year: number): Promise<Circuit |
         y: c.y,
         rotation: c.rotation ?? 0,
         marshalSectors: (c.marshalSectors ?? []).map((s: any) => ({ number: s.number, x: s.trackPosition?.x, y: s.trackPosition?.y })),
+        miniSectors: Array.isArray(c.miniSectorsIndexes) ? c.miniSectorsIndexes : undefined,
       };
     }
     return null;
@@ -194,6 +270,10 @@ export interface F1Driver {
   stops: number;
   x?: number;
   y?: number;
+  // Estimated from timing (when real x/y aren't sent): the car is at outline
+  // index `from` as of `ageMs` ago, moving `perSec` points a second, never
+  // past `to` (the end of its current mini-sector) until timing says so.
+  track?: { from: number; to: number; perSec: number; ageMs: number };
 }
 
 export interface F1LiveState {
@@ -208,6 +288,7 @@ export interface F1LiveState {
   raceControl: { utc: string; message: string; flag?: string }[];
   circuit?: Circuit | null;
   positionsAvailable: boolean;
+  positionsEstimated: boolean;
   // Most recent first: the lap and tyre change, from the stint history.
   pitStops: { number: string; tla: string; color: string; lap: number; from?: string; to?: string }[];
 }
@@ -239,6 +320,33 @@ export async function getF1LiveState(): Promise<F1LiveState> {
   const positionFrames: any[] = state.Position?.Position ?? [];
   const latestPositions = positionFrames.at(-1)?.Entries ?? {};
 
+  const circuitKey: number | undefined = info?.Meeting?.Circuit?.Key;
+  const year = info?.StartDate ? new Date(info.StartDate).getFullYear() : undefined;
+  let circuit: Circuit | null | undefined;
+  if (circuitKey && year) {
+    try {
+      circuit = await fetchCircuit(circuitKey, year);
+    } catch {
+      circuit = null;
+    }
+  }
+  const boundsByTotal = new Map<number, number[]>();
+  const now = Date.now();
+  const estimateTrack = (num: string, t: any): F1Driver["track"] => {
+    const seg = segProgress.get(num);
+    if (!circuit || !seg || t.InPit || t.Retired || t.Stopped) return undefined;
+    let bounds = boundsByTotal.get(seg.total);
+    if (!bounds) boundsByTotal.set(seg.total, (bounds = segmentBounds(circuit, seg.total)));
+    const lap = lapSeconds(t.LastLapTime?.Value) ?? lapSeconds(t.BestLapTime?.Value) ?? 95;
+    // The outline is sampled at a steady rate round a real lap (points are
+    // far apart on straights, close in corners), so index runs with time.
+    const perSec = circuit.x.length / lap;
+    const ageMs = Math.max(0, now - seg.at);
+    // every mini-sector filled: on the line, until the new lap clears them
+    if (seg.done >= seg.total) return { from: bounds[seg.total], to: bounds[seg.total], perSec, ageMs };
+    return { from: bounds[seg.done], to: bounds[seg.done + 1], perSec, ageMs };
+  };
+
   const list: F1Driver[] = Object.entries(drivers)
     .filter(([num]) => /^\d+$/.test(num))
     .map(([num, d]: [string, any]) => {
@@ -259,20 +367,10 @@ export async function getF1LiveState(): Promise<F1LiveState> {
         stops: Math.max(0, stints.length - 1),
         x: typeof p?.X === "number" ? p.X : undefined,
         y: typeof p?.Y === "number" ? p.Y : undefined,
+        track: estimateTrack(num, t),
       };
     })
     .sort((a, b) => a.position - b.position);
-
-  const circuitKey: number | undefined = info?.Meeting?.Circuit?.Key;
-  const year = info?.StartDate ? new Date(info.StartDate).getFullYear() : undefined;
-  let circuit: Circuit | null | undefined;
-  if (circuitKey && year) {
-    try {
-      circuit = await fetchCircuit(circuitKey, year);
-    } catch {
-      circuit = null;
-    }
-  }
 
   // A stop happens at the end of every stint but the last: its lap is the
   // laps run so far (each stint's TotalLaps counts any laps the tyre had
@@ -291,6 +389,7 @@ export async function getF1LiveState(): Promise<F1LiveState> {
   pitStops.sort((a, b) => b.lap - a.lap);
 
   const messages: any[] = state.RaceControlMessages?.Messages ?? [];
+  const positionsAvailable = list.some((d) => d.x !== undefined);
   return {
     pitStops: pitStops.slice(0, 8),
     kind: "f1",
@@ -308,6 +407,7 @@ export async function getF1LiveState(): Promise<F1LiveState> {
       .reverse()
       .map((m) => ({ utc: m.Utc, message: m.Message, flag: m.Flag })),
     circuit,
-    positionsAvailable: list.some((d) => d.x !== undefined),
+    positionsAvailable,
+    positionsEstimated: !positionsAvailable && list.some((d) => d.track),
   };
 }

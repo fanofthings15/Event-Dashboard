@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { F1State } from "../liveTypes";
 import { C, LiveFrame, Message, Side, Surface } from "../Layout";
 
@@ -103,10 +103,55 @@ function useTrackGeometry(circuit: F1State["circuit"]) {
   }, [circuit]);
 }
 
+// F1 doesn't send car x/y to anonymous viewers, so the backend places each
+// car by the mini-sectors it has completed this lap (see f1Live.ts). Between
+// polls the dot moves on at the car's lap pace, never past the end of its
+// current mini-sector, so a car slowed by a safety car waits there instead
+// of running ahead. Mini-sector marks arrive in bursts, so in a race only
+// the leader is placed that way and everyone else sits their official time
+// gap behind (the outline is sampled at a steady rate round a lap, so time
+// converts straight to outline points): the order and spacing then match
+// the timing tower. Lapped cars, and every car in practice or qualifying
+// (where the gap is to the fastest lap), use their own mini-sectors.
+function useEstimatedSpots(data: F1State): Map<string, [number, number]> | null {
+  const estimated = Boolean(data.positionsEstimated && data.circuit);
+  const receivedAt = useMemo(() => Date.now(), [data]);
+  const [now, setNow] = useState(Date.now);
+  useEffect(() => {
+    if (!estimated) return;
+    const id = setInterval(() => setNow(Date.now()), 200);
+    return () => clearInterval(id);
+  }, [estimated]);
+  if (!estimated || !data.circuit) return null;
+  const { x, y } = data.circuit;
+  const n = x.length;
+  const wrap = (i: number) => ((i % n) + n) % n;
+  const own = (t: NonNullable<F1State["drivers"][number]["track"]>) =>
+    t.from + Math.min(Math.max(0, t.to - t.from), ((t.ageMs + Math.max(0, now - receivedAt)) / 1000) * t.perSec);
+
+  const race = /race|sprint/i.test(data.session?.name ?? "") && !/qualifying|shootout/i.test(data.session?.name ?? "");
+  const leader = data.drivers.find((d) => d.position === 1 && d.track && !d.inPit && !d.out);
+  const leaderAt = race && leader?.track ? own(leader.track) : undefined;
+
+  const spots = new Map<string, [number, number]>();
+  for (const d of data.drivers) {
+    const t = d.track;
+    if (!t || d.inPit || d.out) continue;
+    const gap = d === leader ? 0 : Number(d.gap?.match(/^\+?(\d+(?:\.\d+)?)$/)?.[1]);
+    const at = wrap(leaderAt !== undefined && Number.isFinite(gap) ? leaderAt - gap * t.perSec : own(t));
+    const i = Math.floor(at);
+    const j = (i + 1) % n;
+    const f = at - i;
+    spots.set(d.number, [x[i] + (x[j] - x[i]) * f, y[i] + (y[j] - y[i]) * f]);
+  }
+  return spots;
+}
+
 // The circuit with yellow sectors, the pit lane and the cars — shared by
 // the full view and the multi-game tiles.
 export function F1Track({ data }: { data: F1State }) {
   const geo = useTrackGeometry(data.circuit);
+  const estimated = useEstimatedSpots(data);
   const yellow = new Set(data.yellowSectors);
   const pad = 36;
   const inPit = data.drivers.filter((d) => d.inPit && !d.out);
@@ -171,10 +216,11 @@ export function F1Track({ data }: { data: F1State }) {
         );
       })}
       <circle cx={geo.start[0]} cy={geo.start[1]} r={10} fill="#fff" />
-      {data.positionsAvailable &&
+      {(data.positionsAvailable || estimated) &&
         [...data.drivers].reverse().map((d) => {
-          if (d.x === undefined || d.y === undefined) return null;
-          const [x, y] = geo.toView(d.x, d.y);
+          const raw = data.positionsAvailable ? (d.x !== undefined && d.y !== undefined ? [d.x, d.y] : undefined) : estimated?.get(d.number);
+          if (!raw) return null;
+          const [x, y] = geo.toView(raw[0], raw[1]);
           return (
             <g key={d.number} opacity={d.out ? 0.3 : 1}>
               <circle cx={x} cy={y} r={11} fill={d.color} stroke={C.bg} strokeWidth={2} />
@@ -229,6 +275,7 @@ export default function F1View({ data, leagueColor }: { data: F1State; leagueCol
               ) : (
                 <span />
               )}
+              {data.positionsEstimated && <span style={{ color: C.muted, fontWeight: 400 }}>Car positions estimated from timing</span>}
               {stops.length > 0 && (
                 <span style={{ fontWeight: 400 }}>
                   <span style={{ color: C.muted }}>Pit stops </span>

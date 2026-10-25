@@ -116,6 +116,8 @@ export interface F1Driver {
   stops: number;
   x?: number;
   y?: number;
+  // estimated from timing: outline index `from`, `ageMs` old, moving `perSec`, capped at `to`
+  track?: { from: number; to: number; perSec: number; ageMs: number };
 }
 
 export interface F1State {
@@ -130,6 +132,7 @@ export interface F1State {
   raceControl: { utc: string; message: string; flag?: string }[];
   circuit?: { x: number[]; y: number[]; rotation: number; marshalSectors: { number: number; x: number; y: number }[] } | null;
   positionsAvailable: boolean;
+  positionsEstimated?: boolean;
   pitStops?: { number: string; tla: string; color: string; lap: number; from?: string; to?: string }[];
 }
 
