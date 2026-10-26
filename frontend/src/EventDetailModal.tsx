@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useSwipeToClose } from "./useSwipeToClose";
 import type { NormalizedEvent } from "./types";
 import type { EsportsGame } from "./settingsTypes";
@@ -29,6 +29,16 @@ function formatRange(startIso: string, endIso: string | undefined, timezone: str
   return `${formatEventDate(startIso, timezone)} – ${endStr}`;
 }
 
+function EyeIcon({ off }: { off: boolean }) {
+  return (
+    <svg aria-hidden="true" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" />
+      <circle cx="12" cy="12" r="3" />
+      {off && <path d="M3 3l18 18" />}
+    </svg>
+  );
+}
+
 export default function EventDetailModal({ event, now, catalog, onClose, onTeamClick, onWatchLive }: Props) {
   const { settings, save } = useSettings();
   const [confirmingHide, setConfirmingHide] = useState(false);
@@ -37,7 +47,11 @@ export default function EventDetailModal({ event, now, catalog, onClose, onTeamC
   const meta = sportMeta(event, catalog, settings.sportColorOverrides);
   const swipe = useSwipeToClose(onClose);
   const live = isLiveNow(event, now);
-  const alreadyHidden = settings.excludedLeagues.includes(event.league);
+  // Same "contains" match as the feed filter (useEvents.ts), so unhiding
+  // removes exactly the entries that are hiding this league.
+  const hidingFilters = settings.excludedLeagues.filter((ex) => ex.trim() && event.league.toLowerCase().includes(ex.trim().toLowerCase()));
+  const alreadyHidden = hidingFilters.length > 0;
+  const regionHidden = Boolean(event.region && settings.frcRegions.length > 0 && !settings.frcRegions.includes(event.region));
   // A direct league page (e.g. the LCK page) is far more useful than a
   // search results page — fall back to search only if the league itself
   // doesn't have a clean wiki page, then to the source's own link.
@@ -55,10 +69,25 @@ export default function EventDetailModal({ event, now, catalog, onClose, onTeamC
     await save({ snoozedEventIds: next });
   }
 
+  async function unhideLeague() {
+    await save({ excludedLeagues: settings.excludedLeagues.filter((ex) => !hidingFilters.includes(ex)) });
+  }
+  async function showRegion() {
+    if (event.region) await save({ frcRegions: [...settings.frcRegions, event.region] });
+  }
+
+  // the game leaves the feed with its league, so the detail closes too
   async function confirmHideLeague() {
     await save({ excludedLeagues: [...settings.excludedLeagues, event.league] });
     setConfirmingHide(false);
+    onClose();
   }
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && !confirmingHide && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose, confirmingHide]);
 
   function isFavoriteTeam(teamName: string): boolean {
     return settings.favoriteTeams.some((t) => t.trim().toLowerCase() === teamName.trim().toLowerCase());
@@ -100,6 +129,18 @@ export default function EventDetailModal({ event, now, catalog, onClose, onTeamC
           </div>
         </div>
 
+        {(alreadyHidden || regionHidden) && (
+          <div className="hidden-notice">
+            <EyeIcon off />
+            {alreadyHidden ? (
+              <span>
+                <s>{event.league}</s> is hidden from your feed
+              </span>
+            ) : (
+              <span>{event.region} events are hidden from your feed</span>
+            )}
+          </div>
+        )}
         <h2 style={{ marginTop: 0, marginBottom: 8 }}>{event.name}</h2>
         {event.followed && <span className="followed-chip">★ Your team</span>}
         <div className="hint" style={{ marginBottom: 14 }}>
@@ -196,9 +237,22 @@ export default function EventDetailModal({ event, now, catalog, onClose, onTeamC
           )}
           {/* following an event puts it in the calendar feed, so the hide
               button takes the slot "Add to Google Calendar" used to have */}
-          {event.sport !== "custom" && !alreadyHidden && (
-            <button type="button" className="btn" title={`Hide every event from "${event.league}"`} onClick={() => setConfirmingHide(true)}>
-              Hide this league
+          {event.sport !== "custom" &&
+            (alreadyHidden ? (
+              <button type="button" className="btn hide-league is-hidden" onClick={unhideLeague}>
+                <EyeIcon off={false} />
+                Unhide this league
+              </button>
+            ) : (
+              <button type="button" className="btn hide-league" title={`Hide every event from "${event.league}"`} onClick={() => setConfirmingHide(true)}>
+                <EyeIcon off />
+                Hide league
+              </button>
+            ))}
+          {regionHidden && (
+            <button type="button" className="btn hide-league is-hidden" onClick={showRegion}>
+              <EyeIcon off={false} />
+              Show {event.region} events
             </button>
           )}
         </div>
@@ -215,8 +269,8 @@ export default function EventDetailModal({ event, now, catalog, onClose, onTeamC
 
       {confirmingHide && (
         <ConfirmDialog
-          title="Hide this league?"
-          message={`All future events from "${event.league}" will be hidden until you unhide it in Settings.`}
+          title={`Hide "${event.league}"?`}
+          message={`Its games disappear from your feed and calendar. To bring it back, open any of its games (Show all finds them) and tap Unhide.`}
           confirmLabel="Hide"
           onConfirm={confirmHideLeague}
           onCancel={() => setConfirmingHide(false)}

@@ -95,8 +95,22 @@ export function GameTile({ e, color, label, live, now, tz, onOpen }: { e: Normal
   return (
     <button type="button" className={`b-tile${isMine(e) ? " mine" : ""}`} style={{ ["--c" as string]: color }} onClick={onOpen}>
       <span className="b-tile-top">
-        <span className="b-swatch" style={{ background: color, borderColor: color }} />
-        <span className="b-ellipsis">{label === e.league || !e.league ? label : `${label} · ${e.league}`}</span>
+        {isMine(e) ? (
+          <span className="b-star" aria-label="Your team">
+            <StarIcon filled size={14} />
+          </span>
+        ) : (
+          <span className="b-swatch" style={{ background: color, borderColor: color }} />
+        )}
+        <span className="b-ellipsis">
+          {label}
+          {e.league && e.league !== label && (
+            <>
+              {" · "}
+              {e.league}
+            </>
+          )}
+        </span>
         {live ? (
           <span className="b-live-text b-tile-status">● {liveStatus(e)}{!e.liveDetail && note ? ` · ${note.replace(/^Best of (\d+)$/, "Bo$1")}` : ""}</span>
         ) : (
@@ -117,7 +131,6 @@ export function GameTile({ e, color, label, live, now, tz, onOpen }: { e: Normal
         <span className="b-tile-name">{e.name}</span>
       )}
       <span className="b-tile-foot">
-        {isMine(e) && <span className="b-star"><StarIcon filled size={12} /></span>}
         <span className="b-ellipsis">{foot}</span>
       </span>
     </button>
@@ -180,3 +193,4 @@ export function EventRow({
     </button>
   );
 }
+

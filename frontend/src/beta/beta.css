@@ -1336,3 +1336,215 @@ body.b-body {
 .b-star svg {
   vertical-align: -1px;
 }
+
+.b-tile-top .b-star {
+  display: inline-flex;
+  flex: none;
+}
+.b-app .modal .hidden-notice {
+  border-radius: 12px;
+  font-weight: 600;
+}
+.b-app .modal .btn.hide-league.is-hidden {
+  border-color: var(--b-accent);
+  color: var(--b-accent-text);
+}
+
+/* even space between the hover highlight and the logo/name */
+.b-app .modal .detail-team {
+  padding: 5px 6px 5px 5px;
+}
+.b-app .modal .detail-team-clickable {
+  padding: 6px 12px;
+  border-radius: 9px;
+}
+
+/* the confirm dialog keeps its own, smaller size */
+.b-app .modal.confirm-modal {
+  width: min(420px, 100%);
+}
+.b-app .modal.confirm-modal .confirm-actions .btn {
+  min-width: 110px;
+}
+
+/* ---------- the reused pages: calendar, day breakdown, standings ---------- */
+.b-legacy .chip,
+.b-legacy .btn.small {
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid var(--b-border);
+  background: var(--b-panel);
+  color: var(--b-text);
+  font-size: 13px;
+  font-weight: 700;
+}
+.b-legacy .chip.active {
+  border-color: var(--b-accent);
+}
+.b-legacy .empty {
+  color: var(--b-muted);
+}
+.b-legacy .calendar-live-strip {
+  border-radius: 14px;
+  background: var(--b-panel);
+  border: 1px solid var(--b-border);
+  padding: 10px 12px;
+}
+.b-legacy .calendar-live-chip {
+  min-height: 36px;
+  border-radius: 999px;
+  border-color: var(--b-border);
+  background: var(--b-panel2);
+  font-weight: 700;
+}
+.b-legacy .calendar-nav {
+  justify-content: flex-start;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.b-legacy .calendar-nav .btn {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border-radius: 12px;
+  border: 1px solid var(--b-border);
+  background: var(--b-panel);
+  font-size: 20px;
+}
+.b-legacy .calendar-title {
+  order: -1;
+  min-width: 0;
+  margin-right: auto;
+  text-align: left;
+  font-size: 20px;
+  font-weight: 800;
+}
+.b-legacy .calendar-grid {
+  gap: 8px;
+}
+.b-legacy .calendar-weekday {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: normal;
+  text-transform: none;
+}
+.b-legacy .calendar-cell {
+  min-height: 112px;
+  padding: 8px 9px;
+  border-radius: 12px;
+  border: 1px solid var(--b-border);
+  background: var(--b-panel);
+  color: var(--b-text);
+  gap: 6px;
+}
+.b-legacy .calendar-cell:not(:disabled):hover {
+  border-color: #3a4150;
+  background: #181d25;
+}
+.b-legacy .calendar-cell.is-today {
+  border-color: var(--b-accent);
+  box-shadow: inset 0 0 0 1px var(--b-accent);
+}
+.b-legacy .calendar-date {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--b-sub);
+}
+.b-legacy .calendar-cell.is-today .calendar-date {
+  color: var(--b-accent-text);
+}
+.b-legacy .calendar-event {
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.b-legacy .calendar-event .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 3px;
+}
+.b-legacy .calendar-more {
+  font-size: 11px;
+  font-weight: 700;
+}
+.b-app .modal .day-breakdown {
+  gap: 14px;
+}
+.b-app .modal .hour-label {
+  font-weight: 800;
+  color: var(--b-sub);
+}
+.b-app .modal .hour-event {
+  min-height: 46px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: transparent;
+  font-weight: 700;
+}
+.b-app .modal .hour-event:hover {
+  background: var(--b-panel2);
+}
+.b-legacy .standings-table-wrap {
+  margin-bottom: 20px;
+}
+.b-legacy .standings-group-title {
+  font-size: 15px;
+  font-weight: 800;
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--b-text);
+  margin-bottom: 10px;
+}
+.b-legacy .standings-table {
+  border-collapse: separate;
+  border-spacing: 0;
+  border-radius: 14px;
+  background: var(--b-panel);
+  border: 1px solid var(--b-border);
+  font-size: 14px;
+}
+.b-legacy .standings-table th {
+  padding: 12px 14px;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: none;
+  letter-spacing: normal;
+  border-bottom-color: var(--b-border);
+}
+.b-legacy .standings-table td {
+  padding: 0 14px;
+  height: 48px;
+  border-bottom-color: var(--b-line) !important;
+  font-variant-numeric: tabular-nums;
+}
+.b-legacy .standings-table tbody tr:hover td {
+  background: #181d25;
+}
+.b-legacy .standings-team-cell {
+  gap: 12px;
+  font-weight: 700;
+}
+.b-legacy .standings-team-logo {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06);
+}
+@media (max-width: 820px) {
+  .b-legacy .calendar-cell {
+    min-height: 64px;
+    padding: 5px;
+    border-radius: 9px;
+  }
+  .b-legacy .calendar-grid {
+    gap: 4px;
+  }
+  .b-legacy .calendar-event {
+    font-size: 9px;
+  }
+  .b-legacy .calendar-title {
+    font-size: 18px;
+  }
+}

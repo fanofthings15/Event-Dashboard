@@ -589,3 +589,27 @@ section h2 {
 .sheet-handle {
   display: none;
 }
+
+/* event detail: hide / unhide a league */
+.btn.hide-league {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.btn.hide-league.is-hidden {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.hidden-notice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: rgba(250, 204, 21, 0.1);
+  border: 1px solid rgba(250, 204, 21, 0.35);
+  color: #fde68a;
+  font-size: 13px;
+}
