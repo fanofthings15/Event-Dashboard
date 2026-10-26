@@ -59,7 +59,9 @@ installation required to run it.
 
 - Live scores and schedules across NFL, NBA, NHL, F1, FRC, and multiple
   esports titles
-- List, Calendar, Today (agenda), and Finished views
+- Sidebar layout on desktop and a Home screen with a bottom tab bar on
+  phones: Home (live, your teams, upcoming), Calendar, Finished, Standings
+  and a full-screen Live display
 - Event detail view with team records, stream links, and league info
 - Custom events
 - Favorite teams and per-event follow/snooze, with browser notifications
@@ -67,7 +69,7 @@ installation required to run it.
 - Search across events, teams, and leagues
 - Calendar feed (ICS) for subscribing in Google Calendar, Apple Calendar,
   or Outlook
-- Light/dark theme, compact layout option, timezone override
+- Dark theme, timezone override
 - Offline fallback to the last successfully loaded data
 - Per-sport color customization and league filtering
 

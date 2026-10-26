@@ -2,12 +2,12 @@ import { createContext, useContext, useState } from "react";
 import type { NormalizedEvent, EventTeam } from "../types";
 import StarIcon from "../StarIcon";
 
-// Building blocks shared by the desktop and phone layouts of the redesign.
+// Building blocks shared by the desktop and phone layouts of the dashboard.
 
 export const eventKey = (e: NormalizedEvent) => `${e.sport}-${e.id}`;
 
 // Why a game only shows because Show all is on ("Hidden league", "Source
-// off"), or undefined for an ordinary game. The beta provides it.
+// off"), or undefined for an ordinary game. The dashboard provides it.
 export const HiddenReason = createContext<(e: NormalizedEvent) => string | undefined>(() => undefined);
 export const isMine = (e: NormalizedEvent) => Boolean(e.followed || e.manuallyFollowed);
 

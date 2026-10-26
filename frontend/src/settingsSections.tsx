@@ -4,8 +4,8 @@ import SourceSettings from "./SourceSettings";
 import { COMMON_TIMEZONES } from "./dateFormat";
 import type { NormalizedEvent } from "./types";
 
-// Each block of settings as its own component, so the dashboard's drawer and
-// the redesign's Settings page (/beta) lay out the same working controls.
+// Each block of settings as its own component, laid out by the dashboard's
+// Settings page.
 
 // PandaScore's key is shared across several esports sources at once, so it
 // stays here rather than in any one source's own settings group.
@@ -249,40 +249,6 @@ export function RefreshSection() {
         <input type="number" className="text-input" min={15} value={pollSeconds} onChange={(e) => setPollSeconds(e.target.value)} />
         <button className="btn primary" onClick={savePollInterval} disabled={Number(pollSeconds) === settings.pollIntervalSeconds}>
           Save
-        </button>
-      </div>
-    </section>
-  );
-}
-
-export function ThemeSection() {
-  const { settings, save } = useSettings();
-  return (
-    <section className="settings-section">
-      <h3>Theme</h3>
-      <div className="source-chip-list">
-        <button type="button" className={`chip ${settings.theme === "dark" ? "active" : ""}`} onClick={() => save({ theme: "dark" })}>
-          Dark
-        </button>
-        <button type="button" className={`chip ${settings.theme === "light" ? "active" : ""}`} onClick={() => save({ theme: "light" })}>
-          Light
-        </button>
-      </div>
-    </section>
-  );
-}
-
-export function LayoutSection() {
-  const { settings, save } = useSettings();
-  return (
-    <section className="settings-section">
-      <h3>Layout</h3>
-      <div className="source-chip-list">
-        <button type="button" className={`chip ${!settings.compactCards ? "active" : ""}`} onClick={() => save({ compactCards: false })}>
-          Comfortable
-        </button>
-        <button type="button" className={`chip ${settings.compactCards ? "active" : ""}`} onClick={() => save({ compactCards: true })}>
-          Compact
         </button>
       </div>
     </section>

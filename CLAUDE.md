@@ -34,20 +34,22 @@ backend/src/
   f1Live.ts                — F1 live-timing SignalR Core client + MultiViewer circuit map
   routes/live.ts           — /api/live/espn/:sport/:id, /api/live/f1, /api/live/frc/:eventKey
 frontend/src/
-  App.tsx                 — main page and its tabs (List/Calendar/Finished/Standings/Live);
-                            the Streams and Today tabs were retired 2026-10-26
   useEvents.ts             — polling, merging, filtering, notification-firing logic
   SettingsContext.tsx      — shared live settings state, the whole app reads/writes this
   SourceSettings.tsx       — per-data-source settings groups (on/off, color, league filters)
-  SettingsDrawer.tsx        — everything NOT source-specific (global keys, favorites,
-                              notifications, theme, layout, timezone, calendar feed)
+  settingsSections.tsx      — everything NOT source-specific (keys, teams,
+                              notifications, timezone, refresh, calendar feed), one
+                              component per block, laid out by dashboard/SettingsPage.tsx
   EventDetailModal.tsx      — click-through event detail, stream picker, follow/snooze
   CalendarView.tsx / DayDetailModal.tsx — month grid + hourly breakdown
   dateFormat.ts             — shared timezone-aware date/time formatters
-  beta/                     — the redesign's working copy at /beta (Rail II desktop,
-                              Home phone layout; dark only, real team logos). Reuses
-                              the calendar/standings/detail/settings screens. / stays
-                              the old UI until the user says to swap it over.
+  dashboard/                — the main UI at / (App.tsx: Rail II sidebar on desktop,
+                              Home layout + bottom tab bar on phones; dark only, real
+                              team logos; parts.tsx tiles/rows, SettingsPage.tsx,
+                              EventSheet.tsx new/edit event). Built at /beta and made
+                              the main UI 2026-10-26; the old tabbed App.tsx, drawer,
+                              theme/compact settings and light palette were deleted.
+                              /beta still loads it (any path but /live does).
   live/                     — /live full-screen display (main.tsx routes by pathname):
                               LiveScreen.tsx, selectLiveEvent.ts (the placeholder
                               "which game to show" policy — change it there),
@@ -263,12 +265,9 @@ calling array methods on what was actually still a number.
 - Frontend's `tsconfig.json` uses project references (`"files": []`) — a
   bare `npx tsc --noEmit` in `frontend/` silently checks nothing. Use
   `npm run build` or `npx tsc -b --noEmit` for a real type-check.
-- **`EventCard` in `App.tsx` used to render as a `<button>` with a second
-  `<button>` (the Finished tab's Dismiss ×) nested inside it** — invalid
-  HTML, only reachable once a finished event actually had the dismiss
-  button rendered, so it never showed up in earlier synthetic testing.
-  Found via a real React console warning while running the dev server.
-  Fixed by making the outer element a `<div role="button" tabIndex={0}>`
-  with an `onKeyDown` handler for Enter/Space, keeping the inner Dismiss
-  as a real `<button>` with `stopPropagation()`. If `EventCard` needs
-  another interactive child in the future, keep the outer non-button.
+- **No `<button>` inside a `<button>`.** The old UI's `EventCard` (deleted
+  with that UI) once nested the Finished tab's Dismiss × inside a button
+  card: invalid HTML, only caught by a React console warning on a real run.
+  A clickable card with its own buttons inside should be a
+  `<div role="button" tabIndex={0}>` with Enter/Space handling, the inner
+  buttons calling `stopPropagation()`.

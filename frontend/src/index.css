@@ -9,17 +9,6 @@
   color-scheme: dark;
 }
 
-[data-theme="light"] {
-  --bg: #f4f5f7;
-  --panel: #ffffff;
-  --border: #dde1e7;
-  --text: #1a1d23;
-  --muted: #6b7280;
-  --accent: #2f6fed;
-  --live: #dc2626;
-  color-scheme: light;
-}
-
 * { box-sizing: border-box; }
 
 body {
@@ -45,27 +34,6 @@ body {
 }
 
 .header h1 { font-size: 22px; margin: 0; }
-.header-actions { display: flex; gap: 8px; flex-wrap: wrap; width: 100%; }
-/* The tab bar fills the row between Add Event and Resync/Settings, tabs
-   spread evenly, so the row lines up with the search box and cards below */
-@media (min-width: 481px) {
-  .header-actions .view-switcher { flex: 1 1 auto; }
-  .header-actions .view-switcher .btn.small { flex: 1 1 auto; }
-}
-.last-updated { font-size: 12px; color: var(--muted); margin-bottom: 10px; }
-.view-switcher { display: flex; flex-wrap: wrap; gap: 4px; max-width: 100%; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 3px; }
-.view-switcher .btn.small { border: none; background: transparent; }
-.view-switcher .btn.small.active { background: var(--accent); color: #fff; }
-.search-input {
-  width: 100%;
-  background: var(--panel);
-  border: 1px solid var(--border);
-  color: var(--text);
-  padding: 10px 12px;
-  border-radius: 8px;
-  font-size: 14px;
-  margin-bottom: 14px;
-}
 
 .btn {
   background: var(--panel);
@@ -113,22 +81,7 @@ section h2 {
   gap: 12px;
 }
 
-.event-card {
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-left: 4px solid var(--border);
-  border-radius: 10px;
-  padding: 14px;
-  width: 100%;
-  text-align: left;
-  font-family: inherit;
-  color: var(--text);
-  cursor: pointer;
-}
-.event-card.is-live { box-shadow: 0 0 0 1px var(--live) inset; }
-
 .event-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-.event-top-left { display: flex; align-items: center; gap: 6px; }
 .event-top-right { display: flex; align-items: center; gap: 8px; }
 
 .follow-star {
@@ -146,15 +99,6 @@ section h2 {
 .follow-star:hover { color: #facc15; }
 .follow-star.is-followed { color: #facc15; }
 .sport-tag { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
-.region-chip {
-  font-size: 10px;
-  font-weight: 700;
-  color: var(--accent);
-  background: rgba(79, 141, 253, 0.15);
-  border: 1px solid rgba(79, 141, 253, 0.3);
-  padding: 2px 6px;
-  border-radius: 4px;
-}
 .live-badge {
   display: inline-block;
   background: var(--live);
@@ -166,22 +110,6 @@ section h2 {
   border-radius: 999px;
 }
 .countdown { font-size: 12px; font-weight: 600; color: var(--accent); }
-.event-teams { display: flex; flex-direction: column; gap: 4px; margin-bottom: 6px; }
-.event-team-row { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 600; }
-.event-team-logo {
-  width: 26px;
-  height: 26px;
-  object-fit: contain;
-  flex-shrink: 0;
-  background: rgba(148, 163, 184, 0.18);
-  border-radius: 6px;
-  padding: 2px;
-  box-sizing: border-box;
-}
-.event-name { font-size: 15px; font-weight: 600; margin-bottom: 6px; }
-.event-series-score { font-size: 12px; font-weight: 700; color: var(--accent); margin-bottom: 6px; }
-.event-live-detail { font-size: 11px; color: var(--live); font-weight: 600; margin-bottom: 6px; }
-.event-meta { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px; font-size: 12px; color: var(--muted); }
 
 .empty { color: var(--muted); font-size: 14px; }
 
@@ -199,20 +127,8 @@ section h2 {
   font-size: 13px;
   margin-bottom: 6px;
 }
-.btn-x {
-  background: transparent;
-  border: none;
-  color: inherit;
-  font-size: 18px;
-  line-height: 1;
-  cursor: pointer;
-  padding: 0 4px;
-  flex-shrink: 0;
-}
 
 .drawer-backdrop { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.5); display: flex; justify-content: flex-end; z-index: 10; }
-.drawer { background: var(--panel); border-left: 1px solid var(--border); width: 340px; max-width: 90vw; height: 100%; padding: 20px; overflow-y: auto; }
-.drawer h2 { margin-top: 0; }
 
 .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; font-size: 13px; }
 .field input { background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 10px; border-radius: 6px; font-size: 14px; min-height: 40px; }
@@ -247,36 +163,9 @@ section h2 {
   margin-right: 6px;
 }
 
-.new-chip {
-  display: inline-block;
-  background: rgba(34, 197, 94, 0.18);
-  border: 1px solid rgba(34, 197, 94, 0.45);
-  color: #4ade80;
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  padding: 2px 6px;
-  border-radius: 4px;
-}
-
-.offline-tag { color: var(--live); font-weight: 600; }
-
 .source-chip-list { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 12px; }
 
 .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
-
-.textarea {
-  width: 100%;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  color: var(--text);
-  padding: 10px;
-  border-radius: 6px;
-  font-size: 13px;
-  font-family: inherit;
-  resize: vertical;
-  margin: 10px 0 12px;
-}
 
 .text-input {
   width: 100%;
@@ -292,12 +181,6 @@ section h2 {
 
 .form-row { display: flex; gap: 8px; align-items: center; }
 .form-row input[type="color"] { width: 40px; height: 40px; padding: 2px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg); flex-shrink: 0; }
-
-.custom-event-form { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
-
-.custom-event-list { list-style: none; margin: 0 0 12px; padding: 0; display: flex; flex-direction: column; gap: 6px; }
-.custom-event-list li { display: flex; align-items: center; gap: 8px; font-size: 13px; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px; }
-.custom-event-name { flex: 1; }
 
 .calendar-live-strip {
   display: flex;
@@ -528,10 +411,6 @@ section h2 {
 @media (max-width: 480px) {
   .app { padding: 16px 12px 48px; }
   .header h1 { font-size: 19px; }
-  /* seven view tabs don't fit one row on a phone: wrap to full-width rows
-     with evenly stretched buttons instead of widening the page */
-  .view-switcher { width: 100%; }
-  .view-switcher .btn.small { flex: 1 1 auto; }
   .grid { grid-template-columns: 1fr; }
   .btn, .chip { padding: 10px 14px; }
   .calendar-cell { min-height: 60px; padding: 4px; }
@@ -539,12 +418,6 @@ section h2 {
   .calendar-date { font-size: 10px; }
   .calendar-title { min-width: 0; font-size: 14px; }
 }
-
-/* Compact layout — denser cards, smaller text, tighter grid for scanning
-   more events at once instead of reading full detail on each card. */
-[data-density="compact"] .grid { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; }
-[data-density="compact"] .event-card { padding: 8px 10px; }
-[data-density="compact"] .event-top { margin-bottom: 4px; }
 
 .standings-table-wrap { margin-bottom: 24px; overflow-x: auto; }
 .standings-group-title { font-size: 14px; color: var(--muted); margin: 0 0 8px; text-transform: uppercase; letter-spacing: 0.06em; }
@@ -555,14 +428,6 @@ section h2 {
 .standings-rank-col { width: 32px; color: var(--muted); }
 .standings-team-cell { display: flex; align-items: center; gap: 8px; white-space: nowrap; }
 .standings-team-logo { width: 18px; height: 18px; object-fit: contain; }
-[data-density="compact"] .event-teams { gap: 2px; }
-[data-density="compact"] .event-team-row { font-size: 12px; }
-[data-density="compact"] .event-team-logo { width: 16px; height: 16px; }
-[data-density="compact"] .event-name { font-size: 13px; }
-[data-density="compact"] .event-series-score { font-size: 11px; margin-bottom: 2px; }
-[data-density="compact"] .event-live-detail { font-size: 10px; margin-bottom: 2px; }
-[data-density="compact"] .event-meta { font-size: 11px; }
-[data-density="compact"] .sport-tag { font-size: 10px; }
 
 /* event detail: mute this event's notifications */
 .mute-bell {

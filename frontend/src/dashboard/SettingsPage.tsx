@@ -13,7 +13,7 @@ import { ApiKeySection, CalendarFeedSection, NotificationsSection, RefreshSectio
 
 type Cat = "sources" | "teams" | "notifications" | "calendar" | "live" | "display" | "custom" | "keys";
 
-export default function BetaSettings({ allEvents, phone, onNewEvent, onEditEvent }: { allEvents: NormalizedEvent[]; phone: boolean; onNewEvent: () => void; onEditEvent: (c: CustomEvent) => void }) {
+export default function SettingsPage({ allEvents, phone, onNewEvent, onEditEvent }: { allEvents: NormalizedEvent[]; phone: boolean; onNewEvent: () => void; onEditEvent: (c: CustomEvent) => void }) {
   const { settings } = useSettings();
   const [cat, setCat] = useState<Cat | null>(phone ? null : "sources");
 

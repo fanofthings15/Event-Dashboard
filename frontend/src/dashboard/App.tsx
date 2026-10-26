@@ -15,19 +15,19 @@ import type { CustomEvent } from "../settingsTypes";
 import EventDetailModal from "../EventDetailModal";
 import StandingsView from "../StandingsView";
 import { dayKey, dayLabel, eventKey, EventRow, GameTile, HiddenReason, isMine, liveStatus, sideScores, subLine } from "./parts";
-import BetaSettings from "./BetaSettings";
-import "./beta.css";
+import SettingsPage from "./SettingsPage";
+import "./dashboard.css";
 
 const LiveScreen = lazy(() => import("../live/LiveScreen"));
 
-// The redesign's working copy, at /beta: Rail II on a desktop, the Home
-// layout on a phone. Same data, settings and detail/calendar/standings
-// screens as the main dashboard; / stays the old UI until it's swapped over.
+// The dashboard: Rail II on a desktop, the Home layout on a phone (the
+// 2026-10 redesign, which replaced the old tabbed UI).
 
 type View = "home" | "calendar" | "finished" | "standings" | "settings" | "live" | "more";
 
 const FINISHED_SHELF_LIFE_DAYS = 7;
 const UPCOMING_PAGE = 60;
+// Key kept from when this UI lived at /beta, so devices keep their toggles.
 const OFF_KEY = "beta-sources-off";
 
 function useIsPhone(): boolean {
@@ -105,18 +105,16 @@ function Svg({ children, size = 20 }: { children: ReactNode; size?: number }) {
   );
 }
 
-export default function BetaApp() {
+export default function App() {
   const { settings, loaded: settingsLoaded, save } = useSettings();
   const phone = useIsPhone();
 
-  // The redesign is dark only.
   useEffect(() => {
-    document.documentElement.setAttribute("data-theme", "dark");
     document.body.classList.add("b-body");
     return () => document.body.classList.remove("b-body");
   }, []);
 
-  // Same in-tab chime as the dashboard: only for an event going live.
+  // The in-tab chime: only for an event going live.
   const notifyEvent = useCallback(
     (e: NormalizedEvent, reason: NotifyReason) => {
       if (reason !== "live" || !settings.notifyOnLive) return;
@@ -319,7 +317,7 @@ export default function BetaApp() {
     </section>
   );
 
-  const settingsView = <BetaSettings allEvents={allEvents} phone={phone} onNewEvent={() => setSheet({})} onEditEvent={(c) => setSheet({ editing: c })} />;
+  const settingsView = <SettingsPage allEvents={allEvents} phone={phone} onNewEvent={() => setSheet({})} onEditEvent={(c) => setSheet({ editing: c })} />;
 
   const standingsView = (
     <section className="b-section b-legacy">
@@ -411,9 +409,6 @@ export default function BetaApp() {
                     <Svg>{Icon.finished}</Svg> {refreshing ? "Syncing…" : `Resync · last ${synced}`}
                     {isOffline && <span className="b-muted b-small"> · offline</span>}
                   </button>
-                  <a className="b-menu-row" href="/">
-                    <Svg>{Icon.home}</Svg> Back to the current dashboard
-                  </a>
                 </div>
                 <h2 className="b-h2">Sources on this device</h2>
                 {showAllButton}
@@ -517,9 +512,6 @@ export default function BetaApp() {
               <Svg size={18}>{Icon.settings}</Svg>
               Settings
             </button>
-            <a className="b-nav" href="/">
-              Current dashboard ↗
-            </a>
           </div>
         </nav>
   
