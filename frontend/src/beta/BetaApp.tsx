@@ -14,7 +14,7 @@ import EventSheet from "./EventSheet";
 import type { CustomEvent } from "../settingsTypes";
 import EventDetailModal from "../EventDetailModal";
 import StandingsView from "../StandingsView";
-import { dayKey, dayLabel, eventKey, EventRow, GameTile, isMine, liveStatus, sideScores, subLine } from "./parts";
+import { dayKey, dayLabel, eventKey, EventRow, GameTile, HiddenReason, isMine, liveStatus, sideScores, subLine } from "./parts";
 import BetaSettings from "./BetaSettings";
 import "./beta.css";
 
@@ -182,6 +182,17 @@ export default function BetaApp() {
     const shown = new Set(events.filter((e) => !off.has(e.sport)).map(eventKey));
     return allEvents.filter((e) => e.status !== "finished" && !shown.has(eventKey(e))).length;
   }, [events, allEvents, off]);
+  const visibleKeys = useMemo(() => new Set(events.filter((e) => !off.has(e.sport)).map(eventKey)), [events, off]);
+  const hiddenReason = useCallback(
+    (e: NormalizedEvent) => {
+      if (!showAll || visibleKeys.has(eventKey(e))) return undefined;
+      if (off.has(e.sport)) return "Source off";
+      if (settings.excludedLeagues.some((ex) => ex.trim() && e.league.toLowerCase().includes(ex.trim().toLowerCase()))) return "Hidden league";
+      if (e.region && settings.frcRegions.length > 0 && !settings.frcRegions.includes(e.region)) return "Hidden region";
+      return "Hidden";
+    },
+    [showAll, visibleKeys, off, settings.excludedLeagues, settings.frcRegions]
+  );
   const filtered = useMemo(() => (showAll ? allEvents : events.filter((e) => !off.has(e.sport))).filter((e) => matchesSearch(e, search)), [showAll, allEvents, events, off, search]);
   const live = useMemo(() => filtered.filter((e) => isLiveNow(e, now)).sort((a, b) => a.startTime.localeCompare(b.startTime)), [filtered, now]);
   const mineLive = live.filter(isMine);
@@ -354,260 +365,264 @@ export default function BetaApp() {
 
   if (phone) {
     return (
-      <div className="b-app b-phone">
-        <main className="b-phone-main">
-          {filtersOffBanner}
-          {view === "home" && (
-            <PhoneHome
-              now={now}
-              tz={tz}
-              synced={synced}
-              search={search}
-              setSearch={setSearch}
-              searchOpen={searchOpen}
-              setSearchOpen={setSearchOpen}
-              warnings={warningsBlock}
-              showAllButton={showAllButton}
-              loading={loading || !settingsLoaded}
-              mineLive={mineLive}
-              mineNext={mineNext}
-              onNewEvent={(date) => setSheet({ date })}
-              live={live}
-              upcoming={upcoming}
-              meta={meta}
-              open={open}
-            />
-          )}
-          {view === "calendar" && calendarView}
-          {view === "finished" && finishedView}
-          {view === "standings" && standingsView}
-          {view === "settings" && settingsView}
-          {view === "more" && (
-            <section className="b-section">
-              <h1 className="b-h1">More</h1>
-              <div className="b-panel">
-                <button type="button" className="b-menu-row" onClick={() => setView("standings")}>
-                  <Svg>{Icon.standings}</Svg> Standings
+      <HiddenReason.Provider value={hiddenReason}>
+        <div className="b-app b-phone">
+          <main className="b-phone-main">
+            {filtersOffBanner}
+            {view === "home" && (
+              <PhoneHome
+                now={now}
+                tz={tz}
+                synced={synced}
+                search={search}
+                setSearch={setSearch}
+                searchOpen={searchOpen}
+                setSearchOpen={setSearchOpen}
+                warnings={warningsBlock}
+                showAllButton={showAllButton}
+                loading={loading || !settingsLoaded}
+                mineLive={mineLive}
+                mineNext={mineNext}
+                onNewEvent={(date) => setSheet({ date })}
+                live={live}
+                upcoming={upcoming}
+                meta={meta}
+                open={open}
+              />
+            )}
+            {view === "calendar" && calendarView}
+            {view === "finished" && finishedView}
+            {view === "standings" && standingsView}
+            {view === "settings" && settingsView}
+            {view === "more" && (
+              <section className="b-section">
+                <h1 className="b-h1">More</h1>
+                <div className="b-panel">
+                  <button type="button" className="b-menu-row" onClick={() => setView("standings")}>
+                    <Svg>{Icon.standings}</Svg> Standings
+                  </button>
+                  <button type="button" className="b-menu-row" onClick={() => setView("settings")}>
+                    <Svg>{Icon.settings}</Svg> Settings
+                  </button>
+                  <button type="button" className="b-menu-row" onClick={() => setSheet({})}>
+                    <Svg>{Icon.plus}</Svg> New event
+                  </button>
+                  <button type="button" className="b-menu-row" onClick={refetch} disabled={refreshing}>
+                    <Svg>{Icon.finished}</Svg> {refreshing ? "Syncing…" : `Resync · last ${synced}`}
+                    {isOffline && <span className="b-muted b-small"> · offline</span>}
+                  </button>
+                  <a className="b-menu-row" href="/">
+                    <Svg>{Icon.home}</Svg> Back to the current dashboard
+                  </a>
+                </div>
+                <h2 className="b-h2">Sources on this device</h2>
+                {showAllButton}
+                <div className="b-panel b-sources-phone">{sourceToggles}</div>
+              </section>
+            )}
+          </main>
+          <nav className="b-tabbar" aria-label="Main">
+            {(
+              [
+                ["home", "Home", Icon.home],
+                ["calendar", "Calendar", Icon.calendar],
+                ["live", "Live", Icon.live],
+                ["finished", "Finished", Icon.finished],
+                ["more", "More", Icon.more],
+              ] as [View, string, ReactNode][]
+            ).map(([v, label, icon]) => {
+              const active = view === v || (v === "more" && (view === "standings" || view === "settings"));
+              return (
+                <button
+                  key={v}
+                  type="button"
+                  className={`b-tab${active ? " active" : ""}`}
+                  aria-current={active ? "page" : undefined}
+                  onClick={() => {
+                    if (v === "live") setLivePin(null);
+                    setView(v);
+                    window.scrollTo(0, 0);
+                  }}
+                >
+                  <Svg size={22}>{icon}</Svg>
+                  {label}
+                  {v === "live" && live.length > 0 && <span className="b-tab-dot" />}
                 </button>
-                <button type="button" className="b-menu-row" onClick={() => setView("settings")}>
-                  <Svg>{Icon.settings}</Svg> Settings
-                </button>
-                <button type="button" className="b-menu-row" onClick={() => setSheet({})}>
-                  <Svg>{Icon.plus}</Svg> New event
-                </button>
-                <button type="button" className="b-menu-row" onClick={refetch} disabled={refreshing}>
-                  <Svg>{Icon.finished}</Svg> {refreshing ? "Syncing…" : `Resync · last ${synced}`}
-                  {isOffline && <span className="b-muted b-small"> · offline</span>}
-                </button>
-                <a className="b-menu-row" href="/">
-                  <Svg>{Icon.home}</Svg> Back to the current dashboard
-                </a>
-              </div>
-              <h2 className="b-h2">Sources on this device</h2>
-              {showAllButton}
-              <div className="b-panel b-sources-phone">{sourceToggles}</div>
-            </section>
-          )}
-        </main>
-        <nav className="b-tabbar" aria-label="Main">
-          {(
-            [
-              ["home", "Home", Icon.home],
-              ["calendar", "Calendar", Icon.calendar],
-              ["live", "Live", Icon.live],
-              ["finished", "Finished", Icon.finished],
-              ["more", "More", Icon.more],
-            ] as [View, string, ReactNode][]
-          ).map(([v, label, icon]) => {
-            const active = view === v || (v === "more" && (view === "standings" || view === "settings"));
-            return (
-              <button
-                key={v}
-                type="button"
-                className={`b-tab${active ? " active" : ""}`}
-                aria-current={active ? "page" : undefined}
-                onClick={() => {
-                  if (v === "live") setLivePin(null);
-                  setView(v);
-                  window.scrollTo(0, 0);
-                }}
-              >
-                <Svg size={22}>{icon}</Svg>
-                {label}
-                {v === "live" && live.length > 0 && <span className="b-tab-dot" />}
-              </button>
-            );
-          })}
-        </nav>
-        {modals}
-      </div>
+              );
+            })}
+          </nav>
+          {modals}
+        </div>
+      </HiddenReason.Provider>
     );
   }
 
   // ---------- desktop: Rail II ----------
 
   return (
-    <div className="b-app b-desktop">
-      <nav className="b-rail" aria-label="Main">
-        <div className="b-brand">
-          <span className="b-brand-mark" />
-          Events
-        </div>
-        <div className="b-rail-nav">
-          {(
-            [
-              ["home", "Home", Icon.home],
-              ["calendar", "Calendar", Icon.calendar],
-              ["live", "Live display", Icon.live],
-              ["finished", "Finished", Icon.finished],
-              ["standings", "Standings", Icon.standings],
-            ] as [View, string, ReactNode][]
-          ).map(([v, label, icon]) => (
-            <button
-              key={v}
-              type="button"
-              className={`b-nav${view === v ? " active" : ""}`}
-              aria-current={view === v ? "page" : undefined}
-              onClick={() => {
-                if (v === "live") setLivePin(null);
-                setView(v);
-              }}
-            >
-              <Svg size={18}>{icon}</Svg>
-              {label}
-              {v === "live" && live.length > 0 && <span className="b-badge">{live.length}</span>}
+    <HiddenReason.Provider value={hiddenReason}>
+      <div className="b-app b-desktop">
+        <nav className="b-rail" aria-label="Main">
+          <div className="b-brand">
+            <span className="b-brand-mark" />
+            Events
+          </div>
+          <div className="b-rail-nav">
+            {(
+              [
+                ["home", "Home", Icon.home],
+                ["calendar", "Calendar", Icon.calendar],
+                ["live", "Live display", Icon.live],
+                ["finished", "Finished", Icon.finished],
+                ["standings", "Standings", Icon.standings],
+              ] as [View, string, ReactNode][]
+            ).map(([v, label, icon]) => (
+              <button
+                key={v}
+                type="button"
+                className={`b-nav${view === v ? " active" : ""}`}
+                aria-current={view === v ? "page" : undefined}
+                onClick={() => {
+                  if (v === "live") setLivePin(null);
+                  setView(v);
+                }}
+              >
+                <Svg size={18}>{icon}</Svg>
+                {label}
+                {v === "live" && live.length > 0 && <span className="b-badge">{live.length}</span>}
+              </button>
+            ))}
+            <button type="button" className="b-nav b-nav-new" onClick={() => setSheet({})}>
+              <Svg size={18}>{Icon.plus}</Svg>
+              New event
             </button>
-          ))}
-          <button type="button" className="b-nav b-nav-new" onClick={() => setSheet({})}>
-            <Svg size={18}>{Icon.plus}</Svg>
-            New event
-          </button>
-        </div>
-        <div className="b-rail-sources">
-          <div className="b-rail-label">
-            Sources
-            <span>
-              <button type="button" onClick={() => setOffSaved(new Set())}>
-                All
-              </button>
-              <button type="button" onClick={() => setOffSaved(new Set(sources.map((s) => s.sport)))}>
-                None
-              </button>
+          </div>
+          <div className="b-rail-sources">
+            <div className="b-rail-label">
+              Sources
+              <span>
+                <button type="button" onClick={() => setOffSaved(new Set())}>
+                  All
+                </button>
+                <button type="button" onClick={() => setOffSaved(new Set(sources.map((s) => s.sport)))}>
+                  None
+                </button>
+              </span>
+            </div>
+            {showAllButton}
+            {sourceToggles}
+          </div>
+          <div className="b-rail-foot">
+            <button type="button" className={`b-nav${view === "settings" ? " active" : ""}`} aria-current={view === "settings" ? "page" : undefined} onClick={() => setView("settings")}>
+              <Svg size={18}>{Icon.settings}</Svg>
+              Settings
+            </button>
+            <a className="b-nav" href="/">
+              Current dashboard ↗
+            </a>
+          </div>
+        </nav>
+  
+        <main className="b-main">
+          <div className="b-topbar">
+            <label className="b-search">
+              <Svg size={18}>{Icon.search}</Svg>
+              <input type="search" aria-label="Search" placeholder="Search teams, leagues, events" value={search} onChange={(e) => setSearch(e.target.value)} />
+            </label>
+            <span className="b-muted b-small">
+              {isOffline ? "Offline · cached " : "Synced "}
+              {synced}
             </span>
-          </div>
-          {showAllButton}
-          {sourceToggles}
-        </div>
-        <div className="b-rail-foot">
-          <button type="button" className={`b-nav${view === "settings" ? " active" : ""}`} aria-current={view === "settings" ? "page" : undefined} onClick={() => setView("settings")}>
-            <Svg size={18}>{Icon.settings}</Svg>
-            Settings
-          </button>
-          <a className="b-nav" href="/">
-            Current dashboard ↗
-          </a>
-        </div>
-      </nav>
-
-      <main className="b-main">
-        <div className="b-topbar">
-          <label className="b-search">
-            <Svg size={18}>{Icon.search}</Svg>
-            <input type="search" aria-label="Search" placeholder="Search teams, leagues, events" value={search} onChange={(e) => setSearch(e.target.value)} />
-          </label>
-          <span className="b-muted b-small">
-            {isOffline ? "Offline · cached " : "Synced "}
-            {synced}
-          </span>
-          <div className="b-menu-wrap">
-            <button type="button" className="b-iconbtn" aria-label="More: resync, add a custom event" aria-expanded={menuOpen} onClick={() => setMenuOpen((o) => !o)}>
-              <Svg size={18}>{Icon.more}</Svg>
-            </button>
-            {menuOpen && (
-              <div className="b-menu" role="menu">
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={() => {
-                    setMenuOpen(false);
-                    refetch();
-                  }}
-                  disabled={refreshing}
-                >
-                  {refreshing ? "Syncing…" : "Resync now"}
-                </button>
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={() => {
-                    setMenuOpen(false);
-                    setSheet({});
-                  }}
-                >
-                  Add a custom event
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {filtersOffBanner}
-        {warningsBlock}
-
-        {view === "home" && (
-          <>
-            <section className="b-section">
-              <div className="b-section-head">
-                <h2 className="b-h1">Live now</h2>
-                <span className="b-muted">{live.length === 1 ? "1 game" : `${live.length} games`}</span>
-                {live.length > 0 && (
-                  <button type="button" className="b-link" onClick={() => setView("live")}>
-                    Open live display →
+            <div className="b-menu-wrap">
+              <button type="button" className="b-iconbtn" aria-label="More: resync, add a custom event" aria-expanded={menuOpen} onClick={() => setMenuOpen((o) => !o)}>
+                <Svg size={18}>{Icon.more}</Svg>
+              </button>
+              {menuOpen && (
+                <div className="b-menu" role="menu">
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      refetch();
+                    }}
+                    disabled={refreshing}
+                  >
+                    {refreshing ? "Syncing…" : "Resync now"}
                   </button>
-                )}
-              </div>
-              {loading || !settingsLoaded ? (
-                <p className="b-empty">Loading…</p>
-              ) : live.length === 0 ? (
-                <p className="b-empty">Nothing live right now.</p>
-              ) : (
-                <>
-                  {mineLive.length > 0 && (
-                    <div className="b-tilegrid">
-                      {mineLive.map((e) => (
-                        <GameTile key={eventKey(e)} e={e} color={meta(e).color} label={meta(e).label} live now={now} tz={tz} onOpen={() => open(e)} />
-                      ))}
-                    </div>
-                  )}
-                  {liveGroups.map(([sport, list]) => {
-                    const m = meta(list[0]);
-                    return <LiveGroup key={sport} label={m.label} color={m.color} list={list} meta={meta} open={open} now={now} tz={tz} showHead={liveGroups.length > 1 || mineLive.length > 0} />;
-                  })}
-                </>
-              )}
-            </section>
-
-            {mineNext.length > 0 && (
-              <section className="b-section">
-                <h2 className="b-h1">Your teams next</h2>
-                <div className="b-tilegrid">
-                  {mineNext.slice(0, 4).map((e) => (
-                    <GameTile key={eventKey(e)} e={e} color={meta(e).color} label={meta(e).label} live={false} now={now} tz={tz} onOpen={() => open(e)} />
-                  ))}
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      setSheet({});
+                    }}
+                  >
+                    Add a custom event
+                  </button>
                 </div>
+              )}
+            </div>
+          </div>
+  
+          {filtersOffBanner}
+          {warningsBlock}
+  
+          {view === "home" && (
+            <>
+              <section className="b-section">
+                <div className="b-section-head">
+                  <h2 className="b-h1">Live now</h2>
+                  <span className="b-muted">{live.length === 1 ? "1 game" : `${live.length} games`}</span>
+                  {live.length > 0 && (
+                    <button type="button" className="b-link" onClick={() => setView("live")}>
+                      Open live display →
+                    </button>
+                  )}
+                </div>
+                {loading || !settingsLoaded ? (
+                  <p className="b-empty">Loading…</p>
+                ) : live.length === 0 ? (
+                  <p className="b-empty">Nothing live right now.</p>
+                ) : (
+                  <>
+                    {mineLive.length > 0 && (
+                      <div className="b-tilegrid">
+                        {mineLive.map((e) => (
+                          <GameTile key={eventKey(e)} e={e} color={meta(e).color} label={meta(e).label} live now={now} tz={tz} onOpen={() => open(e)} />
+                        ))}
+                      </div>
+                    )}
+                    {liveGroups.map(([sport, list]) => {
+                      const m = meta(list[0]);
+                      return <LiveGroup key={sport} label={m.label} color={m.color} list={list} meta={meta} open={open} now={now} tz={tz} showHead={liveGroups.length > 1 || mineLive.length > 0} />;
+                    })}
+                  </>
+                )}
               </section>
-            )}
-
-            <UpcomingByDay upcoming={upcoming} now={now} tz={tz} meta={meta} open={open} />
-          </>
-        )}
-        {view === "calendar" && calendarView}
-        {view === "finished" && finishedView}
-        {view === "standings" && standingsView}
-        {view === "settings" && settingsView}
-      </main>
-      {modals}
-    </div>
+  
+              {mineNext.length > 0 && (
+                <section className="b-section">
+                  <h2 className="b-h1">Your teams next</h2>
+                  <div className="b-tilegrid">
+                    {mineNext.slice(0, 4).map((e) => (
+                      <GameTile key={eventKey(e)} e={e} color={meta(e).color} label={meta(e).label} live={false} now={now} tz={tz} onOpen={() => open(e)} />
+                    ))}
+                  </div>
+                </section>
+              )}
+  
+              <UpcomingByDay upcoming={upcoming} now={now} tz={tz} meta={meta} open={open} />
+            </>
+          )}
+          {view === "calendar" && calendarView}
+          {view === "finished" && finishedView}
+          {view === "standings" && standingsView}
+          {view === "settings" && settingsView}
+        </main>
+        {modals}
+      </div>
+    </HiddenReason.Provider>
   );
 }
 

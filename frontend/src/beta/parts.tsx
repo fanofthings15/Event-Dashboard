@@ -1,10 +1,14 @@
-import { useState } from "react";
+import { createContext, useContext, useState } from "react";
 import type { NormalizedEvent, EventTeam } from "../types";
 import StarIcon from "../StarIcon";
 
 // Building blocks shared by the desktop and phone layouts of the redesign.
 
 export const eventKey = (e: NormalizedEvent) => `${e.sport}-${e.id}`;
+
+// Why a game only shows because Show all is on ("Hidden league", "Source
+// off"), or undefined for an ordinary game. The beta provides it.
+export const HiddenReason = createContext<(e: NormalizedEvent) => string | undefined>(() => undefined);
 export const isMine = (e: NormalizedEvent) => Boolean(e.followed || e.manuallyFollowed);
 
 // Scores per side from seriesScore: ESPN sends "away-home" ("132-123"),
@@ -85,6 +89,7 @@ export function dayLabel(key: string, now: Date, timezone: string): string {
 // everything upcoming, so they read alike: logos and scores in the middle,
 // live status or a countdown on top, the detail or start time underneath.
 export function GameTile({ e, color, label, live, now, tz, onOpen }: { e: NormalizedEvent; color: string; label: string; live: boolean; now: Date; tz: string; onOpen: () => void }) {
+  const hidden = useContext(HiddenReason)(e);
   const scores = live || e.status === "finished" ? sideScores(e) : null;
   const names = shortNames(e);
   const note = seriesNote(e);
@@ -107,7 +112,7 @@ export function GameTile({ e, color, label, live, now, tz, onOpen }: { e: Normal
           {e.league && e.league !== label && (
             <>
               {" · "}
-              {e.league}
+              {hidden === "Hidden league" ? <s>{e.league}</s> : e.league}
             </>
           )}
         </span>
@@ -131,6 +136,7 @@ export function GameTile({ e, color, label, live, now, tz, onOpen }: { e: Normal
         <span className="b-tile-name">{e.name}</span>
       )}
       <span className="b-tile-foot">
+        {hidden && <HiddenTag text={hidden} />}
         <span className="b-ellipsis">{foot}</span>
       </span>
     </button>
@@ -166,6 +172,7 @@ export function EventRow({
   onOpen: () => void;
   logos?: boolean;
 }) {
+  const hidden = useContext(HiddenReason)(e);
   return (
     <button type="button" className="b-row" onClick={onOpen}>
       <span className={`b-row-left${leftLive ? " b-live-text" : ""}`}>{left}</span>
@@ -182,6 +189,7 @@ export function EventRow({
           {e.name}
         </span>
         <span className="b-ellipsis b-muted b-small">
+          {hidden && <HiddenTag text={hidden} />}
           <span className={`b-row-left-inline${leftLive ? " b-live-text" : ""}`}>
             {left}
             {sub ? " · " : ""}
@@ -194,3 +202,15 @@ export function EventRow({
   );
 }
 
+// The tag on a game that's only showing because Show all is on.
+export function HiddenTag({ text }: { text: string }) {
+  return (
+    <span className="b-hidden-tag">
+      <svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" />
+        <path d="M3 3l18 18" />
+      </svg>
+      {text}
+    </span>
+  );
+}

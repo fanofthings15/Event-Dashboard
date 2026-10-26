@@ -1548,3 +1548,22 @@ body.b-body {
     font-size: 18px;
   }
 }
+
+/* games only showing because Show all is on */
+.b-hidden-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-right: 6px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: rgba(250, 204, 21, 0.12);
+  border: 1px solid rgba(250, 204, 21, 0.35);
+  color: #fde68a;
+  font-size: 11px;
+  font-weight: 700;
+  vertical-align: 1px;
+}
+.b-tile-foot .b-hidden-tag {
+  flex: none;
+}
