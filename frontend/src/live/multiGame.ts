@@ -233,7 +233,11 @@ export function placeGames(
   prev: string[],
   prefs: MultiPrefs,
   layout: LiveLayout,
-  ranking?: Ranking
+  ranking?: Ranking,
+  // games that have only just gone live: for this one pass they get the same
+  // bonus as games already on screen, so a bigger new game can take a spot
+  // it ties or wins without anything else on screen being reshuffled
+  arrivals: Set<string> = new Set()
 ): { slots: string[]; strip: string[] } {
   const hidden = new Set(prefs.hidden);
   const visible = live.filter((e) => !hidden.has(eventKey(e)));
@@ -251,12 +255,20 @@ export function placeGames(
   }
 
   const benched = new Set(prefs.benched ?? []);
-  const rank = (k: string) => (scores.get(k) ?? 0) + (prev.includes(k) ? STAY_BONUS : 0) - (benched.has(k) ? 10_000 : 0);
+  const rank = (k: string) => (scores.get(k) ?? 0) + (prev.includes(k) || arrivals.has(k) ? STAY_BONUS : 0) - (benched.has(k) ? 10_000 : 0);
+  // Ties: two games already on screen keep their order (so nothing swaps on
+  // a close score); otherwise the game that started more recently goes
+  // first, so a new game that ties the one on screen takes over.
+  const startOf = new Map(live.map((e) => [eventKey(e), new Date(e.startTime).getTime()]));
+  const newer = (a: string, b: string) => {
+    if (prev.includes(a) && prev.includes(b)) return prev.indexOf(a) - prev.indexOf(b);
+    return (startOf.get(b) ?? 0) - (startOf.get(a) ?? 0);
+  };
   const free = slots.filter((s) => s === null).length;
   const chosen = visible
     .map(eventKey)
     .filter((k) => !slots.includes(k) && eligible.has(k))
-    .sort((a, b) => rank(b) - rank(a))
+    .sort((a, b) => rank(b) - rank(a) || newer(a, b))
     .slice(0, free);
 
   // RedZone: the big spot always goes to the most interesting unpinned game

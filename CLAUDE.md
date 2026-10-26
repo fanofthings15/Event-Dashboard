@@ -79,7 +79,7 @@ final) + the strongest live moment capped at +35 (red zone from the ESPN
 scoreboard's `situation`, a score in the last 3 minutes, a power play, a
 close finish, a deciding map) + followed teams + 10 for a stream that plays
 on the display − 20 for an esports match between maps (`mapLive` false,
-from PandaScore's per-map status) — with a bonus for games already shown so they don't churn.
+from PandaScore's per-map status) — with a +15 bonus for games already shown so they don't churn on a close score or red-zone drive. When a game goes live, it gets that same +15 for one pass (`arrivals` in `placeGames`/`selectLiveEvent`), and ties go to the newer game, so a bigger new game takes over; ties between games already on screen keep their order.
 Nothing is dropped for being small; unwanted sources are filtered in
 settings. "Live" means `isLiveNow` (start time passed), same as the
 dashboard. Layout "Auto" (default) picks Single / RedZone / Grid

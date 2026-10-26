@@ -219,6 +219,21 @@ export default function LiveScreen({ onBack, pin }: { onBack?: () => void; pin?:
     const now = new Date();
     return events.filter((e) => isLiveNow(e, now) && LIVE_VIEW_SPORTS.has(e.sport));
   }, [events]);
+  // A game that has just gone live gets, for one pass, the same bonus that
+  // keeps games already on screen in place — so a Worlds match starting
+  // takes the big spot from a smaller game it ties or beats, instead of
+  // waiting behind it, and nothing else reshuffles. The record of what was
+  // live is updated after render, so the next refresh ranks normally again.
+  const seenLive = useRef<Set<string> | null>(null);
+  const arrivals = useMemo(
+    () => new Set(seenLive.current === null ? [] : liveEvents.map(eventKey).filter((k) => !seenLive.current!.has(k))),
+    // seenLive is read as of this render on purpose
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [liveEvents]
+  );
+  useEffect(() => {
+    seenLive.current = new Set(liveEvents.map(eventKey));
+  }, [liveEvents]);
   const chosen = chosenKey ? liveEvents.find((e) => eventKey(e) === chosenKey) : undefined;
   useEffect(() => {
     if (chosenKey && !chosen && events.length > 0) setChosenKey(null);
@@ -227,8 +242,8 @@ export default function LiveScreen({ onBack, pin }: { onBack?: () => void; pin?:
   // A pinned event is looked up before league/region filters, so a
   // hand-picked game shows even from a league hidden on the dashboard.
   const selected = useMemo(
-    () => (pinned ? allEvents.find((e) => eventKey(e) === pinned) : undefined) ?? chosen ?? selectLiveEvent(events, currentKey, settings.eventRanking),
-    [events, allEvents, currentKey, pinned, chosen, settings.eventRanking]
+    () => (pinned ? allEvents.find((e) => eventKey(e) === pinned) : undefined) ?? chosen ?? selectLiveEvent(events, currentKey, settings.eventRanking, arrivals),
+    [events, allEvents, currentKey, pinned, chosen, settings.eventRanking, arrivals]
   );
   useEffect(() => {
     setCurrentKey(selected ? eventKey(selected) : null);
@@ -302,10 +317,10 @@ export default function LiveScreen({ onBack, pin }: { onBack?: () => void; pin?:
 
   const prevSlots = useRef<string[]>([]);
   const placement = useMemo(() => {
-    const r = placeGames(liveEvents, scores, prevSlots.current, prefs, layout, settings.eventRanking);
+    const r = placeGames(liveEvents, scores, prevSlots.current, prefs, layout, settings.eventRanking, arrivals);
     prevSlots.current = r.slots;
     return r;
-  }, [liveEvents, scores, prefs, layout, settings.eventRanking]);
+  }, [liveEvents, scores, prefs, layout, settings.eventRanking, arrivals]);
   const slotsRef = useRef(placement.slots);
   slotsRef.current = placement.slots;
   const byKey = useMemo(() => new Map(liveEvents.map((e) => [eventKey(e), e])), [liveEvents]);
