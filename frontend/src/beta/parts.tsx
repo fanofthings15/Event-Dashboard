@@ -80,57 +80,56 @@ export function dayLabel(key: string, now: Date, timezone: string): string {
   return text;
 }
 
-// Big card for one of the user's own games that's live.
-export function LiveCard({ e, color, label, onOpen }: { e: NormalizedEvent; color: string; label: string; onOpen: () => void }) {
-  const scores = sideScores(e);
+// One game as a tile — the same for live games, your teams' next games and
+// everything upcoming, so they read alike: logos and scores in the middle,
+// live status or a countdown on top, the detail or start time underneath.
+export function GameTile({ e, color, label, live, now, tz, onOpen }: { e: NormalizedEvent; color: string; label: string; live: boolean; now: Date; tz: string; onOpen: () => void }) {
+  const scores = live || e.status === "finished" ? sideScores(e) : null;
   const names = shortNames(e);
+  const note = seriesNote(e);
+  const clock = new Date(e.startTime).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", ...(tz ? { timeZone: tz } : {}) });
+  const foot = live ? e.situation?.downDistance || (e.liveDetail ? note : undefined) : `${dayLabel(dayKey(e.startTime, tz), now, tz).replace(/ · .*/, "")} · ${clock}${note ? ` · ${note.replace(/^Best of (\d+)$/, "Bo$1")}` : ""}`;
+  const untilMs = new Date(e.startTime).getTime() - now.getTime();
+  const until = untilMs > 0 ? formatUntil(untilMs) : "";
   return (
-    <button type="button" className="b-livecard" style={{ ["--c" as string]: color }} onClick={onOpen}>
-      <span className="b-livecard-top">
-        <span className="b-star">★</span>
-        <span className="b-ellipsis">{label} · {e.league}</span>
-        <span className="b-live-text">● {liveStatus(e)}{!e.liveDetail && seriesNote(e) ? ` · ${seriesNote(e)}` : ""}</span>
+    <button type="button" className={`b-tile${isMine(e) ? " mine" : ""}`} style={{ ["--c" as string]: color }} onClick={onOpen}>
+      <span className="b-tile-top">
+        <span className="b-swatch" style={{ background: color, borderColor: color }} />
+        <span className="b-ellipsis">{label === e.league || !e.league ? label : `${label} · ${e.league}`}</span>
+        {live ? (
+          <span className="b-live-text b-tile-status">● {liveStatus(e)}{!e.liveDetail && note ? ` · ${note.replace(/^Best of (\d+)$/, "Bo$1")}` : ""}</span>
+        ) : (
+          <span className="b-tile-status b-accent">{until}</span>
+        )}
       </span>
       {names ? (
-        [0, 1].map((i) => (
-          <span key={i} className="b-livecard-team">
-            <TeamLogo team={e.teams?.[i]} size={30} fallbackColor={color} />
-            <span className="b-ellipsis">{names[i]}</span>
-            <span className="b-score">{scores?.[i] ?? ""}</span>
-          </span>
-        ))
-      ) : (
-        <span className="b-livecard-team">
-          <span className="b-ellipsis">{e.name}</span>
+        <span className="b-tile-teams">
+          {[0, 1].map((i) => (
+            <span key={i} className="b-tile-team">
+              <TeamLogo team={e.teams?.[i]} size={40} fallbackColor={color} />
+              <span className="b-ellipsis">{names[i]}</span>
+              {scores && <span className="b-score">{scores[i]}</span>}
+            </span>
+          ))}
         </span>
+      ) : (
+        <span className="b-tile-name">{e.name}</span>
       )}
-      {e.situation?.downDistance && <span className="b-muted b-small">{e.situation.downDistance}</span>}
+      <span className="b-tile-foot">
+        {isMine(e) && <span className="b-star">★</span>}
+        <span className="b-ellipsis">{foot}</span>
+      </span>
     </button>
   );
 }
 
-// Compact score tile for the rest of the live games.
-export function MiniTile({ e, color, onOpen }: { e: NormalizedEvent; color: string; onOpen: () => void }) {
-  const scores = sideScores(e);
-  const names = shortNames(e);
-  return (
-    <button type="button" className="b-mini" onClick={onOpen}>
-      {names ? (
-        [0, 1].map((i) => (
-          <span key={i} className="b-mini-team">
-            <TeamLogo team={e.teams?.[i]} size={20} fallbackColor={color} />
-            <span className="b-ellipsis">{names[i]}</span>
-            <span className="b-score-sm">{scores?.[i] ?? ""}</span>
-          </span>
-        ))
-      ) : (
-        <span className="b-mini-team">
-          <span className="b-ellipsis">{e.name}</span>
-        </span>
-      )}
-      <span className="b-small"><span className="b-live-text">{liveStatus(e)}</span>{seriesNote(e) && <span className="b-muted"> · {seriesNote(e)}</span>}</span>
-    </button>
-  );
+function formatUntil(ms: number): string {
+  const m = Math.floor(ms / 60_000);
+  const d = Math.floor(m / 1440);
+  const h = Math.floor((m % 1440) / 60);
+  if (d > 0) return `${d}d ${h}h`;
+  if (h > 0) return `${h}h ${m % 60}m`;
+  return `${m}m`;
 }
 
 // One line in a list: time or status on the left, colour bar, name, score.
@@ -159,8 +158,8 @@ export function EventRow({
       <span className="b-bar" style={{ background: color }} />
       {logos && e.teams?.length === 2 && (
         <span className="b-row-logos">
-          <TeamLogo team={e.teams[0]} size={20} fallbackColor={color} />
-          <TeamLogo team={e.teams[1]} size={20} fallbackColor={color} />
+          <TeamLogo team={e.teams[0]} size={26} fallbackColor={color} />
+          <TeamLogo team={e.teams[1]} size={26} fallbackColor={color} />
         </span>
       )}
       <span className="b-row-main">
@@ -168,7 +167,13 @@ export function EventRow({
           {isMine(e) && <span className="b-star">★ </span>}
           {e.name}
         </span>
-        {sub && <span className="b-ellipsis b-muted b-small">{sub}</span>}
+        <span className="b-ellipsis b-muted b-small">
+          <span className={`b-row-left-inline${leftLive ? " b-live-text" : ""}`}>
+            {left}
+            {sub ? " · " : ""}
+          </span>
+          {sub}
+        </span>
       </span>
       {right && <span className="b-row-right">{right}</span>}
     </button>

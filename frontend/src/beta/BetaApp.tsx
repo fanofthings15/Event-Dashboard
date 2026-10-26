@@ -9,12 +9,12 @@ import { formatEventClock } from "../dateFormat";
 import { playNotificationPing } from "../notifySound";
 import { isQuietNow, loadQuiet } from "../quietHours";
 import { CORE_SPORT_META, type NormalizedEvent } from "../types";
-import SettingsDrawer from "../SettingsDrawer";
 import CalendarView from "../CalendarView";
 import CustomEventsPanel from "../CustomEventsPanel";
 import EventDetailModal from "../EventDetailModal";
 import StandingsView from "../StandingsView";
-import { dayKey, dayLabel, eventKey, EventRow, isMine, LiveCard, liveStatus, MiniTile, sideScores, subLine, TeamLogo } from "./parts";
+import { dayKey, dayLabel, eventKey, EventRow, GameTile, isMine, liveStatus, sideScores, subLine } from "./parts";
+import BetaSettings from "./BetaSettings";
 import "./beta.css";
 
 const LiveScreen = lazy(() => import("../live/LiveScreen"));
@@ -23,7 +23,7 @@ const LiveScreen = lazy(() => import("../live/LiveScreen"));
 // layout on a phone. Same data, settings and detail/calendar/standings
 // screens as the main dashboard; / stays the old UI until it's swapped over.
 
-type View = "home" | "calendar" | "finished" | "standings" | "live" | "more";
+type View = "home" | "calendar" | "finished" | "standings" | "settings" | "live" | "more";
 
 const FINISHED_SHELF_LIFE_DAYS = 7;
 const UPCOMING_PAGE = 60;
@@ -142,7 +142,6 @@ export default function BetaApp() {
   const [view, setView] = useState<View>("home");
   const [selected, setSelected] = useState<NormalizedEvent | null>(null);
   const [livePin, setLivePin] = useState<string | null>(null);
-  const [settingsOpen, setSettingsOpen] = useState(false);
   const [customOpen, setCustomOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -269,6 +268,8 @@ export default function BetaApp() {
     </section>
   );
 
+  const settingsView = <BetaSettings allEvents={allEvents} phone={phone} onOpenCustom={() => setCustomOpen(true)} />;
+
   const standingsView = (
     <section className="b-section b-legacy">
       <h1 className="b-h1">Standings</h1>
@@ -304,7 +305,6 @@ export default function BetaApp() {
 
   const modals = (
     <>
-      {settingsOpen && <SettingsDrawer onClose={() => setSettingsOpen(false)} allEvents={allEvents} />}
       {customOpen && <CustomEventsPanel onClose={() => setCustomOpen(false)} />}
       {selected && <EventDetailModal event={selected} now={now} catalog={settings.esportsCatalog} onClose={() => setSelected(null)} onTeamClick={goToTeam} onWatchLive={watchLive} />}
     </>
@@ -338,6 +338,7 @@ export default function BetaApp() {
           {view === "calendar" && calendarView}
           {view === "finished" && finishedView}
           {view === "standings" && standingsView}
+          {view === "settings" && settingsView}
           {view === "more" && (
             <section className="b-section">
               <h1 className="b-h1">More</h1>
@@ -345,7 +346,7 @@ export default function BetaApp() {
                 <button type="button" className="b-menu-row" onClick={() => setView("standings")}>
                   <Svg>{Icon.standings}</Svg> Standings
                 </button>
-                <button type="button" className="b-menu-row" onClick={() => setSettingsOpen(true)}>
+                <button type="button" className="b-menu-row" onClick={() => setView("settings")}>
                   <Svg>{Icon.settings}</Svg> Settings
                 </button>
                 <button type="button" className="b-menu-row" onClick={() => setCustomOpen(true)}>
@@ -374,7 +375,7 @@ export default function BetaApp() {
               ["more", "More", Icon.more],
             ] as [View, string, ReactNode][]
           ).map(([v, label, icon]) => {
-            const active = view === v || (v === "more" && view === "standings");
+            const active = view === v || (v === "more" && (view === "standings" || view === "settings"));
             return (
               <button
                 key={v}
@@ -449,7 +450,7 @@ export default function BetaApp() {
           {sourceToggles}
         </div>
         <div className="b-rail-foot">
-          <button type="button" className="b-nav" onClick={() => setSettingsOpen(true)}>
+          <button type="button" className={`b-nav${view === "settings" ? " active" : ""}`} aria-current={view === "settings" ? "page" : undefined} onClick={() => setView("settings")}>
             <Svg size={18}>{Icon.settings}</Svg>
             Settings
           </button>
@@ -522,17 +523,15 @@ export default function BetaApp() {
               ) : (
                 <>
                   {mineLive.length > 0 && (
-                    <div className="b-livegrid">
+                    <div className="b-tilegrid">
                       {mineLive.map((e) => (
-                        <LiveCard key={eventKey(e)} e={e} color={meta(e).color} label={meta(e).label} onOpen={() => open(e)} />
+                        <GameTile key={eventKey(e)} e={e} color={meta(e).color} label={meta(e).label} live now={now} tz={tz} onOpen={() => open(e)} />
                       ))}
                     </div>
                   )}
                   {liveGroups.map(([sport, list]) => {
                     const m = meta(list[0]);
-                    return (
-                      <LiveGroup key={sport} label={m.label} color={m.color} list={list} meta={meta} open={open} />
-                    );
+                    return <LiveGroup key={sport} label={m.label} color={m.color} list={list} meta={meta} open={open} now={now} tz={tz} showHead={liveGroups.length > 1 || mineLive.length > 0} />;
                   })}
                 </>
               )}
@@ -541,21 +540,9 @@ export default function BetaApp() {
             {mineNext.length > 0 && (
               <section className="b-section">
                 <h2 className="b-h1">Your teams next</h2>
-                <div className="b-nextrow">
-                  {mineNext.map((e) => (
-                    <button key={eventKey(e)} type="button" className="b-nextcard" onClick={() => open(e)}>
-                      <span className="b-nextcard-top">
-                        <span className="b-swatch" style={{ background: meta(e).color, borderColor: meta(e).color }} />
-                        <span className="b-ellipsis">{meta(e).label}</span>
-                      </span>
-                      <span className="b-nextcard-logos">
-                        <TeamLogo team={e.teams?.[0]} size={26} fallbackColor={meta(e).color} />
-                        <TeamLogo team={e.teams?.[1]} size={26} fallbackColor={meta(e).color} />
-                      </span>
-                      <span className="b-nextcard-name">{e.name}</span>
-                      <span className="b-muted b-small">{dayLabel(dayKey(e.startTime, tz), now, tz)} · {formatEventClock(e.startTime, tz)}</span>
-                      <span className="b-countdown">{formatCountdown(e.startTime, now).replace(/^in /, "")}</span>
-                    </button>
+                <div className="b-tilegrid">
+                  {mineNext.slice(0, 4).map((e) => (
+                    <GameTile key={eventKey(e)} e={e} color={meta(e).color} label={meta(e).label} live={false} now={now} tz={tz} onOpen={() => open(e)} />
                   ))}
                 </div>
               </section>
@@ -567,6 +554,7 @@ export default function BetaApp() {
         {view === "calendar" && calendarView}
         {view === "finished" && finishedView}
         {view === "standings" && standingsView}
+        {view === "settings" && settingsView}
       </main>
       {modals}
     </div>
@@ -575,23 +563,25 @@ export default function BetaApp() {
 
 type MetaFn = (e: NormalizedEvent) => { label: string; color: string };
 
-function LiveGroup({ label, color, list, meta, open }: { label: string; color: string; list: NormalizedEvent[]; meta: MetaFn; open: (e: NormalizedEvent) => void }) {
+function LiveGroup({ label, color, list, meta, open, now, tz, showHead }: { label: string; color: string; list: NormalizedEvent[]; meta: MetaFn; open: (e: NormalizedEvent) => void; now: Date; tz: string; showHead: boolean }) {
   const [all, setAll] = useState(false);
   const shown = all ? list : list.slice(0, 8);
   return (
-    <div className="b-panel b-livegroup">
-      <div className="b-panel-head">
-        <span className="b-swatch" style={{ background: color, borderColor: color }} />
-        <span className="b-strong">{label}</span>
-        <span className="b-muted b-small">{list.length} live</span>
-      </div>
-      <div className="b-minigrid">
+    <div className="b-group">
+      {showHead && (
+        <div className="b-group-head">
+          <span className="b-swatch" style={{ background: color, borderColor: color }} />
+          <span className="b-strong">{label}</span>
+          <span className="b-muted b-small">{list.length} live</span>
+        </div>
+      )}
+      <div className="b-tilegrid">
         {shown.map((e) => (
-          <MiniTile key={eventKey(e)} e={e} color={meta(e).color} onOpen={() => open(e)} />
+          <GameTile key={eventKey(e)} e={e} color={meta(e).color} label={meta(e).label} live now={now} tz={tz} onOpen={() => open(e)} />
         ))}
       </div>
       {list.length > 8 && (
-        <button type="button" className="b-more" onClick={() => setAll((a) => !a)}>
+        <button type="button" className="b-more b-panel" onClick={() => setAll((a) => !a)}>
           {all ? "Show fewer" : `Show all ${list.length}`}
         </button>
       )}
@@ -614,11 +604,13 @@ function UpcomingByDay({ upcoming, now, tz, meta, open }: { upcoming: Normalized
       <h2 className="b-h1">Upcoming</h2>
       {upcoming.length === 0 && <p className="b-empty">Nothing upcoming in the current data.</p>}
       {days.map(([k, list]) => (
-        <div key={k} className="b-panel">
-          <div className="b-panel-head b-strong">{dayLabel(k, now, tz)}</div>
-          {list.map((e) => (
-            <EventRow key={eventKey(e)} e={e} color={meta(e).color} left={formatEventClock(e.startTime, tz)} sub={subLine(e, meta(e).label)} onOpen={() => open(e)} />
-          ))}
+        <div key={k} className="b-group">
+          <div className="b-group-head b-strong">{dayLabel(k, now, tz)}</div>
+          <div className="b-tilegrid">
+            {list.map((e) => (
+              <GameTile key={eventKey(e)} e={e} color={meta(e).color} label={meta(e).label} live={false} now={now} tz={tz} onOpen={() => open(e)} />
+            ))}
+          </div>
         </div>
       ))}
       {upcoming.length > limit && (

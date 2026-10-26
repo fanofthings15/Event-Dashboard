@@ -66,6 +66,7 @@ body.b-body {
 .b-app h2 {
   text-transform: none;
   letter-spacing: normal;
+  color: var(--b-text);
 }
 .b-h2 {
   margin: 0;
@@ -166,7 +167,7 @@ body.b-body {
 }
 .b-row-logos {
   display: flex;
-  gap: 2px;
+  gap: 6px;
   flex: none;
 }
 .b-row-main {
@@ -221,25 +222,26 @@ body.b-body {
   border: 1px solid var(--b-border);
 }
 
-/* ---------- live cards ---------- */
-.b-livegrid {
+/* ---------- game tiles (live, your teams next, upcoming) ---------- */
+.b-tilegrid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: 14px;
 }
-.b-livecard {
+.b-tile {
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 18px 16px 14px;
+  gap: 12px;
+  min-height: 168px;
+  padding: 18px 18px 14px;
   border-radius: 14px;
   background: var(--b-panel);
   border: 1px solid var(--b-border);
   text-align: left;
   overflow: hidden;
 }
-.b-livecard::before {
+.b-tile::before {
   content: "";
   position: absolute;
   left: 0;
@@ -248,12 +250,14 @@ body.b-body {
   height: 4px;
   background: var(--c);
 }
-.b-livecard:hover,
-.b-mini:hover,
-.b-nextcard:hover {
+.b-tile:hover {
   border-color: #3a4150;
+  background: #181d25;
 }
-.b-livecard-top {
+.b-tile.mine {
+  border-color: #4a3f12;
+}
+.b-tile-top {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -261,96 +265,204 @@ body.b-body {
   font-weight: 700;
   color: var(--b-sub);
 }
-.b-livecard-top .b-live-text {
+.b-tile-status {
   margin-left: auto;
   flex: none;
 }
-.b-livecard-team {
+.b-accent {
+  color: var(--b-accent-text);
+  font-weight: 800;
+}
+.b-tile-teams {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.b-tile-team {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   font-size: 16px;
   font-weight: 700;
 }
-.b-livecard-team .b-ellipsis {
+.b-tile-team .b-ellipsis {
   flex: 1;
+}
+.b-tile-name {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1.25;
+}
+.b-tile-foot {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 16px;
+  font-size: 12px;
+  color: var(--b-muted);
 }
 .b-score {
-  font-size: 22px;
+  font-size: 24px;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
 }
-.b-livegroup {
-  margin-top: 4px;
-}
-.b-minigrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
-}
-.b-mini {
+.b-group {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 12px 16px;
-  border: none;
-  border-right: 1px solid var(--b-line);
-  border-bottom: 1px solid var(--b-line);
-  background: transparent;
-  text-align: left;
+  gap: 10px;
 }
-.b-mini-team {
+.b-group + .b-group,
+.b-tilegrid + .b-group {
+  margin-top: 10px;
+}
+.b-group-head {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   font-size: 14px;
-  font-weight: 700;
-}
-.b-mini-team .b-ellipsis {
-  flex: 1;
-}
-.b-score-sm {
-  font-variant-numeric: tabular-nums;
-}
-
-/* ---------- your teams next ---------- */
-.b-nextrow {
-  display: flex;
-  gap: 12px;
-  overflow-x: auto;
-  padding-bottom: 4px;
-}
-.b-nextcard {
-  flex: 0 0 220px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 14px;
-  border-radius: 12px;
-  background: var(--b-panel);
-  border: 1px solid var(--b-border);
-  text-align: left;
-}
-.b-nextcard-top {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 12px;
-  font-weight: 700;
   color: var(--b-sub);
 }
-.b-nextcard-logos {
+
+/* ---------- settings ---------- */
+.b-settings {
   display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  align-items: flex-start;
+}
+.b-cats {
+  flex: 1 1 260px;
+  max-width: 300px;
+  display: flex;
+  flex-direction: column;
   gap: 4px;
 }
-.b-nextcard-name {
-  font-size: 15px;
-  font-weight: 700;
+.b-phone .b-cats {
+  max-width: none;
+  border-radius: 14px;
+  background: var(--b-panel);
+  border: 1px solid var(--b-border);
+  overflow: hidden;
+  gap: 0;
 }
-.b-countdown {
-  font-size: 20px;
+.b-cat {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-height: 58px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  background: transparent;
+  text-align: left;
+  max-width: 100%;
+}
+.b-cat .b-ellipsis {
+  max-width: 100%;
+}
+.b-cat:hover {
+  background: #1a1f28;
+}
+.b-cat.active {
+  background: #1f2633;
+  border-color: #334058;
+}
+.b-phone .b-cat {
+  border-radius: 0;
+  border: none;
+  border-bottom: 1px solid var(--b-line);
+  min-height: 64px;
+  padding-right: 36px;
+}
+.b-cat-label {
+  font-size: 15px;
   font-weight: 800;
-  color: var(--b-accent-text);
-  font-variant-numeric: tabular-nums;
+}
+.b-cat-chev {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 22px;
+  color: var(--b-muted);
+}
+.b-settings-body {
+  flex: 999 1 480px;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 18px 22px 22px;
+}
+.b-phone .b-settings-body {
+  padding: 0;
+}
+.b-settings-back {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.b-settings-back .b-iconbtn {
+  font-size: 22px;
+}
+/* the shared settings sections, restyled to sit in the redesign */
+.b-settings-body .settings-section {
+  border-top: 1px solid var(--b-line);
+  padding-top: 18px;
+  margin-top: 18px;
+}
+.b-settings-body .settings-section:first-child {
+  border-top: none;
+  padding-top: 0;
+  margin-top: 0;
+}
+.b-settings-body .settings-section h3 {
+  font-size: 15px;
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--b-text);
+  margin-bottom: 6px;
+}
+.b-settings-body .hint {
+  color: var(--b-muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+.b-settings-body .chip,
+.b-settings-body .btn {
+  min-height: 40px;
+  border-radius: 10px;
+}
+.b-settings-body .text-input,
+.b-settings-body input[type="text"],
+.b-settings-body input[type="password"],
+.b-settings-body select {
+  min-height: 44px;
+  border-radius: 10px;
+  background: var(--b-bg);
+  border: 1px solid var(--b-border);
+}
+.b-custom-list {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.b-custom-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: 10px;
+  background: var(--b-bg);
+  border: 1px solid var(--b-border);
 }
 
 /* ---------- warnings ---------- */
@@ -614,12 +726,22 @@ body.b-body {
   margin-left: auto;
 }
 .b-phone .b-row {
-  padding: 6px 14px;
-  min-height: 58px;
+  padding: 8px 14px;
+  min-height: 64px;
+  gap: 10px;
 }
+.b-row-left-inline {
+  display: none;
+}
+/* on a phone the time/status joins the second line, so names get the width */
 .b-phone .b-row-left {
-  width: 60px;
-  font-size: 12px;
+  display: none;
+}
+.b-phone .b-row-left-inline {
+  display: inline;
+}
+.b-phone .b-cats {
+  flex: none;
 }
 .b-phone .b-row-name {
   font-size: 14px;
