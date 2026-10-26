@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { useSettings } from "../SettingsContext";
+import type { CustomEvent } from "../settingsTypes";
 import LiveRankingSettings from "../LiveRankingSettings";
 import { COMMON_TIMEZONES, formatEventTime } from "../dateFormat";
 import { CORE_SPORT_META, type NormalizedEvent } from "../types";
@@ -12,7 +13,7 @@ import { ApiKeySection, CalendarFeedSection, NotificationsSection, RefreshSectio
 
 type Cat = "sources" | "teams" | "notifications" | "calendar" | "live" | "display" | "custom" | "keys";
 
-export default function BetaSettings({ allEvents, phone, onOpenCustom }: { allEvents: NormalizedEvent[]; phone: boolean; onOpenCustom: () => void }) {
+export default function BetaSettings({ allEvents, phone, onNewEvent, onEditEvent }: { allEvents: NormalizedEvent[]; phone: boolean; onNewEvent: () => void; onEditEvent: (c: CustomEvent) => void }) {
   const { settings } = useSettings();
   const [cat, setCat] = useState<Cat | null>(phone ? null : "sources");
 
@@ -72,15 +73,18 @@ export default function BetaSettings({ allEvents, phone, onOpenCustom }: { allEv
             <ul className="b-custom-list">
               {settings.customEvents.map((c) => (
                 <li key={c.id}>
-                  <span className="b-swatch" style={{ background: c.color, borderColor: c.color }} />
-                  <span className="b-ellipsis">{c.name}</span>
-                  <span className="b-muted b-small">{formatEventTime(c.startTime, settings.timezone)}</span>
+                  <button type="button" onClick={() => onEditEvent(c)} aria-label={`Edit ${c.name}`}>
+                    <span className="b-swatch" style={{ background: c.color, borderColor: c.color }} />
+                    <span className="b-ellipsis">{c.name}</span>
+                    <span className="b-muted b-small">{formatEventTime(c.startTime, settings.timezone)}</span>
+                    <span className="b-muted">Edit</span>
+                  </button>
                 </li>
               ))}
             </ul>
           )}
-          <button type="button" className="btn primary" onClick={onOpenCustom}>
-            Add or edit custom events
+          <button type="button" className="btn primary" onClick={onNewEvent}>
+            + New event
           </button>
         </section>
       ),

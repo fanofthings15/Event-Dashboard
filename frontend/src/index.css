@@ -561,3 +561,24 @@ section h2 {
 [data-density="compact"] .event-live-detail { font-size: 10px; margin-bottom: 2px; }
 [data-density="compact"] .event-meta { font-size: 11px; }
 [data-density="compact"] .sport-tag { font-size: 10px; }
+
+/* event detail: mute this event's notifications */
+.mute-bell {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+.mute-bell:hover {
+  background: rgba(148, 163, 184, 0.12);
+  color: var(--text);
+}
+.mute-bell.is-muted {
+  color: #facc15;
+}

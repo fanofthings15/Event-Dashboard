@@ -74,10 +74,24 @@ export default function EventDetailModal({ event, now, catalog, onClose, onTeamC
 
   return (
     <div className="drawer-backdrop" onClick={onClose}>
-      <div className="modal" style={{ borderLeftColor: meta.color, borderLeftWidth: 4 }} onClick={(e) => e.stopPropagation()}>
+      <div className="modal" style={{ borderLeftColor: meta.color, borderLeftWidth: 4, ["--c" as string]: meta.color }} onClick={(e) => e.stopPropagation()}>
         <div className="event-top" style={{ marginBottom: 8 }}>
           <span className="sport-tag">{meta.label}</span>
           <div className="event-top-right">
+            <button
+              type="button"
+              className={`mute-bell${isSnoozed ? " is-muted" : ""}`}
+              aria-pressed={isSnoozed}
+              aria-label={isSnoozed ? "Notifications muted for this event — unmute" : "Mute notifications for this event"}
+              title={isSnoozed ? "Notifications muted — tap to unmute" : "Mute notifications for this event"}
+              onClick={toggleSnooze}
+            >
+              <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+                <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+                {isSnoozed && <path d="M3 3l18 18" />}
+              </svg>
+            </button>
             <FollowStar event={event} />
             {live ? <span className="live-badge">LIVE</span> : <span className="countdown">{formatCountdown(event.startTime, now)}</span>}
           </div>
@@ -135,9 +149,6 @@ export default function EventDetailModal({ event, now, catalog, onClose, onTeamC
         )}
 
         <div className="detail-actions">
-          <button type="button" className={`btn ${isSnoozed ? "primary" : ""}`} onClick={toggleSnooze}>
-            {isSnoozed ? "🔕 Snoozed — no notifications" : "🔔 Snooze notifications"}
-          </button>
           {/* Watch live opens the Live tab with this game pinned; the stream
               links themselves stay available to open in a browser tab. */}
           {LIVE_VIEW_SPORTS.has(event.sport) && (isLiveNow(event, now) || event.streamUrl || event.streams?.length) && (

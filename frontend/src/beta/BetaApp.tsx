@@ -10,7 +10,8 @@ import { playNotificationPing } from "../notifySound";
 import { isQuietNow, loadQuiet } from "../quietHours";
 import { CORE_SPORT_META, type NormalizedEvent } from "../types";
 import CalendarView from "../CalendarView";
-import CustomEventsPanel from "../CustomEventsPanel";
+import EventSheet from "./EventSheet";
+import type { CustomEvent } from "../settingsTypes";
 import EventDetailModal from "../EventDetailModal";
 import StandingsView from "../StandingsView";
 import { dayKey, dayLabel, eventKey, EventRow, GameTile, isMine, liveStatus, sideScores, subLine } from "./parts";
@@ -72,6 +73,7 @@ const Icon = {
   ),
   finished: <path d="M20 6L9 17l-5-5" />,
   standings: <path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z" />,
+  plus: <path d="M12 5v14M5 12h14" />,
   more: (
     <>
       <circle cx="5" cy="12" r="1.5" />
@@ -142,7 +144,8 @@ export default function BetaApp() {
   const [view, setView] = useState<View>("home");
   const [selected, setSelected] = useState<NormalizedEvent | null>(null);
   const [livePin, setLivePin] = useState<string | null>(null);
-  const [customOpen, setCustomOpen] = useState(false);
+  // the new/edit custom event form: a date to start on, or an event to edit
+  const [sheet, setSheet] = useState<{ editing?: CustomEvent; date?: string } | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
@@ -201,7 +204,12 @@ export default function BetaApp() {
     return [...groups.entries()].sort((a, b) => b[1].length - a[1].length);
   }, [otherLive]);
 
-  const open = (e: NormalizedEvent) => setSelected(e);
+  // your own (custom) events open in the edit form; everything else in the detail view
+  const open = (e: NormalizedEvent) => {
+    const own = e.sport === "custom" ? settings.customEvents.find((c) => c.id === e.id) : undefined;
+    if (own) setSheet({ editing: own });
+    else setSelected(e);
+  };
   const dismiss = (e: NormalizedEvent) => save({ dismissedFinishedEventIds: [...settings.dismissedFinishedEventIds, eventKey(e)] });
   const watchLive = (e: NormalizedEvent) => {
     setLivePin(eventKey(e));
@@ -300,7 +308,7 @@ export default function BetaApp() {
     </section>
   );
 
-  const settingsView = <BetaSettings allEvents={allEvents} phone={phone} onOpenCustom={() => setCustomOpen(true)} />;
+  const settingsView = <BetaSettings allEvents={allEvents} phone={phone} onNewEvent={() => setSheet({})} onEditEvent={(c) => setSheet({ editing: c })} />;
 
   const standingsView = (
     <section className="b-section b-legacy">
@@ -337,7 +345,7 @@ export default function BetaApp() {
 
   const modals = (
     <>
-      {customOpen && <CustomEventsPanel onClose={() => setCustomOpen(false)} />}
+      {sheet && <EventSheet editing={sheet.editing} date={sheet.date} onClose={() => setSheet(null)} onSaved={refetch} />}
       {selected && <EventDetailModal event={selected} now={now} catalog={settings.esportsCatalog} onClose={() => setSelected(null)} onTeamClick={goToTeam} onWatchLive={watchLive} />}
     </>
   );
@@ -363,6 +371,7 @@ export default function BetaApp() {
               loading={loading || !settingsLoaded}
               mineLive={mineLive}
               mineNext={mineNext}
+              onNewEvent={(date) => setSheet({ date })}
               live={live}
               upcoming={upcoming}
               meta={meta}
@@ -383,8 +392,8 @@ export default function BetaApp() {
                 <button type="button" className="b-menu-row" onClick={() => setView("settings")}>
                   <Svg>{Icon.settings}</Svg> Settings
                 </button>
-                <button type="button" className="b-menu-row" onClick={() => setCustomOpen(true)}>
-                  <Svg>{Icon.calendar}</Svg> Add a custom event
+                <button type="button" className="b-menu-row" onClick={() => setSheet({})}>
+                  <Svg>{Icon.plus}</Svg> New event
                 </button>
                 <button type="button" className="b-menu-row" onClick={refetch} disabled={refreshing}>
                   <Svg>{Icon.finished}</Svg> {refreshing ? "Syncing…" : `Resync · last ${synced}`}
@@ -395,6 +404,7 @@ export default function BetaApp() {
                 </a>
               </div>
               <h2 className="b-h2">Sources on this device</h2>
+              {showAllButton}
               <div className="b-panel b-sources-phone">{sourceToggles}</div>
             </section>
           )}
@@ -468,6 +478,10 @@ export default function BetaApp() {
               {v === "live" && live.length > 0 && <span className="b-badge">{live.length}</span>}
             </button>
           ))}
+          <button type="button" className="b-nav b-nav-new" onClick={() => setSheet({})}>
+            <Svg size={18}>{Icon.plus}</Svg>
+            New event
+          </button>
         </div>
         <div className="b-rail-sources">
           <div className="b-rail-label">
@@ -481,6 +495,7 @@ export default function BetaApp() {
               </button>
             </span>
           </div>
+          {showAllButton}
           {sourceToggles}
         </div>
         <div className="b-rail-foot">
@@ -500,7 +515,6 @@ export default function BetaApp() {
             <Svg size={18}>{Icon.search}</Svg>
             <input type="search" aria-label="Search" placeholder="Search teams, leagues, events" value={search} onChange={(e) => setSearch(e.target.value)} />
           </label>
-          {showAllButton}
           <span className="b-muted b-small">
             {isOffline ? "Offline · cached " : "Synced "}
             {synced}
@@ -527,7 +541,7 @@ export default function BetaApp() {
                   role="menuitem"
                   onClick={() => {
                     setMenuOpen(false);
-                    setCustomOpen(true);
+                    setSheet({});
                   }}
                 >
                   Add a custom event
@@ -675,6 +689,7 @@ function PhoneHome({
   upcoming,
   meta,
   open,
+  onNewEvent,
 }: {
   now: Date;
   tz: string;
@@ -692,6 +707,7 @@ function PhoneHome({
   upcoming: NormalizedEvent[];
   meta: MetaFn;
   open: (e: NormalizedEvent) => void;
+  onNewEvent: (date: string) => void;
 }) {
   // "Also live": every game by default, a sport tab to narrow it
   const [tab, setTab] = useState<string>("all");
@@ -808,6 +824,9 @@ function PhoneHome({
                 ))}
               </div>
             )}
+            <button type="button" className="b-add-day" onClick={() => onNewEvent(week[day].key)}>
+              + Add an event on {day === 0 ? "today" : week[day].dow}
+            </button>
           </section>
         </>
       )}
