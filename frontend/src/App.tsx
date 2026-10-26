@@ -1,11 +1,10 @@
-import { useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense } from "react";
+import { useCallback, useEffect, useMemo, useState, lazy, Suspense } from "react";
 import { useEvents, type NotifyReason } from "./useEvents";
 import { useStandings } from "./useStandings";
 import { useSettings } from "./SettingsContext";
 import { useNow, formatCountdown } from "./countdown";
 import { sportMeta } from "./sportMeta";
-import { isLiveNow, hasEventEnded } from "./eventStatus";
-import { sameDay } from "./calendarUtils";
+import { isLiveNow } from "./eventStatus";
 import { formatEventTime } from "./dateFormat";
 import { useNewlySeen } from "./useNewlySeen";
 import { playNotificationPing } from "./notifySound";
@@ -17,10 +16,8 @@ import CustomEventsPanel from "./CustomEventsPanel";
 import EventDetailModal from "./EventDetailModal";
 import StandingsView from "./StandingsView";
 import FollowStar from "./FollowStar";
-import StreamsView from "./StreamsView";
 // The live display only loads when its tab is opened.
 const LiveScreen = lazy(() => import("./live/LiveScreen"));
-import { eventStreamSlotId, withEventStreamSlot } from "./eventStreamSlots";
 
 function matchesSearch(e: NormalizedEvent, query: string): boolean {
   if (!query.trim()) return true;
@@ -173,7 +170,7 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [customEventsOpen, setCustomEventsOpen] = useState(false);
   const [dismissedWarnings, setDismissedWarnings] = useState<Set<string>>(new Set());
-  const [view, setView] = useState<"list" | "calendar" | "agenda" | "finished" | "standings" | "streams" | "live">("list");
+  const [view, setView] = useState<"list" | "calendar" | "finished" | "standings" | "live">("list");
   const [selectedEvent, setSelectedEvent] = useState<NormalizedEvent | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const newKeys = useNewlySeen(events);
@@ -189,71 +186,6 @@ export default function App() {
     if (settings.dismissedFinishedEventIds.includes(key)) return;
     save({ dismissedFinishedEventIds: [...settings.dismissedFinishedEventIds, key] });
   }
-
-  // "Watch live" from the detail view — plays right in the Streams tab
-  // instead of opening a new tab, for anything with a real broadcast link.
-  async function watchLiveInApp(e: NormalizedEvent, url: string) {
-    const id = eventStreamSlotId(e);
-    await save({
-      streamSlots: withEventStreamSlot(settings.streamSlots, e, url),
-      streamMainSlotId: id,
-      closedStreamSlotIds: settings.closedStreamSlotIds.filter((c) => c !== id),
-    });
-    setSelectedEvent(null);
-    setView("streams");
-  }
-
-  // Session-only bookkeeping for event-linked slots the feed stops
-  // returning outright, rather than ever showing them as "finished" first —
-  // PandaScore's finished-match window is a recent-history slice (15
-  // matches per title, then a 7-day cutoff), so a busy title can push a
-  // just-ended match out of the response before anyone notices. Treated the
-  // same as finished, but only once it's stayed missing a few minutes
-  // running — a single failed poll already zeroes out a whole source's
-  // events for that cycle, and that alone shouldn't close a stream someone
-  // is actually watching.
-  const missingSinceRef = useRef<Map<string, number>>(new Map());
-  const MISSING_GRACE_MS = 10 * 60 * 1000;
-
-  // Keeps the Streams tab tidy: a tile opened with "Watch live" drops off once
-  // its event is over. Nothing is added here — live events aren't put on the
-  // Streams tab automatically any more (the /live display is for that).
-  useEffect(() => {
-    const eventById = new Map(allEvents.map((e) => [eventStreamSlotId(e), e]));
-    const now = Date.now();
-    let nextSlots = settings.streamSlots;
-    let nextMain = settings.streamMainSlotId;
-    let changed = false;
-
-    const toRemove = new Set<string>();
-    for (const slot of nextSlots) {
-      if (!slot.id.startsWith("event:")) continue; // manually-pasted link — no event to check it against
-      const event = eventById.get(slot.id);
-      if (event) {
-        missingSinceRef.current.delete(slot.id);
-        if (hasEventEnded(event, now)) toRemove.add(slot.id);
-        continue;
-      }
-      const missingSince = missingSinceRef.current.get(slot.id) ?? now;
-      missingSinceRef.current.set(slot.id, missingSince);
-      if (now - missingSince >= MISSING_GRACE_MS) toRemove.add(slot.id);
-    }
-    if (toRemove.size > 0) {
-      nextSlots = nextSlots.filter((s) => !toRemove.has(s.id));
-      if (nextMain && toRemove.has(nextMain)) nextMain = nextSlots[0]?.id ?? null;
-      for (const id of toRemove) missingSinceRef.current.delete(id);
-      changed = true;
-    }
-
-    // A closed tile is forgotten once its event has ended.
-    const stillClosed = settings.closedStreamSlotIds.filter((id) => {
-      const event = eventById.get(id);
-      return !event || !hasEventEnded(event, now);
-    });
-    const closedChanged = stillClosed.length !== settings.closedStreamSlotIds.length;
-
-    if (changed || closedChanged) save({ streamSlots: nextSlots, streamMainSlotId: nextMain, ...(closedChanged ? { closedStreamSlotIds: stillClosed } : {}) });
-  }, [allEvents, settings.streamSlots, settings.streamMainSlotId, settings.closedStreamSlotIds]);
 
   // Every sport currently enabled, in a stable order: core sources first,
   // then enabled esports titles, then "custom" if any custom events exist.
@@ -295,7 +227,6 @@ export default function App() {
   }, [events, allEvents, showAllOverride, activeSports, availableSports, searchQuery]);
   const live = filtered.filter((e) => isLiveNow(e, now));
   const upcoming = filtered.filter((e) => !isLiveNow(e, now) && e.status !== "finished");
-  const today = filtered.filter((e) => sameDay(new Date(e.startTime), now));
   const finished = filtered
     .filter(
       (e) => e.status === "finished" && withinShelfLife(e, now) && !settings.dismissedFinishedEventIds.includes(`${e.sport}-${e.id}`)
@@ -304,17 +235,9 @@ export default function App() {
 
   const visibleWarnings = warnings.filter((w) => !dismissedWarnings.has(w));
 
-  // StreamsView is mounted exactly once, always, regardless of `view` — a
-  // stream's <iframe> is what's actually playing video/audio, and unmounting
-  // it (which switching views used to do) reloads it from scratch, dropping
-  // playback position and unmuting it again. Instead it stays alive the
-  // whole time and just gets repositioned: full-viewport kiosk layout while
-  // `view === "streams"`, a small picture-in-picture box hovering over every
-  // other tab otherwise, so leaving the Streams tab to check something else
-  // doesn't interrupt what's playing.
   return (
     <>
-      <div className="app" style={view === "streams" || view === "live" ? { display: "none" } : undefined}>
+      <div className="app" style={view === "live" ? { display: "none" } : undefined}>
       <header className="header">
         <h1>Event Dashboard</h1>
         <div className="header-actions">
@@ -325,9 +248,6 @@ export default function App() {
             <button className={`btn small ${view === "list" ? "active" : ""}`} onClick={() => setView("list")}>
               List
             </button>
-            <button className={`btn small ${view === "agenda" ? "active" : ""}`} onClick={() => setView("agenda")}>
-              Today
-            </button>
             <button className={`btn small ${view === "calendar" ? "active" : ""}`} onClick={() => setView("calendar")}>
               Calendar
             </button>
@@ -336,9 +256,6 @@ export default function App() {
             </button>
             <button className={`btn small ${view === "standings" ? "active" : ""}`} onClick={() => setView("standings")}>
               Standings
-            </button>
-            <button className="btn small" onClick={() => setView("streams")}>
-              Streams
             </button>
             <button className="btn small" onClick={() => setView("live")}>
               Live
@@ -428,28 +345,6 @@ export default function App() {
         />
       ) : view === "calendar" ? (
         <CalendarView events={filtered} catalog={settings.esportsCatalog} overrides={settings.sportColorOverrides} timezone={settings.timezone} now={now} onEventClick={setSelectedEvent} />
-      ) : view === "agenda" ? (
-        <section>
-          <h2>Today</h2>
-          {today.length === 0 ? (
-            <div className="empty">Nothing today.</div>
-          ) : (
-            <div className="grid">
-              {today.map((e) => (
-                <EventCard
-                  key={`${e.sport}-${e.id}`}
-                  e={e}
-                  now={now}
-                  catalog={settings.esportsCatalog}
-                  overrides={settings.sportColorOverrides}
-                  timezone={settings.timezone}
-                  isNew={newKeys.has(`${e.sport}-${e.id}`)}
-                  onClick={() => setSelectedEvent(e)}
-                />
-              ))}
-            </div>
-          )}
-        </section>
       ) : view === "finished" ? (
         <section>
           <h2>Finished</h2>
@@ -532,7 +427,6 @@ export default function App() {
           catalog={settings.esportsCatalog}
           onClose={() => setSelectedEvent(null)}
           onTeamClick={goToTeam}
-          onWatchLive={watchLiveInApp}
         />
       )}
       </div>
@@ -542,12 +436,6 @@ export default function App() {
           <LiveScreen onBack={() => setView("list")} />
         </Suspense>
       )}
-
-      <StreamsView
-        mode={view === "streams" ? "full" : view === "live" ? "hidden" : "pip"}
-        onBack={() => setView("list")}
-        onExpand={() => setView("streams")}
-      />
     </>
   );
 }

@@ -15,14 +15,6 @@ export interface CustomEvent {
   url?: string;
 }
 
-export interface StreamSlot {
-  id: string;
-  label: string;
-  url: string;
-}
-
-export type StreamLayout = "grid" | "solo" | "duo" | "spotlight" | "quad";
-
 export interface SettingsState {
   pandaScoreApiKeySet: boolean;
   tbaApiKeySet: boolean;
@@ -50,10 +42,6 @@ export interface SettingsState {
   timezone: string;
   icsToken: string;
   discordWebhookUrl: string;
-  streamSlots: StreamSlot[];
-  streamMainSlotId: string | null;
-  closedStreamSlotIds: string[];
-  streamLayout: StreamLayout;
   frcStreamUrls: Record<string, string>;
   eventRanking: Record<string, number>;
   // whether this user can see/change the shared API keys (/api/global-settings answered)

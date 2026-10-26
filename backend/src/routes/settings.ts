@@ -38,10 +38,6 @@ router.get("/", (req, res) => {
     timezone: settings.timezone,
     icsToken: settings.icsToken,
     discordWebhookUrl: settings.discordWebhookUrl,
-    streamSlots: settings.streamSlots,
-    streamMainSlotId: settings.streamMainSlotId,
-    closedStreamSlotIds: settings.closedStreamSlotIds,
-    streamLayout: settings.streamLayout,
     frcStreamUrls: settings.frcStreamUrls,
     eventRanking: settings.eventRanking,
     esportsCatalog: ESPORTS_CATALOG,
@@ -93,9 +89,6 @@ router.post("/", (req, res) => {
   if (typeof body.icsFavoritesOnly === "boolean") next.icsFavoritesOnly = body.icsFavoritesOnly;
   if (Array.isArray(body.followedEventIds)) next.followedEventIds = body.followedEventIds.filter((x: unknown) => typeof x === "string");
   if (body.notifyMode === "followed" || body.notifyMode === "all") next.notifyMode = body.notifyMode;
-  if (Array.isArray(body.closedStreamSlotIds)) {
-    next.closedStreamSlotIds = body.closedStreamSlotIds.filter((x: unknown) => typeof x === "string");
-  }
   if (Array.isArray(body.dismissedFinishedEventIds)) {
     next.dismissedFinishedEventIds = body.dismissedFinishedEventIds.filter((x: unknown) => typeof x === "string");
   }
@@ -126,23 +119,6 @@ router.post("/", (req, res) => {
     }
   }
 
-  if (Array.isArray(body.streamSlots)) {
-    next.streamSlots = body.streamSlots.filter(
-      (s: any) => s && typeof s.id === "string" && typeof s.label === "string" && typeof s.url === "string"
-    );
-  }
-  if (typeof body.streamMainSlotId === "string" || body.streamMainSlotId === null) {
-    next.streamMainSlotId = body.streamMainSlotId;
-  }
-  if (
-    body.streamLayout === "grid" ||
-    body.streamLayout === "solo" ||
-    body.streamLayout === "duo" ||
-    body.streamLayout === "spotlight" ||
-    body.streamLayout === "quad"
-  ) {
-    next.streamLayout = body.streamLayout;
-  }
   if (body.frcStreamUrls && typeof body.frcStreamUrls === "object") {
     const clean: Record<string, string> = {};
     for (const [key, url] of Object.entries(body.frcStreamUrls as Record<string, unknown>)) {

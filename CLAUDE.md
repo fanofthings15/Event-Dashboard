@@ -34,7 +34,8 @@ backend/src/
   f1Live.ts                — F1 live-timing SignalR Core client + MultiViewer circuit map
   routes/live.ts           — /api/live/espn/:sport/:id, /api/live/f1, /api/live/frc/:eventKey
 frontend/src/
-  App.tsx                 — main page, all four views (List/Calendar/Today/Finished)
+  App.tsx                 — main page and its tabs (List/Calendar/Finished/Standings/Live);
+                            the Streams and Today tabs were retired 2026-10-26
   useEvents.ts             — polling, merging, filtering, notification-firing logic
   SettingsContext.tsx      — shared live settings state, the whole app reads/writes this
   SourceSettings.tsx       — per-data-source settings groups (on/off, color, league filters)
@@ -83,12 +84,11 @@ compares, so it only changes as games start or end. Beside a big game
 (55+), tier-D esports and FRC events stay in the strip unless pinned.
 Quiet hours (`src/quietHours.ts`, per device, default 6 AM–12 PM — the user
 works nights): layout unchanged, every stream loads muted (its player can still be unmuted by
-hand), no in-tab chime, Streams tab main tile muted. The in-tab chime is only for an
+hand), no in-tab chime. The in-tab chime is only for an
 event going live; reminders are Discord's. Esports streams are ordered English first,
 then main/official, then platform (PandaScore's language tags can be wrong:
-a JP co-stream was tagged "en"). Live events are no longer added to the
-Streams tab automatically (following or prestart) — it's likely being
-retired; "Watch live" still opens one there. Tap a
+a JP co-stream was tagged "en"). "Watch live" in the event detail opens
+the stream in a new browser tab (the in-app Streams tab is gone). Tap a
 strip game to pin it to the big spot; drag games onto spots (pin/swap) or
 onto the strip (hide). Layout, pins and hidden games are per device
 (localStorage), pruned when their games end. Tiles stay mounted while

@@ -41,24 +41,6 @@ export interface CustomEvent {
   url?: string;
 }
 
-// A single embeddable stream, added by pasting a link (YouTube watch/live
-// URL, or any other page that allows framing) — there's no live-stream
-// discovery API wired up here, the user finds the stream themselves and
-// drops the link in. See frontend/src/StreamsView.tsx for the URL -> embed
-// conversion.
-export interface StreamSlot {
-  id: string;
-  label: string;
-  url: string;
-}
-
-// How the Streams tab arranges whatever slots exist, independent of how many
-// there are: "grid" (default) is 1 big + the rest small underneath, "solo"
-// shows only the main slot full-size, "duo" is main + one secondary side by
-// side, "spotlight" is main on the left + up to 3 small stacked on the
-// right, "quad" is an even 2x2 of the first 4 slots (main first).
-export type StreamLayout = "grid" | "solo" | "duo" | "spotlight" | "quad";
-
 // Global, admin-only: the owner's own paid/rate-limited external API
 // credentials. One shared file — every user's requests use the same keys
 // (and share the same rate limit either way), but only an admin uid can
@@ -161,20 +143,6 @@ export interface UserSettings {
   // own in-app browser), so this is the only identity that route trusts —
   // same pattern as icsToken above. Lazily generated on first read.
   discordMuteToken: string;
-  // Streams tab: user-curated embeddable links (always-on TV / multiview
-  // use case), not tied to any specific event.
-  streamSlots: StreamSlot[];
-  // Which streamSlots entry (by id) renders large in the main pane; the
-  // rest render small in the minor grid. null once no slots exist yet, or
-  // if the previously-main slot was removed.
-  streamMainSlotId: string | null;
-  // Event stream tiles ("event:sport-id") the user closed, so the automatic
-  // add for followed live events doesn't bring them back on the next page
-  // load. Cleared for an event once it ends, or when the user asks for it
-  // again (Watch live, re-follow).
-  closedStreamSlotIds: string[];
-  // Arrangement for the Streams tab — see StreamLayout above.
-  streamLayout: StreamLayout;
   // /live display: a webcast link per FRC event key (e.g. "2026miket"),
   // pasted in on the display — TBA's data the app reads has no stream.
   frcStreamUrls: Record<string, string>;
@@ -228,10 +196,6 @@ const USER_DEFAULTS: UserSettings = {
   icsToken: "",
   discordWebhookUrl: "",
   discordMuteToken: "",
-  streamSlots: [],
-  streamMainSlotId: null,
-  closedStreamSlotIds: [],
-  streamLayout: "grid",
   frcStreamUrls: {},
   eventRanking: {},
   pushSubscriptions: [],
@@ -345,12 +309,18 @@ export function writeGlobalSettings(next: Partial<GlobalSettings>): GlobalSettin
   return merged;
 }
 
+// The Streams tab (retired 2026-10-26) kept its tiles and layout here.
+const RETIRED_FIELDS = ["streamSlots", "streamMainSlotId", "closedStreamSlotIds", "streamLayout"];
+
 export function readUserSettings(userId: string): UserSettings {
   const file = userSettingsFile(userId);
   try {
     const raw = fs.readFileSync(file, "utf-8");
     const parsed = JSON.parse(raw);
     const merged: UserSettings = { ...USER_DEFAULTS, ...parsed };
+    // Fields of retired features: dropped here, so the next write leaves
+    // them out of the file.
+    for (const key of RETIRED_FIELDS) delete (merged as any)[key];
 
     // notifyLeadMinutes used to be a single number before it became a
     // multi-select array — an old settings.json on disk still has that

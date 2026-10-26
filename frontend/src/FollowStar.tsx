@@ -1,6 +1,5 @@
 import type { NormalizedEvent } from "./types";
 import { useSettings } from "./SettingsContext";
-import { withoutEventStreamSlot } from "./eventStreamSlots";
 
 interface Props {
   event: NormalizedEvent;
@@ -20,12 +19,7 @@ export default function FollowStar({ event }: Props) {
   async function toggle(evt: React.MouseEvent) {
     evt.stopPropagation();
     if (isFollowed) {
-      const { slots, mainId } = withoutEventStreamSlot(settings.streamSlots, settings.streamMainSlotId, event);
-      await save({
-        followedEventIds: settings.followedEventIds.filter((k) => k !== eventKey),
-        streamSlots: slots,
-        streamMainSlotId: mainId,
-      });
+      await save({ followedEventIds: settings.followedEventIds.filter((k) => k !== eventKey) });
       return;
     }
     // Following implies wanting a heads-up when it goes live — request
@@ -35,8 +29,6 @@ export default function FollowStar({ event }: Props) {
       await Notification.requestPermission();
     }
     const followedEventIds = [...settings.followedEventIds, eventKey];
-    // Following doesn't put the stream on the Streams tab any more — the
-    // /live display plays live events; "Watch live" still opens one there.
     await save({ followedEventIds, notifyOnLive: true });
   }
 
