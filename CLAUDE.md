@@ -88,7 +88,9 @@ hand), no in-tab chime. The in-tab chime is only for an
 event going live; reminders are Discord's. Esports streams are ordered English first,
 then main/official, then platform (PandaScore's language tags can be wrong:
 a JP co-stream was tagged "en"). "Watch live" in the event detail opens
-the stream in a new browser tab (the in-app Streams tab is gone). Tap a
+the Live tab with that game pinned (`LiveScreen`'s `pin` prop: a live game
+is pinned like a strip tap, one not live yet gets the display to itself);
+its stream links stay as "Open stream ↗". The in-app Streams tab is gone. Tap a
 strip game to pin it to the big spot; drag games onto spots (pin/swap) or
 onto the strip (hide). Layout, pins and hidden games are per device
 (localStorage), pruned when their games end. Tiles stay mounted while

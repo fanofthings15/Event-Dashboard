@@ -188,11 +188,15 @@ const followedFirst =(a: NormalizedEvent, b: NormalizedEvent) =>
   Number(Boolean(b.followed || b.manuallyFollowed)) - Number(Boolean(a.followed || a.manuallyFollowed));
 
 // `onBack` is set when the display is opened as a tab inside the dashboard;
-// the standalone /live page has no way back by design.
-export default function LiveScreen({ onBack }: { onBack?: () => void } = {}) {
+// the standalone /live page has no way back by design. `pin` is an event key
+// from the dashboard's "Watch live": a live game is pinned to the big spot
+// (as if tapped in the strip, so Unpin all undoes it); one that isn't live
+// yet gets the whole display to itself, like /live?event=.
+export default function LiveScreen({ onBack, pin }: { onBack?: () => void; pin?: string } = {}) {
   const { settings, save } = useSettings();
   const params = useMemo(() => new URLSearchParams(window.location.search), []);
-  const pinned = params.get("event");
+  const [notLivePin, setNotLivePin] = useState<string | null>(null);
+  const pinned = params.get("event") ?? notLivePin;
 
   const { events, allEvents } = useEvents(
     settings.disabledCoreSources,
@@ -493,6 +497,15 @@ export default function LiveScreen({ onBack }: { onBack?: () => void } = {}) {
     if (multi) setPrefs(tapToBig(prefs, key));
     else setChosenKey(key);
   };
+
+  const pinApplied = useRef(false);
+  useEffect(() => {
+    if (!pin || pinApplied.current || events.length === 0) return;
+    pinApplied.current = true;
+    if (!liveEvents.some((e) => eventKey(e) === pin)) setNotLivePin(pin);
+    else if (multi) setPrefs(tapToBig(prefsRef.current, pin));
+    else setChosenKey(pin);
+  }, [pin, events.length, liveEvents, multi, setPrefs]);
 
   return (
     <div className={`live-root${controlsVisible ? "" : " live-idle"}${drag ? " lv-dragging" : ""}`} onPointerMove={poke} onPointerDown={poke}>

@@ -10,6 +10,7 @@ import ConfirmDialog from "./ConfirmDialog";
 import FollowStar from "./FollowStar";
 import { formatCountdown } from "./countdown";
 import { formatEventDate, formatEventTime } from "./dateFormat";
+import { LIVE_VIEW_SPORTS } from "./live/selectLiveEvent";
 
 interface Props {
   event: NormalizedEvent;
@@ -17,6 +18,7 @@ interface Props {
   catalog: EsportsGame[];
   onClose: () => void;
   onTeamClick: (teamName: string) => void;
+  onWatchLive: (event: NormalizedEvent) => void;
 }
 
 function formatRange(startIso: string, endIso: string | undefined, timezone: string) {
@@ -26,7 +28,7 @@ function formatRange(startIso: string, endIso: string | undefined, timezone: str
   return `${formatEventDate(startIso, timezone)} – ${endStr}`;
 }
 
-export default function EventDetailModal({ event, now, catalog, onClose, onTeamClick }: Props) {
+export default function EventDetailModal({ event, now, catalog, onClose, onTeamClick, onWatchLive }: Props) {
   const { settings, save } = useSettings();
   const [confirmingHide, setConfirmingHide] = useState(false);
   const [streamMenuOpen, setStreamMenuOpen] = useState(false);
@@ -136,10 +138,17 @@ export default function EventDetailModal({ event, now, catalog, onClose, onTeamC
           <button type="button" className={`btn ${isSnoozed ? "primary" : ""}`} onClick={toggleSnooze}>
             {isSnoozed ? "🔕 Snoozed — no notifications" : "🔔 Snooze notifications"}
           </button>
+          {/* Watch live opens the Live tab with this game pinned; the stream
+              links themselves stay available to open in a browser tab. */}
+          {LIVE_VIEW_SPORTS.has(event.sport) && (isLiveNow(event, now) || event.streamUrl || event.streams?.length) && (
+            <button type="button" className="btn primary" onClick={() => onWatchLive(event)}>
+              Watch live
+            </button>
+          )}
           {event.streams && event.streams.length > 1 ? (
             <div className="stream-picker">
-              <button type="button" className="btn primary" onClick={() => setStreamMenuOpen((o) => !o)}>
-                Watch live ▾
+              <button type="button" className={`btn${LIVE_VIEW_SPORTS.has(event.sport) ? "" : " primary"}`} onClick={() => setStreamMenuOpen((o) => !o)}>
+                {LIVE_VIEW_SPORTS.has(event.sport) ? "Open stream ↗ ▾" : "Watch live ▾"}
               </button>
               {streamMenuOpen && (
                 <div className="stream-menu">
@@ -161,8 +170,8 @@ export default function EventDetailModal({ event, now, catalog, onClose, onTeamC
             </div>
           ) : (
             event.streamUrl && (
-              <a className="btn primary" href={event.streamUrl} target="_blank" rel="noopener noreferrer">
-                Watch live
+              <a className={`btn${LIVE_VIEW_SPORTS.has(event.sport) ? "" : " primary"}`} href={event.streamUrl} target="_blank" rel="noopener noreferrer">
+                {LIVE_VIEW_SPORTS.has(event.sport) ? "Open stream ↗" : "Watch live"}
               </a>
             )
           )}

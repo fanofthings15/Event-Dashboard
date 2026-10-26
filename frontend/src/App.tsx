@@ -172,6 +172,17 @@ export default function App() {
   const [dismissedWarnings, setDismissedWarnings] = useState<Set<string>>(new Set());
   const [view, setView] = useState<"list" | "calendar" | "finished" | "standings" | "live">("list");
   const [selectedEvent, setSelectedEvent] = useState<NormalizedEvent | null>(null);
+  // "Watch live" from an event's detail: the Live tab opens with it pinned.
+  const [livePin, setLivePin] = useState<string | null>(null);
+  function watchLive(e: NormalizedEvent) {
+    setLivePin(`${e.sport}-${e.id}`);
+    setSelectedEvent(null);
+    setView("live");
+  }
+  function leaveLive() {
+    setLivePin(null);
+    setView("list");
+  }
   const [searchQuery, setSearchQuery] = useState("");
   const newKeys = useNewlySeen(events);
 
@@ -257,7 +268,13 @@ export default function App() {
             <button className={`btn small ${view === "standings" ? "active" : ""}`} onClick={() => setView("standings")}>
               Standings
             </button>
-            <button className="btn small" onClick={() => setView("live")}>
+            <button
+              className="btn small"
+              onClick={() => {
+                setLivePin(null);
+                setView("live");
+              }}
+            >
               Live
             </button>
           </div>
@@ -427,13 +444,14 @@ export default function App() {
           catalog={settings.esportsCatalog}
           onClose={() => setSelectedEvent(null)}
           onTeamClick={goToTeam}
+          onWatchLive={watchLive}
         />
       )}
       </div>
 
       {view === "live" && (
         <Suspense fallback={null}>
-          <LiveScreen onBack={() => setView("list")} />
+          <LiveScreen onBack={leaveLive} pin={livePin ?? undefined} />
         </Suspense>
       )}
     </>
