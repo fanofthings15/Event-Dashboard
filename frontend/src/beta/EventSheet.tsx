@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useSettings } from "../SettingsContext";
 import type { CustomEvent } from "../settingsTypes";
 import { CORE_SPORT_META } from "../types";
+import { useSwipeToClose } from "../useSwipeToClose";
 
 // Adding or editing a custom event, in as few taps as possible: a name, a
 // day (today unless a day was picked), a start time (the next full hour), a
@@ -48,6 +49,7 @@ export default function EventSheet({ editing, date, onClose, onSaved }: { editin
   const [more, setMore] = useState(Boolean(initial.league || initial.url));
   const [customLength, setCustomLength] = useState(!LENGTHS.some(([m]) => m === initial.length));
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const swipe = useSwipeToClose(onClose);
   const nameRef = useRef<HTMLInputElement>(null);
   useEffect(() => nameRef.current?.focus(), []);
   useEffect(() => {
@@ -101,11 +103,14 @@ export default function EventSheet({ editing, date, onClose, onSaved }: { editin
         aria-modal="true"
         aria-labelledby="b-sheet-title"
         onClick={(e) => e.stopPropagation()}
+        style={swipe.style}
+        {...swipe.handlers}
         onSubmit={(e) => {
           e.preventDefault();
           submit();
         }}
       >
+        <div className="sheet-handle" aria-hidden="true" />
         <div className="b-sheet-head">
           <h2 id="b-sheet-title" className="b-h2">
             {editing ? "Edit event" : "New event"}

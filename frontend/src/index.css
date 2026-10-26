@@ -582,3 +582,8 @@ section h2 {
 .mute-bell.is-muted {
   color: #facc15;
 }
+
+/* grab handle for swipe-to-close sheets; only the redesign shows it, on phones */
+.sheet-handle {
+  display: none;
+}

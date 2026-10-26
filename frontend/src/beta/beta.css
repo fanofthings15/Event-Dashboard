@@ -443,7 +443,7 @@ body.b-body {
 .b-settings-body select {
   min-height: 44px;
   border-radius: 10px;
-  background: var(--b-bg);
+  background: #1b2029;
   border: 1px solid var(--b-border);
 }
 .b-custom-list {
@@ -989,8 +989,8 @@ body.b-body {
   box-sizing: border-box;
   padding: 0 12px;
   border-radius: 10px;
-  border: 1px solid var(--b-border);
-  background: var(--b-bg);
+  border: 1px solid #2a303c;
+  background: #1b2029;
   font-size: 15px;
   color-scheme: dark;
 }
@@ -1012,8 +1012,8 @@ body.b-body {
   min-height: 42px;
   padding: 0 14px;
   border-radius: 10px;
-  border: 1px solid var(--b-border);
-  background: var(--b-bg);
+  border: 1px solid #2a303c;
+  background: #1b2029;
   font-weight: 700;
   font-size: 14px;
   cursor: pointer;
@@ -1225,8 +1225,8 @@ body.b-body {
 .b-app .modal .detail-team {
   padding: 4px 6px 4px 4px;
   border-radius: 12px;
-  background: var(--b-bg);
-  border: 1px solid var(--b-line);
+  background: var(--b-panel2);
+  border: 1px solid #2a303c;
 }
 .b-app .modal .detail-team-clickable {
   flex: 1;
@@ -1248,8 +1248,8 @@ body.b-body {
 }
 .b-app .modal .detail-facts {
   border-radius: 12px;
-  background: var(--b-bg);
-  border: 1px solid var(--b-line);
+  background: var(--b-panel2);
+  border: 1px solid #2a303c;
   padding: 4px 14px;
 }
 .b-app .modal .detail-fact {
@@ -1291,6 +1291,24 @@ body.b-body {
   width: 44px;
   height: 44px;
 }
+/* the star is a text glyph: keep its own size, not the body font's */
+.b-app .follow-star {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  font-family: system-ui, -apple-system, "Segoe UI Symbol", sans-serif;
+  font-size: 22px;
+  line-height: 1;
+  border-radius: 10px;
+}
+.b-app .follow-star:hover {
+  background: rgba(148, 163, 184, 0.12);
+}
+.b-app .modal .detail-close {
+  display: none;
+}
 
 .b-rail-sources .b-showall {
   justify-content: flex-start;
@@ -1300,4 +1318,20 @@ body.b-body {
 }
 .b-phone-main > .b-section > .b-showall {
   align-self: flex-start;
+}
+
+@media (max-width: 820px) {
+  .b-app .sheet-handle,
+  .b-sheet .sheet-handle {
+    display: block;
+    width: 44px;
+    height: 5px;
+    margin: -10px auto 4px;
+    border-radius: 999px;
+    background: #3a4150;
+    flex: none;
+  }
+  .b-sheet .b-sheet-head .b-iconbtn {
+    display: none;
+  }
 }

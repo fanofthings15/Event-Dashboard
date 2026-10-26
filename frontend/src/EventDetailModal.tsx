@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useSwipeToClose } from "./useSwipeToClose";
 import type { NormalizedEvent } from "./types";
 import type { EsportsGame } from "./settingsTypes";
 import { sportMeta } from "./sportMeta";
@@ -34,6 +35,7 @@ export default function EventDetailModal({ event, now, catalog, onClose, onTeamC
   const [streamMenuOpen, setStreamMenuOpen] = useState(false);
 
   const meta = sportMeta(event, catalog, settings.sportColorOverrides);
+  const swipe = useSwipeToClose(onClose);
   const live = isLiveNow(event, now);
   const alreadyHidden = settings.excludedLeagues.includes(event.league);
   // A direct league page (e.g. the LCK page) is far more useful than a
@@ -74,7 +76,8 @@ export default function EventDetailModal({ event, now, catalog, onClose, onTeamC
 
   return (
     <div className="drawer-backdrop" onClick={onClose}>
-      <div className="modal" style={{ borderLeftColor: meta.color, borderLeftWidth: 4, ["--c" as string]: meta.color }} onClick={(e) => e.stopPropagation()}>
+      <div className="modal" style={{ borderLeftColor: meta.color, borderLeftWidth: 4, ["--c" as string]: meta.color, ...swipe.style }} onClick={(e) => e.stopPropagation()} {...swipe.handlers}>
+        <div className="sheet-handle" aria-hidden="true" />
         <div className="event-top" style={{ marginBottom: 8 }}>
           <span className="sport-tag">{meta.label}</span>
           <div className="event-top-right">
@@ -208,7 +211,7 @@ export default function EventDetailModal({ event, now, catalog, onClose, onTeamC
           </button>
         )}
 
-        <button className="btn" style={{ marginTop: 16, width: "100%" }} onClick={onClose}>
+        <button className="btn detail-close" style={{ marginTop: 16, width: "100%" }} onClick={onClose}>
           Close
         </button>
       </div>
