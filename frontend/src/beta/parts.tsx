@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { NormalizedEvent, EventTeam } from "../types";
+import StarIcon from "../StarIcon";
 
 // Building blocks shared by the desktop and phone layouts of the redesign.
 
@@ -116,7 +117,7 @@ export function GameTile({ e, color, label, live, now, tz, onOpen }: { e: Normal
         <span className="b-tile-name">{e.name}</span>
       )}
       <span className="b-tile-foot">
-        {isMine(e) && <span className="b-star">★</span>}
+        {isMine(e) && <span className="b-star"><StarIcon filled size={12} /></span>}
         <span className="b-ellipsis">{foot}</span>
       </span>
     </button>
@@ -164,7 +165,7 @@ export function EventRow({
       )}
       <span className="b-row-main">
         <span className="b-ellipsis b-row-name">
-          {isMine(e) && <span className="b-star">★ </span>}
+          {isMine(e) && <span className="b-star"><StarIcon filled size={13} /> </span>}
           {e.name}
         </span>
         <span className="b-ellipsis b-muted b-small">

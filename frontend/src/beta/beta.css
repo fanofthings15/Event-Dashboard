@@ -1225,8 +1225,8 @@ body.b-body {
 .b-app .modal .detail-team {
   padding: 4px 6px 4px 4px;
   border-radius: 12px;
-  background: var(--b-panel2);
-  border: 1px solid #2a303c;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.22);
 }
 .b-app .modal .detail-team-clickable {
   flex: 1;
@@ -1248,8 +1248,8 @@ body.b-body {
 }
 .b-app .modal .detail-facts {
   border-radius: 12px;
-  background: var(--b-panel2);
-  border: 1px solid #2a303c;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.22);
   padding: 4px 14px;
 }
 .b-app .modal .detail-fact {
@@ -1298,9 +1298,6 @@ body.b-body {
   justify-content: center;
   width: 44px;
   height: 44px;
-  font-family: system-ui, -apple-system, "Segoe UI Symbol", sans-serif;
-  font-size: 22px;
-  line-height: 1;
   border-radius: 10px;
 }
 .b-app .follow-star:hover {
@@ -1334,4 +1331,8 @@ body.b-body {
   .b-sheet .b-sheet-head .b-iconbtn {
     display: none;
   }
+}
+
+.b-star svg {
+  vertical-align: -1px;
 }

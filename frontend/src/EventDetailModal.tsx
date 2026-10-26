@@ -5,7 +5,7 @@ import type { EsportsGame } from "./settingsTypes";
 import { sportMeta } from "./sportMeta";
 import { isLiveNow } from "./eventStatus";
 import { liquipediaLeagueUrl, liquipediaSearchUrl } from "./types";
-import { googleCalendarUrl } from "./googleCalendar";
+import StarIcon from "./StarIcon";
 import { useSettings } from "./SettingsContext";
 import ConfirmDialog from "./ConfirmDialog";
 import FollowStar from "./FollowStar";
@@ -132,7 +132,7 @@ export default function EventDetailModal({ event, now, catalog, onClose, onTeamC
                     aria-pressed={isFavorite}
                     onClick={() => toggleFavoriteTeam(t.name)}
                   >
-                    {isFavorite ? "★" : "☆"}
+                    <StarIcon filled={isFavorite} />
                   </button>
                 </div>
               );
@@ -194,21 +194,18 @@ export default function EventDetailModal({ event, now, catalog, onClose, onTeamC
               More info ↗
             </a>
           )}
-          <a className="btn" href={googleCalendarUrl(event)} target="_blank" rel="noopener noreferrer">
-            Add to Google Calendar
-          </a>
+          {/* following an event puts it in the calendar feed, so the hide
+              button takes the slot "Add to Google Calendar" used to have */}
+          {event.sport !== "custom" && !alreadyHidden && (
+            <button type="button" className="btn" title={`Hide every event from "${event.league}"`} onClick={() => setConfirmingHide(true)}>
+              Hide this league
+            </button>
+          )}
         </div>
         {isManuallyFollowed && (
           <span className="hint" style={{ display: "block", marginBottom: 12 }}>
-            You'll get a browser notification when this goes live. It's also guaranteed to stay in your{" "}
-            <code>/calendar.ics</code> feed if you ever turn on "favorites only" in Settings.
+            Following: it's always in your calendar feed, and Discord tells you when it goes live if notifications are on.
           </span>
-        )}
-
-        {event.sport !== "custom" && !alreadyHidden && (
-          <button className="btn-x-link" onClick={() => setConfirmingHide(true)}>
-            Hide "{event.league}" from my feed
-          </button>
         )}
 
         <button className="btn detail-close" style={{ marginTop: 16, width: "100%" }} onClick={onClose}>

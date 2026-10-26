@@ -1,5 +1,6 @@
 import type { NormalizedEvent } from "./types";
 import { useSettings } from "./SettingsContext";
+import StarIcon from "./StarIcon";
 
 interface Props {
   event: NormalizedEvent;
@@ -40,7 +41,7 @@ export default function FollowStar({ event }: Props) {
       aria-pressed={isFollowed}
       onClick={toggle}
     >
-      {isFollowed ? "★" : "☆"}
+      <StarIcon filled={isFollowed} />
     </button>
   );
 }
