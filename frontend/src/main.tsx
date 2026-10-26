@@ -7,7 +7,12 @@ import { SettingsProvider } from './SettingsContext.tsx'
 // /live is the full-screen display for a dedicated screen — its own page,
 // loaded on demand so the main dashboard bundle doesn't carry it.
 const LiveScreen = lazy(() => import('./live/LiveScreen.tsx'))
-const isLive = window.location.pathname.replace(/\/+$/, '') === '/live'
+// /beta is the redesign's working copy, also loaded on demand; / stays the
+// current dashboard until it's swapped over.
+const BetaApp = lazy(() => import('./beta/BetaApp.tsx'))
+const path = window.location.pathname.replace(/\/+$/, '')
+const isLive = path === '/live'
+const isBeta = path === '/beta'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -15,6 +20,10 @@ createRoot(document.getElementById('root')!).render(
       {isLive ? (
         <Suspense fallback={null}>
           <LiveScreen />
+        </Suspense>
+      ) : isBeta ? (
+        <Suspense fallback={null}>
+          <BetaApp />
         </Suspense>
       ) : (
         <App />

@@ -44,6 +44,10 @@ frontend/src/
   EventDetailModal.tsx      — click-through event detail, stream picker, follow/snooze
   CalendarView.tsx / DayDetailModal.tsx — month grid + hourly breakdown
   dateFormat.ts             — shared timezone-aware date/time formatters
+  beta/                     — the redesign's working copy at /beta (Rail II desktop,
+                              Home phone layout; dark only, real team logos). Reuses
+                              the calendar/standings/detail/settings screens. / stays
+                              the old UI until the user says to swap it over.
   live/                     — /live full-screen display (main.tsx routes by pathname):
                               LiveScreen.tsx, selectLiveEvent.ts (the placeholder
                               "which game to show" policy — change it there),
