@@ -172,7 +172,14 @@ export default function BetaApp() {
     });
   }, [settings, events]);
 
-  const filtered = useMemo(() => events.filter((e) => !off.has(e.sport) && matchesSearch(e, search)), [events, off, search]);
+  // "Show all": every game, ignoring the source switches here and the
+  // league/region filters in settings, without changing either.
+  const [showAll, setShowAll] = useState(false);
+  const hiddenCount = useMemo(() => {
+    const shown = new Set(events.filter((e) => !off.has(e.sport)).map(eventKey));
+    return allEvents.filter((e) => e.status !== "finished" && !shown.has(eventKey(e))).length;
+  }, [events, allEvents, off]);
+  const filtered = useMemo(() => (showAll ? allEvents : events.filter((e) => !off.has(e.sport))).filter((e) => matchesSearch(e, search)), [showAll, allEvents, events, off, search]);
   const live = useMemo(() => filtered.filter((e) => isLiveNow(e, now)).sort((a, b) => a.startTime.localeCompare(b.startTime)), [filtered, now]);
   const mineLive = live.filter(isMine);
   const otherLive = live.filter((e) => !isMine(e));
@@ -224,6 +231,31 @@ export default function BetaApp() {
   }
 
   // ---------- pieces used by both layouts ----------
+
+  const showAllButton = (
+    <button
+      type="button"
+      className={`b-showall${showAll ? " on" : ""}`}
+      aria-pressed={showAll}
+      title="Show every game, including sources and leagues you've filtered out"
+      onClick={() => setShowAll((v) => !v)}
+    >
+      <Svg size={18}>
+        <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" />
+        <circle cx="12" cy="12" r="3" />
+      </Svg>
+      {showAll ? "Showing all" : hiddenCount > 0 ? `Show all · ${hiddenCount} hidden` : "Show all"}
+    </button>
+  );
+
+  const filtersOffBanner = showAll && (
+    <div className="b-filters-off" role="status">
+      <span>Filters are off: showing every game, including sources and leagues you've hidden.</span>
+      <button type="button" onClick={() => setShowAll(false)}>
+        Turn filters back on
+      </button>
+    </div>
+  );
 
   const warningsBlock = visibleWarnings.length > 0 && (
     <div className="b-warnings">
@@ -316,6 +348,7 @@ export default function BetaApp() {
     return (
       <div className="b-app b-phone">
         <main className="b-phone-main">
+          {filtersOffBanner}
           {view === "home" && (
             <PhoneHome
               now={now}
@@ -326,6 +359,7 @@ export default function BetaApp() {
               searchOpen={searchOpen}
               setSearchOpen={setSearchOpen}
               warnings={warningsBlock}
+              showAllButton={showAllButton}
               loading={loading || !settingsLoaded}
               mineLive={mineLive}
               mineNext={mineNext}
@@ -466,6 +500,7 @@ export default function BetaApp() {
             <Svg size={18}>{Icon.search}</Svg>
             <input type="search" aria-label="Search" placeholder="Search teams, leagues, events" value={search} onChange={(e) => setSearch(e.target.value)} />
           </label>
+          {showAllButton}
           <span className="b-muted b-small">
             {isOffline ? "Offline · cached " : "Synced "}
             {synced}
@@ -502,6 +537,7 @@ export default function BetaApp() {
           </div>
         </div>
 
+        {filtersOffBanner}
         {warningsBlock}
 
         {view === "home" && (
@@ -631,6 +667,7 @@ function PhoneHome({
   searchOpen,
   setSearchOpen,
   warnings,
+  showAllButton,
   loading,
   mineLive,
   mineNext,
@@ -647,6 +684,7 @@ function PhoneHome({
   searchOpen: boolean;
   setSearchOpen: (o: boolean) => void;
   warnings: ReactNode;
+  showAllButton: ReactNode;
   loading: boolean;
   mineLive: NormalizedEvent[];
   mineNext: NormalizedEvent[];
@@ -685,6 +723,7 @@ function PhoneHome({
       <header className="b-phone-head">
         <h1 className="b-h1">Home</h1>
         <span className="b-muted b-small">{synced}</span>
+        {showAllButton}
         <button type="button" className="b-iconbtn" aria-label="Search" aria-expanded={searchOpen} onClick={() => setSearchOpen(!searchOpen)}>
           <Svg>{Icon.search}</Svg>
         </button>

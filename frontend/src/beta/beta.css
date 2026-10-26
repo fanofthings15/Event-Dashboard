@@ -722,7 +722,7 @@ body.b-body {
   align-items: center;
   gap: 8px;
 }
-.b-phone-head .b-iconbtn {
+.b-phone-head .b-showall {
   margin-left: auto;
 }
 .b-phone .b-row {
@@ -868,4 +868,54 @@ body.b-body {
   height: 8px;
   border-radius: 50%;
   background: var(--b-red);
+}
+
+/* ---------- show all (ignore filters) ---------- */
+.b-showall {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 14px;
+  border-radius: 12px;
+  border: 1px solid var(--b-border);
+  background: var(--b-panel);
+  color: var(--b-sub);
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.b-showall:hover {
+  border-color: #3a4150;
+}
+.b-showall.on {
+  background: #2a2410;
+  border-color: #8a6d1a;
+  color: #fde68a;
+}
+.b-filters-off {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  padding: 10px 10px 10px 16px;
+  border-radius: 12px;
+  background: #2a2410;
+  border: 1px solid #8a6d1a;
+  color: #fde68a;
+  font-size: 13px;
+  font-weight: 600;
+}
+.b-filters-off span {
+  flex: 1 1 240px;
+}
+.b-filters-off button {
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: 10px;
+  border: none;
+  background: #fde68a;
+  color: #1a1600;
+  font-weight: 800;
 }
