@@ -549,6 +549,17 @@ body.live-body {
   min-height: 0;
 }
 
+/* Single view as a drop spot, same look as a tile's */
+.live-view.drop {
+  outline: 2px dashed #4f8dfd;
+  outline-offset: -4px;
+  background: rgb(79 141 253 / 0.14);
+}
+
+.live-view.lifted {
+  opacity: 0.35;
+}
+
 .lv-others {
   flex: none;
   display: flex;

@@ -239,12 +239,27 @@ export default function LiveScreen({ onBack, pin }: { onBack?: () => void; pin?:
     if (chosenKey && !chosen && events.length > 0) setChosenKey(null);
   }, [chosenKey, chosen, events.length]);
 
+  const [prefs, setPrefsState] = useState<MultiPrefs>(loadPrefs);
+  const prefsRef = useRef(prefs);
+  prefsRef.current = prefs;
+  const setPrefs = useCallback((p: MultiPrefs) => {
+    setPrefsState(p);
+    savePrefs(p);
+  }, []);
+
   // A pinned event is looked up before league/region filters, so a
   // hand-picked game shows even from a league hidden on the dashboard.
-  const selected = useMemo(
-    () => (pinned ? allEvents.find((e) => eventKey(e) === pinned) : undefined) ?? chosen ?? selectLiveEvent(events, currentKey, settings.eventRanking, arrivals),
-    [events, allEvents, currentKey, pinned, chosen, settings.eventRanking, arrivals]
-  );
+  // Games dragged to the strip are passed over, unless nothing else is live.
+  const selected = useMemo(() => {
+    if (pinned) {
+      const p = allEvents.find((e) => eventKey(e) === pinned);
+      if (p) return p;
+    }
+    if (chosen) return chosen;
+    const hidden = new Set(prefs.hidden);
+    const shown = events.filter((e) => !hidden.has(eventKey(e)));
+    return selectLiveEvent(shown, currentKey, settings.eventRanking, arrivals) ?? selectLiveEvent(events, currentKey, settings.eventRanking, arrivals);
+  }, [events, allEvents, currentKey, pinned, chosen, prefs.hidden, settings.eventRanking, arrivals]);
   useEffect(() => {
     setCurrentKey(selected ? eventKey(selected) : null);
   }, [selected]);
@@ -274,13 +289,6 @@ export default function LiveScreen({ onBack, pin }: { onBack?: () => void; pin?:
     setLayoutState(l);
     saveLayout(l);
   };
-  const [prefs, setPrefsState] = useState<MultiPrefs>(loadPrefs);
-  const prefsRef = useRef(prefs);
-  prefsRef.current = prefs;
-  const setPrefs = useCallback((p: MultiPrefs) => {
-    setPrefsState(p);
-    savePrefs(p);
-  }, []);
   const multi = !pinned && layout !== "single" && liveEvents.length >= 2;
 
   // pins and hidden games are dropped once their game is no longer live
@@ -331,8 +339,14 @@ export default function LiveScreen({ onBack, pin }: { onBack?: () => void; pin?:
   const suppressClick = useRef(false);
   const [drag, setDrag] = useState<{ key: string; x: number; y: number; over: DropTarget } | null>(null);
 
+  // Single drags too: a strip game dropped on the view is shown there (like a
+  // tap), the shown game dropped on the strip is hidden so the next one takes over.
+  const single = !multi && !pinned && Boolean(selected);
+  const singleRef = useRef({ single, key: selected ? eventKey(selected) : null });
+  singleRef.current = { single, key: selected ? eventKey(selected) : null };
   const startPress = (e: React.PointerEvent, key: string, from: number | "strip") => {
-    if (!multi || (e.pointerType === "mouse" && e.button !== 0)) return;
+    if ((!multi && !single) || (e.pointerType === "mouse" && e.button !== 0)) return;
+    if (from !== "strip" && (e.target as HTMLElement).closest("input, select, textarea, button, a")) return;
     const p: Press = { key, from, x0: e.clientX, y0: e.clientY, touch: e.pointerType !== "mouse", started: false };
     if (p.touch) {
       p.timer = setTimeout(() => {
@@ -374,6 +388,17 @@ export default function LiveScreen({ onBack, pin }: { onBack?: () => void; pin?:
       setDrag(null);
       if (e.type === "pointercancel") return;
       const over = dropTargetAt(e.clientX, e.clientY);
+      const one = singleRef.current;
+      if (one.single) {
+        if (over === 0 && p.key !== one.key) {
+          setPrefs({ ...prefsRef.current, hidden: prefsRef.current.hidden.filter((k) => k !== p.key) });
+          setChosenKey(p.key);
+        } else if (over === "strip" && p.from !== "strip") {
+          setPrefs(hideGame(prefsRef.current, p.key));
+          setChosenKey((c) => (c === p.key ? null : c));
+        }
+        return;
+      }
       if (typeof over === "number") setPrefs(dropOnSlot(prefsRef.current, p.key, over, slotsRef.current));
       else if (over === "strip" && p.from !== "strip") setPrefs(hideGame(prefsRef.current, p.key));
     };
@@ -510,7 +535,10 @@ export default function LiveScreen({ onBack, pin }: { onBack?: () => void; pin?:
   const tapStrip = (key: string) => {
     if (suppressClick.current || pinned) return;
     if (multi) setPrefs(tapToBig(prefs, key));
-    else setChosenKey(key);
+    else {
+      if (prefs.hidden.includes(key)) setPrefs({ ...prefs, hidden: prefs.hidden.filter((k) => k !== key) });
+      setChosenKey(key);
+    }
   };
 
   const pinApplied = useRef(false);
@@ -524,7 +552,17 @@ export default function LiveScreen({ onBack, pin }: { onBack?: () => void; pin?:
 
   return (
     <div className={`live-root${controlsVisible ? "" : " live-idle"}${drag ? " lv-dragging" : ""}`} onPointerMove={poke} onPointerDown={poke}>
-      <div className="live-view">{body}</div>
+      {single && selected ? (
+        <div
+          className={["live-view", drag && drag.over === 0 && drag.key !== eventKey(selected) && "drop", drag?.key === eventKey(selected) && "lifted"].filter(Boolean).join(" ")}
+          data-slot={0}
+          onPointerDown={(ev) => startPress(ev, eventKey(selected), 0)}
+        >
+          {body}
+        </div>
+      ) : (
+        <div className="live-view">{body}</div>
+      )}
       {/* Bottom strip: Back/Fullscreen first, then the other live games. The
           buttons sit in the strip's flow (not floating over it) so they can
           never cover a game, and the whole row hides while fullscreen. */}

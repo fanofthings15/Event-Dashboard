@@ -98,7 +98,10 @@ the Live tab with that game pinned (`LiveScreen`'s `pin` prop: a live game
 is pinned like a strip tap, one not live yet gets the display to itself);
 its stream links stay as "Open stream ↗". The in-app Streams tab is gone. Tap a
 strip game to pin it to the big spot; drag games onto spots (pin/swap) or
-onto the strip (hide). Layout, pins and hidden games are per device
+onto the strip (hide). Single drags the same way: a strip game dropped on
+the view is shown (like a tap), the shown game dropped on the strip is
+hidden and the next pick takes over (hidden games are skipped by the
+single pick unless nothing else is live). Layout, pins and hidden games are per device
 (localStorage), pruned when their games end. Tiles stay mounted while
 they move between grid areas, so a stream doesn't reload. Each sport's
 surface is a shared component (`FootballSurface`, `HockeySurface`,
