@@ -16,7 +16,7 @@ export interface LiveTeam {
   homeAway: "home" | "away";
   abbr: string;
   name: string;
-  nickname?: string; // "Bruins" — what the display labels a team with
+  nickname?: string; // "Bruins" (college: "Notre Dame") — what the display labels a team with
   color?: string; // hex without "#", as ESPN sends it
   altColor?: string;
   logo?: string;
@@ -39,12 +39,14 @@ export interface LiveCommon {
 
 function commonFrom(data: any): LiveCommon {
   const comp = data.header?.competitions?.[0] ?? {};
+  // College teams go by school ("Notre Dame"), not mascot ("Fighting Irish").
+  const college = /college/i.test(data.header?.league?.slug ?? "");
   const teams: LiveTeam[] = (comp.competitors ?? []).map((c: any) => ({
     id: String(c.id ?? c.team?.id),
     homeAway: c.homeAway,
     abbr: c.team?.abbreviation ?? "",
     name: c.team?.displayName ?? c.team?.name ?? "",
-    nickname: c.team?.name && c.team.name !== c.team?.location ? c.team.name : undefined,
+    nickname: college ? c.team?.location || undefined : c.team?.name && c.team.name !== c.team?.location ? c.team.name : undefined,
     color: c.team?.color,
     altColor: c.team?.alternateColor,
     logo: c.team?.logos?.[0]?.href ?? c.team?.logo,

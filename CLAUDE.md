@@ -132,7 +132,11 @@ home goal; NBA shot `coordinate.y` is feet from the rim (not the baseline),
 with a `-214748340` sentinel on free throws; NHL plays set `shootingPlay`
 on hits/giveaways too, so filter by `type.text`, and each play's `strength`
 is relative to its own team; MLB `pitchCoordinate` is gamecast pixels, with
-the strike zone fitted at roughly x 82–145, y 146–194. Stats API hit
+the strike zone fitted at roughly x 82–145, y 146–194. A team's `name` is
+its mascot ("Fighting Irish"), `location` the school/city; college leagues
+(league slug contains "college") label teams by `location`, the pros by
+`name`. Team colours: a too-dark ESPN colour is brightened in its own hue
+(`teamColors.ts`), never swapped for a gray/silver alternate. Stats API hit
 coordinates convert to feet as 2.5 × (coordX − 125.42), 2.5 × (198.27 − coordY)
 — checked against its own totalDistance (386 ft liner lands at 387 ft).
 
