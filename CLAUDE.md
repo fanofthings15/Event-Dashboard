@@ -86,7 +86,10 @@ Nothing is dropped for being small; unwanted sources are filtered in
 settings. "Live" means `isLiveNow` (start time passed), same as the
 dashboard. Layout "Auto" (default) picks Single / RedZone / Grid
 from how the live games' standing (size + follow + stream, not moments)
-compares, so it only changes as games start or end. Beside a big game
+compares, so it only changes as games start or end. Single only when one
+game can take a spot — a far bigger game (World Series vs regular-season
+NBA/NHL) gets RedZone's big spot, not the whole screen, since the user is
+usually watching it on TV (changed 2026-10-27). Beside a big game
 (55+), tier-D esports and FRC events stay in the strip unless pinned.
 Quiet hours (`src/quietHours.ts`, per device, default 6 AM–12 PM — the user
 works nights): layout unchanged, every stream loads muted (its player can still be unmuted by
