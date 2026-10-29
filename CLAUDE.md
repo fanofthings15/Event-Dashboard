@@ -96,7 +96,10 @@ works nights): layout unchanged, every stream loads muted (its player can still 
 hand), no in-tab chime. The in-tab chime is only for an
 event going live; reminders are Discord's. Esports streams are ordered English first,
 then main/official, then platform (PandaScore's language tags can be wrong:
-a JP co-stream was tagged "en"). "Watch live" in the event detail opens
+a JP co-stream was tagged "en"). Esports teams are white and violet
+(`ESPORTS_TEAM_COLORS` in `Layout.tsx`), never blue/red: PandaScore's team
+order says nothing about the in-game side, and its per-game data (which has
+League sides) is 403 on the free plan. "Watch live" in the event detail opens
 the Live tab with that game pinned (`LiveScreen`'s `pin` prop: a live game
 is pinned like a strip tap, one not live yet gets the display to itself);
 its stream links stay as "Open stream ↗". The in-app Streams tab is gone. Tap a

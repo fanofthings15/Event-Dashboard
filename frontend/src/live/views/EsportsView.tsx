@@ -1,6 +1,6 @@
 import type { NormalizedEvent } from "../../types";
 import Stream from "../Stream";
-import { C, LiveFrame, Message, Side, SideLabel, useScoreFlash } from "../Layout";
+import { C, ESPORTS_TEAM_COLORS, LiveFrame, Message, Side, SideLabel, useScoreFlash } from "../Layout";
 
 // "1-0 (Bo3)", "Best of 5" or "2-1" — esports.ts's seriesScore formats.
 function parseSeries(s?: string): { wins?: [number, number]; bestOf?: number } {
@@ -13,7 +13,6 @@ function parseSeries(s?: string): { wins?: [number, number]; bestOf?: number } {
   };
 }
 
-const TEAM_COLORS = [C.accent, C.live];
 
 // Esports are the live broadcast itself, with the series beside it.
 export default function EsportsView({
@@ -32,7 +31,7 @@ export default function EsportsView({
   const needed = bestOf ? Math.ceil(bestOf / 2) : undefined;
   const flash = useScoreFlash(
     wins,
-    teams.slice(0, 2).map((t, i) => ({ abbr: t.name, color: TEAM_COLORS[i] })),
+    teams.slice(0, 2).map((t, i) => ({ abbr: t.name, color: ESPORTS_TEAM_COLORS[i] })),
     (_d, team) => ({ banner: `Map to ${team}`, ms: 8000 })
   );
 
@@ -42,9 +41,9 @@ export default function EsportsView({
       leagueColor={leagueColor}
       centre={
         <div className="lv-score">
-          <span style={{ color: TEAM_COLORS[0] }}>{teams[0]?.name ?? "TBD"}</span>
+          <span style={{ color: ESPORTS_TEAM_COLORS[0] }}>{teams[0]?.name ?? "TBD"}</span>
           <span className="lv-score-num">{wins ? `${wins[0]} – ${wins[1]}` : "vs"}</span>
-          <span style={{ color: TEAM_COLORS[1] }}>{teams[1]?.name ?? "TBD"}</span>
+          <span style={{ color: ESPORTS_TEAM_COLORS[1] }}>{teams[1]?.name ?? "TBD"}</span>
         </div>
       }
       status={event.league}
@@ -56,8 +55,8 @@ export default function EsportsView({
       <Side>
         <SideLabel>{bestOf ? `Series · best of ${bestOf}` : "Match"}</SideLabel>
         {teams.slice(0, 2).map((t, i) => (
-          <div key={i} className="lv-series-team" style={{ color: TEAM_COLORS[i] }}>
-            {t.imageUrl ? <img src={t.imageUrl} alt="" /> : <span className="lv-logo-blank" style={{ background: `${TEAM_COLORS[i]}44` }} />}
+          <div key={i} className="lv-series-team" style={{ color: ESPORTS_TEAM_COLORS[i] }}>
+            {t.imageUrl ? <img src={t.imageUrl} alt="" /> : <span className="lv-logo-blank" style={{ background: `${ESPORTS_TEAM_COLORS[i]}44` }} />}
             <div style={{ minWidth: 0 }}>
               <div className="lv-name">{t.name}</div>
               {needed && (

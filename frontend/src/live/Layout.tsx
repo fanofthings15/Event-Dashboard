@@ -20,6 +20,12 @@ export const C = {
   green: "#22c55e",
 };
 
+// Esports teams in the order PandaScore lists them, which says nothing
+// about the side they play on — so not blue/red (League, Overwatch), red/teal
+// (Valorant), blue/orange (CS2, R6) or green/red (Dota): white and violet
+// can't be mistaken for an in-game side.
+export const ESPORTS_TEAM_COLORS = ["#f4f4f5", "#c084fc"];
+
 export interface ScoreTeam {
   abbr: string;
   score?: string;

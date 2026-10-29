@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { NormalizedEvent } from "../types";
 import { useLiveDetail } from "./useLiveDetail";
 import { teamColors, teamLabel } from "./teamColors";
-import { C, Timeouts } from "./Layout";
+import { C, ESPORTS_TEAM_COLORS, Timeouts } from "./Layout";
 import Stream, { embeddableStream } from "./Stream";
 import { ESPORTS_SPORTS } from "./selectLiveEvent";
 import type { BaseballState, BasketballState, F1State, FootballState, FrcState, HockeyState, LiveTeam } from "./liveTypes";
@@ -18,7 +18,6 @@ import { F1Track } from "./views/F1View";
 
 const ESPN_SPORTS = new Set(["nfl", "ncaaf", "nba", "nhl", "mlb"]);
 const POLL_MS: Record<string, number> = { f1: 3_000, nhl: 5_000, frc: 60_000 };
-const ESPORTS_COLORS = [C.accent, C.live];
 
 type Detail = FootballState | BasketballState | HockeyState | BaseballState | F1State | FrcState;
 
@@ -72,8 +71,8 @@ function rowFor(event: NormalizedEvent, data: Detail | null, stream: { embed: st
     const t = event.teams ?? [];
     const w = event.seriesScore?.match(/(\d+)-(\d+)/);
     return {
-      away: { name: t[0]?.name ?? "TBD", color: ESPORTS_COLORS[0], score: w?.[1] },
-      home: { name: t[1]?.name ?? "TBD", color: ESPORTS_COLORS[1], score: w?.[2] },
+      away: { name: t[0]?.name ?? "TBD", color: ESPORTS_TEAM_COLORS[0], score: w?.[1] },
+      home: { name: t[1]?.name ?? "TBD", color: ESPORTS_TEAM_COLORS[1], score: w?.[2] },
       clock: event.seriesScore?.match(/\((Bo\d+)\)/)?.[1],
       tags: [],
       surface: stream ? <Stream embed={stream.embed} /> : <div className="lv-tile-empty">No stream</div>,
