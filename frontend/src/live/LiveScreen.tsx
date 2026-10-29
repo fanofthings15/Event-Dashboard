@@ -283,7 +283,13 @@ export default function LiveScreen({ onBack, pin }: { onBack?: () => void; pin?:
   };
   const [quietOpen, setQuietOpen] = useState(false);
   const quiet = useQuietHours(quietHours, settings.timezone);
-  const autoPick = useMemo(() => autoLayout(liveEvents, settings.eventRanking), [liveEvents, settings.eventRanking]);
+  // Games dragged to the strip don't count either, so taking the one big
+  // game off the screen lets Auto pick again from the rest (a World Series
+  // alone in Single, hidden: the night's NBA/NHL games in a Grid).
+  const autoPick = useMemo(() => {
+    const hidden = new Set(prefs.hidden);
+    return autoLayout(liveEvents.filter((e) => !hidden.has(eventKey(e))), settings.eventRanking);
+  }, [liveEvents, prefs.hidden, settings.eventRanking]);
   const layout: LiveLayout = savedLayout === "auto" ? autoPick : savedLayout;
   const setLayout = (l: LayoutChoice) => {
     setLayoutState(l);

@@ -180,17 +180,16 @@ export function spotEligible(live: NormalizedEvent[], ranking?: Ranking): Normal
 }
 
 // The Auto layout, from how the live games that can take a spot compare:
-//   single  — only one game can take a spot
+//   single  — one game, or the top one is 35+ ahead of the next (a Major
+//             final against regular-season hockey)
 //   grid    — four or more games within 10 of the top (an NFL Sunday, a
 //             full NHL night)
-//   redzone — otherwise: one standout and some smaller games. Even a far
-//             bigger game (a World Series against regular-season hockey)
-//             doesn't get the screen to itself: the user is usually
-//             watching that one on TV, so the others stay beside it.
+//   redzone — otherwise: one standout and some smaller games
 export function autoLayout(live: NormalizedEvent[], ranking?: Ranking): LiveLayout {
   const games = spotEligible(live, ranking);
   if (games.length <= 1) return "single";
   const s = games.map((e) => standing(e, ranking)).sort((a, b) => b - a);
+  if (s[0] - s[1] >= 35) return "single";
   if (s.filter((x) => x >= s[0] - 10).length >= 4) return "grid";
   return "redzone";
 }
