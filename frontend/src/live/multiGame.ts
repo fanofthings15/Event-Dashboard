@@ -72,7 +72,9 @@ export type Ranking = Record<string, number>;
 export const DEFAULT_RANKING: Ranking = {
   postseason: 90,
   nfl: 55,
-  f1: 55,
+  f1: 55, // race or sprint
+  "f1-qualifying": 40,
+  "f1-practice": 10,
   nba: 40,
   nhl: 40,
   mlb: 40,
@@ -90,7 +92,9 @@ export const DEFAULT_RANKING: Ranking = {
 export const RANKING_ROWS: { key: string; label: string }[] = [
   { key: "postseason", label: "Playoff game (NFL, NBA, NHL, MLB)" },
   { key: "nfl", label: "NFL" },
-  { key: "f1", label: "F1" },
+  { key: "f1", label: "F1 race or sprint" },
+  { key: "f1-qualifying", label: "F1 qualifying" },
+  { key: "f1-practice", label: "F1 practice" },
   { key: "ncaaf", label: "College football" },
   { key: "nba", label: "NBA" },
   { key: "nhl", label: "NHL" },
@@ -104,6 +108,7 @@ export function importance(e: NormalizedEvent, ranking: Ranking = {}): number {
   const r = (key: string) => ranking[key] ?? DEFAULT_RANKING[key];
   if (ESPORTS_SPORTS.has(e.sport)) return r(`esports-${e.tier ?? "c"}-${e.stage ?? "playoffs"}`);
   if (e.postseason) return r("postseason");
+  if (e.sport === "f1" && (e.f1Session === "practice" || e.f1Session === "qualifying")) return r(`f1-${e.f1Session}`);
   return e.sport in DEFAULT_RANKING ? r(e.sport) : r("other");
 }
 

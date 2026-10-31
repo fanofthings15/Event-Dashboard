@@ -124,7 +124,7 @@ regardless of source.
 | Sport | Source | Key needed | Notes |
 |---|---|---|---|
 | NFL/NBA/NHL | ESPN scoreboard endpoint (unofficial) | No | Undocumented, could change without notice |
-| F1 | Jolpica (Ergast successor) | No | Schedule/results only, no live timing |
+| F1 | Jolpica (Ergast successor) | No | Schedule/results only, no live timing. Every session is an event (`f1Session`: practice / qualifying / sprint / race; FP1–3, Sprint Qualifying, Sprint, Qualifying, Race) — the race keeps id `season-round`, sessions get `-fp1`, `-q`, `-sq`, `-sprint`. "Live" = start + the session's usual length (75 min practice/quali, 60 sprint/SQ, 3 h race). Live ranking: `f1` (race, sprint) 55, `f1-qualifying` 40, `f1-practice` 10 |
 | FRC | The Blue Alliance API | Yes (free) | Full events only, not individual matches |
 | Esports | PandaScore | Yes (free tier) | ~1000 req/month cap |
 | /live team sports | ESPN game summary (unofficial) | No | Shot/pitch coordinates, drives, box stats — quirks below |

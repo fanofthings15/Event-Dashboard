@@ -39,6 +39,7 @@ export interface NormalizedEvent {
   stage?: "group" | "playoffs" | "semifinal" | "final"; // esports — where in the tournament the match is
   mapLive?: boolean; // esports, while the match runs: a map is being played (false = between maps)
   postseason?: boolean; // ESPN sports — playoffs / World Series / bowl season
+  f1Session?: "practice" | "qualifying" | "sprint" | "race"; // F1 — which session of the race weekend
 }
 
 export interface StandingsRow {
