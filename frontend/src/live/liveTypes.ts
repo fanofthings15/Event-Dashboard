@@ -157,3 +157,27 @@ export interface FrcState {
   };
   rankings?: { rank: number; team: string; record?: string }[];
 }
+
+// Counter-Strike maps from bo3.gg (backend liveCs.ts), in PandaScore's team
+// order. A map's round score only exists once it's finished.
+export interface CsMvp {
+  name: string;
+  kills: number;
+  deaths: number;
+  assists: number;
+  adr: number;
+}
+
+export interface CsMap {
+  number: number;
+  map: string;
+  score?: [number, number];
+  winner?: 0 | 1;
+  live: boolean;
+  mvps?: [CsMvp | null, CsMvp | null];
+}
+
+export interface CsState {
+  kind: "cs";
+  maps: CsMap[];
+}

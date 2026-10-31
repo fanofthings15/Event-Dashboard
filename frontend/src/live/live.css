@@ -428,6 +428,68 @@ body.live-body {
   background: currentColor;
 }
 
+/* Counter-Strike maps under the series (bo3.gg) */
+.lv-cs-maps {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5em;
+}
+
+.lv-cs-map {
+  padding: 0.45em 0.6em;
+  border: 1px solid #262b35;
+  border-radius: 8px;
+  min-width: 0;
+}
+
+.lv-cs-map.live {
+  border-color: #ef4444;
+}
+
+.lv-cs-map-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.6em;
+  font-weight: 700;
+}
+
+.lv-cs-map-score {
+  font-variant-numeric: tabular-nums;
+}
+
+.lv-cs-map-state {
+  font-size: 0.8em;
+  color: #8b92a3;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.lv-cs-map.live .lv-cs-map-state {
+  color: #ef4444;
+}
+
+.lv-cs-mvp {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.6em;
+  font-size: 0.85em;
+  margin-top: 0.2em;
+  min-width: 0;
+}
+
+.lv-cs-mvp-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lv-cs-mvp-kd {
+  flex: none;
+  color: #8b92a3;
+  font-variant-numeric: tabular-nums;
+}
+
 /* ---------- idle ---------- */
 
 .lv-idle {

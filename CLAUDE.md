@@ -32,7 +32,8 @@ backend/src/
   frcMatchProgress.ts      — TBA match-data → "Qual Match 23 of 40" / "Semifinals — Match 2"
   liveEspn.ts              — ESPN game summary → per-sport live state for /live
   f1Live.ts                — F1 live-timing SignalR Core client + MultiViewer circuit map
-  routes/live.ts           — /api/live/espn/:sport/:id, /api/live/f1, /api/live/frc/:eventKey
+  liveCs.ts                — bo3.gg → CS map names, round scores, each finished map's best player per team
+  routes/live.ts           — /api/live/espn/:sport/:id, /api/live/f1, /api/live/frc/:eventKey, /api/live/cs
 frontend/src/
   useEvents.ts             — polling, merging, filtering, notification-firing logic
   SettingsContext.tsx      — shared live settings state, the whole app reads/writes this
@@ -129,6 +130,7 @@ regardless of source.
 | /live team sports | ESPN game summary (unofficial) | No | Shot/pitch coordinates, drives, box stats — quirks below |
 | /live F1 | F1 live timing, SignalR Core | No | Anonymous; old /signalr and /static/ archive 401 as of 2026-10-20. `Position.z`/`CarData.z` are NOT sent anonymously (checked live, 2026 US GP) — cars are placed from TimingData mini-sectors instead, and in a race by gap to the leader (`f1Live.ts`, `F1View.tsx`) |
 | /live F1 circuit | MultiViewer circuits API | No | Outline + marshal sectors, same coords as Position.z (no pit lane shape — it's drawn beside the S/F straight) |
+| /live CS maps | bo3.gg public API (unofficial) | No | Matched to the PandaScore match by both team names (either order). Map names, final round scores, per-map player stats (best `player_rating` per team = the ★ line). No running round score mid-map, and stats appear minutes to hours after a map ends — empty answers are cached 5 min only (`liveCs.ts`). Checked live 2026-10-31 |
 | /live MLB extras | MLB Stats API (statsapi.mlb.com) | No | Ballpark fence distances (venue fieldInfo) and every batted ball (hitData); matched to the ESPN game by date + team names (`liveMlb.ts`) |
 
 **ESPN summary quirks the /live views rely on** (all checked against real

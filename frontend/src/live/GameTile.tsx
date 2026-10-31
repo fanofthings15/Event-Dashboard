@@ -5,26 +5,28 @@ import { teamColors, teamLabel } from "./teamColors";
 import { C, ESPORTS_TEAM_COLORS, Timeouts } from "./Layout";
 import Stream, { embeddableStream } from "./Stream";
 import { ESPORTS_SPORTS } from "./selectLiveEvent";
-import type { BaseballState, BasketballState, F1State, FootballState, FrcState, HockeyState, LiveTeam } from "./liveTypes";
+import type { BaseballState, BasketballState, CsState, F1State, FootballState, FrcState, HockeyState, LiveTeam } from "./liveTypes";
 import { FootballSurface, PlayKind, timeoutsOf } from "./views/FootballView";
 import { HockeySurface } from "./views/HockeyView";
 import { BasketballSurface } from "./views/BasketballView";
 import { BaseballSurface } from "./views/BaseballView";
 import { F1Track } from "./views/F1View";
+import { csMapsLine, csUrl } from "./views/EsportsView";
 
 // One game in the multi-game display: score row, the same playing surface
 // as its full view, and one line of what's happening. Polls its own live
 // data at the sport's usual rate.
 
 const ESPN_SPORTS = new Set(["nfl", "ncaaf", "nba", "nhl", "mlb"]);
-const POLL_MS: Record<string, number> = { f1: 3_000, nhl: 5_000, frc: 60_000 };
+const POLL_MS: Record<string, number> = { f1: 3_000, nhl: 5_000, frc: 60_000, cs2: 30_000 };
 
-type Detail = FootballState | BasketballState | HockeyState | BaseballState | F1State | FrcState;
+type Detail = FootballState | BasketballState | HockeyState | BaseballState | F1State | FrcState | CsState;
 
 function detailUrl(e: NormalizedEvent): string | null {
   if (ESPN_SPORTS.has(e.sport)) return `/api/live/espn/${e.sport}/${e.id}`;
   if (e.sport === "f1") return "/api/live/f1";
   if (e.sport === "frc") return `/api/live/frc/${e.id}`;
+  if (e.sport === "cs2") return csUrl(e);
   return null;
 }
 
@@ -76,11 +78,13 @@ function rowFor(event: NormalizedEvent, data: Detail | null, stream: { embed: st
       clock: event.seriesScore?.match(/\((Bo\d+)\)/)?.[1],
       tags: [],
       surface: stream ? <Stream embed={stream.embed} /> : <div className="lv-tile-empty">No stream</div>,
-      status: event.league,
+      status: (data?.kind === "cs" && csMapsLine(data.maps)) || event.league,
     };
   }
   if (!data) return null;
   switch (data.kind) {
+    case "cs":
+      return null; // CS is drawn by the esports branch above
     case "football": {
       const redZone = data.redZone ?? event.situation?.redZone;
       const teams = teamRow(data.teams);

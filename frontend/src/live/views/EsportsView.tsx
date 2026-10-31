@@ -1,6 +1,8 @@
 import type { NormalizedEvent } from "../../types";
 import Stream from "../Stream";
 import { C, ESPORTS_TEAM_COLORS, LiveFrame, Message, Side, SideLabel, useScoreFlash } from "../Layout";
+import { useLiveDetail } from "../useLiveDetail";
+import type { CsMap, CsState } from "../liveTypes";
 
 // "1-0 (Bo3)", "Best of 5" or "2-1" — esports.ts's seriesScore formats.
 function parseSeries(s?: string): { wins?: [number, number]; bestOf?: number } {
@@ -13,6 +15,54 @@ function parseSeries(s?: string): { wins?: [number, number]; bestOf?: number } {
   };
 }
 
+// Counter-Strike map names and scores come from bo3.gg, found by team names.
+export function csUrl(e: NormalizedEvent): string | null {
+  const [a, b] = e.teams ?? [];
+  if (e.sport !== "cs2" || !a?.name || !b?.name || a.name === "TBD" || b.name === "TBD") return null;
+  return `/api/live/cs?team1=${encodeURIComponent(a.name)}&team2=${encodeURIComponent(b.name)}`;
+}
+
+// "Cache 13–9 · Nuke live · Dust2" for a tile's one status line.
+export function csMapsLine(maps: CsMap[]): string | null {
+  if (!maps.length) return null;
+  return maps.map((m) => (m.score ? `${m.map} ${m.score[0]}–${m.score[1]}` : m.live ? `${m.map} live` : m.map)).join(" · ");
+}
+
+// Each picked map: its score once finished (the winner's side lit), the one
+// being played marked live, and under a finished map each team's best player.
+function CsMaps({ maps }: { maps: CsMap[] }) {
+  return (
+    <div className="lv-cs-maps">
+      {maps.map((m) => (
+        <div key={m.number} className={`lv-cs-map${m.live ? " live" : ""}`}>
+          <div className="lv-cs-map-row">
+            <span className="lv-cs-map-name">{m.map}</span>
+            {m.score ? (
+              <span className="lv-cs-map-score">
+                <b style={{ color: m.winner === 0 ? ESPORTS_TEAM_COLORS[0] : C.muted }}>{m.score[0]}</b>
+                {" – "}
+                <b style={{ color: m.winner === 1 ? ESPORTS_TEAM_COLORS[1] : C.muted }}>{m.score[1]}</b>
+              </span>
+            ) : (
+              <span className="lv-cs-map-state">{m.live ? "Live" : "Next"}</span>
+            )}
+          </div>
+          {m.mvps?.map(
+            (p, i) =>
+              p && (
+                <div key={i} className="lv-cs-mvp" style={{ color: ESPORTS_TEAM_COLORS[i] }}>
+                  <span className="lv-cs-mvp-name">★ {p.name}</span>
+                  <span className="lv-cs-mvp-kd">
+                    {p.kills}–{p.deaths} · {p.adr} ADR
+                  </span>
+                </div>
+              )
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
 
 // Esports are the live broadcast itself, with the series beside it.
 export default function EsportsView({
@@ -29,6 +79,7 @@ export default function EsportsView({
   const teams = event.teams ?? [];
   const { wins, bestOf } = parseSeries(event.seriesScore);
   const needed = bestOf ? Math.ceil(bestOf / 2) : undefined;
+  const { data: cs } = useLiveDetail<CsState>(csUrl(event), 30_000);
   const flash = useScoreFlash(
     wins,
     teams.slice(0, 2).map((t, i) => ({ abbr: t.name, color: ESPORTS_TEAM_COLORS[i] })),
@@ -74,6 +125,12 @@ export default function EsportsView({
             )}
           </div>
         ))}
+        {cs && cs.maps.length > 0 && (
+          <>
+            <SideLabel>Maps</SideLabel>
+            <CsMaps maps={cs.maps} />
+          </>
+        )}
       </Side>
     </LiveFrame>
   );

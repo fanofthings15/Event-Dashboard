@@ -4,6 +4,7 @@ import { curlGetJson } from "../espnScoreboard.js";
 import { ESPN_PATHS, mapEspnSummary } from "../liveEspn.js";
 import { getF1LiveState } from "../f1Live.js";
 import { mlbExtras } from "../liveMlb.js";
+import { csMatchState } from "../liveCs.js";
 import { readGlobalSettings, readUserSettings } from "../settings.js";
 import { getUserId } from "../userContext.js";
 
@@ -34,6 +35,19 @@ router.get("/espn/:sport/:id", async (req, res) => {
     res.json(state);
   } catch (err) {
     res.status(502).json({ error: `Failed to fetch ${sport} game ${id}`, detail: String(err) });
+  }
+});
+
+// Counter-Strike map names, round scores and each finished map's best
+// players, from bo3.gg, for a live PandaScore match (matched by team names).
+router.get("/cs", async (req, res) => {
+  const t1 = String(req.query.team1 ?? "");
+  const t2 = String(req.query.team2 ?? "");
+  if (!t1 || !t2) return res.status(400).json({ error: "team1 and team2 are required" });
+  try {
+    res.json((await csMatchState(t1, t2)) ?? { kind: "cs", maps: [] });
+  } catch (err) {
+    res.status(502).json({ error: "Failed to fetch CS map data", detail: String(err) });
   }
 });
 
