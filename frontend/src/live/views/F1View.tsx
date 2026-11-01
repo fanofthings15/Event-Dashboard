@@ -254,7 +254,10 @@ export function F1Track({ data }: { data: F1State }) {
   return (
     <svg viewBox={`${-pad} ${-pad} ${geo.w + pad * 2} ${geo.h + pad * 2}`} preserveAspectRatio="xMidYMid meet" role="img" aria-label="Circuit map">
       <defs>
-        <filter id="f1-glow" x="-20%" y="-20%" width="140%" height="140%">
+        {/* sized to the whole map, not each shape's box: that box ignores the
+            30-unit stroke, so on a flat or short sector the glow — and the
+            stroke itself — was clipped at the bends */}
+        <filter id="f1-glow" filterUnits="userSpaceOnUse" x={-pad - 60} y={-pad - 60} width={geo.w + pad * 2 + 120} height={geo.h + pad * 2 + 120}>
           <feGaussianBlur stdDeviation="9" result="b" />
           <feMerge>
             <feMergeNode in="b" />
