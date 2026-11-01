@@ -20,6 +20,15 @@ const TRACK_STATUS: Record<string, { label: string; color: string; ink: string }
   "7": { label: "VSC ending", color: "#f97316", ink: "#1a0d00" },
 };
 
+// Safety car / VSC (and its ending) flash the display's border yellow; a red
+// flag outlines it red.
+export function f1Alert(data: F1State): "sc" | "red" | undefined {
+  const code = data.trackStatus?.code;
+  if (code === "5") return "red";
+  if (code === "4" || code === "6" || code === "7") return "sc";
+  return undefined;
+}
+
 // The real circuit outline (MultiViewer, F1's own coordinates, y-up) with
 // its per-circuit rotation, normalised into a 1000-unit box. Marshal
 // sectors run from each sector's start point to the next one's, located by
@@ -337,6 +346,7 @@ export default function F1View({ data, leagueColor }: { data: F1State; leagueCol
       league="F1"
       leagueColor={leagueColor}
       live={!finished && data.connected}
+      alert={finished ? undefined : f1Alert(data)}
       centre={data.session ? `${data.session.meeting} · ${data.session.name}` : "Connecting to live timing…"}
       status={
         status ? (

@@ -55,6 +55,7 @@ export function LiveFrame({
   children,
   footer,
   layout = "side",
+  alert,
 }: {
   league: string;
   leagueColor?: string;
@@ -66,9 +67,11 @@ export function LiveFrame({
   // "side": surface left, panel right. "stack": surface on top and centred,
   // with a row of details underneath — for wide surfaces (rink, court, field).
   layout?: "side" | "stack";
+  // a border round the whole display: F1 safety car (flashing yellow) or red flag
+  alert?: "sc" | "red";
 }) {
   return (
-    <div className="lv">
+    <div className={`lv${alert ? ` lv-alert-${alert}` : ""}`}>
       <header className="lv-head">
         <div className="lv-head-left">
           <span className="lv-chip" style={{ borderColor: leagueColor, background: leagueColor ? `${leagueColor}40` : undefined }}>

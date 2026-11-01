@@ -10,7 +10,7 @@ import { FootballSurface, PlayKind, timeoutsOf } from "./views/FootballView";
 import { HockeySurface } from "./views/HockeyView";
 import { BasketballSurface } from "./views/BasketballView";
 import { BaseballSurface } from "./views/BaseballView";
-import { F1Track } from "./views/F1View";
+import { F1Track, f1Alert } from "./views/F1View";
 import { csMapsLine, csUrl } from "./views/EsportsView";
 
 // One game in the multi-game display: score row, the same playing surface
@@ -214,9 +214,11 @@ export default function GameTile({
     [row?.away.color ?? C.accent, row?.home.color ?? C.accent]
   );
 
+  const alert = data?.kind === "f1" ? f1Alert(data) : undefined;
+
   return (
     <div
-      className={`lv-tile${big ? " big" : ""}${glow ? " glow" : ""}${dropping ? " drop" : ""}${lifted ? " lifted" : ""}`}
+      className={`lv-tile${big ? " big" : ""}${glow ? " glow" : ""}${alert ? ` alert-${alert}` : ""}${dropping ? " drop" : ""}${lifted ? " lifted" : ""}`}
       style={{ gridArea: `s${slot}`, ["--glow" as string]: glow ?? "transparent" }}
       data-slot={slot}
       data-key={`${event.sport}-${event.id}`}

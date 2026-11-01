@@ -19,6 +19,44 @@ body.live-body {
   cursor: none;
 }
 
+/* The same on the full display, drawn over everything inside it */
+.lv.lv-alert-sc,
+.lv.lv-alert-red {
+  position: relative;
+}
+
+.lv.lv-alert-sc::after,
+.lv.lv-alert-red::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  pointer-events: none;
+  border: 0.4em solid var(--alert);
+  box-shadow: inset 0 0 1.6em var(--alert);
+}
+
+.lv.lv-alert-sc {
+  --alert: #facc15;
+}
+
+.lv.lv-alert-sc::after {
+  animation: lv-alert-flash 0.9s steps(2, jump-none) infinite;
+}
+
+.lv.lv-alert-red {
+  --alert: #ef4444;
+}
+
+@keyframes lv-alert-flash {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0.15;
+  }
+}
+
 .lv {
   --panel: #171a21;
   --border: #262b35;
@@ -1111,6 +1149,24 @@ body.live-body {
   border-color: var(--glow);
   box-shadow: 0 0 0 0.15em var(--glow), 0 0 1.4em var(--glow);
   animation: lv-tile-glow 1s ease-in-out infinite alternate;
+}
+
+/* F1 safety car (flashing yellow) and red flag (solid red), on a tile;
+   wins over the score glow while it lasts */
+.lv-tile.alert-sc,
+.lv-tile.alert-red {
+  border-color: var(--alert);
+  box-shadow: 0 0 0 0.2em var(--alert), 0 0 1.2em var(--alert);
+}
+
+.lv-tile.alert-sc {
+  --alert: #facc15;
+  animation: lv-alert-flash 0.9s steps(2, jump-none) infinite;
+}
+
+.lv-tile.alert-red {
+  --alert: #ef4444;
+  animation: none;
 }
 
 @keyframes lv-tile-glow {

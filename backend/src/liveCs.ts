@@ -31,12 +31,17 @@ export interface CsMatchState {
   maps: CsMap[];
 }
 
-// "Natus Vincere" / "natus-vincere" / "NAVI" — compared without case or punctuation
-const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+// "Team Liquid" / "Liquid", "FURIA Esports" / "FURIA" — compared without
+// case, punctuation or filler words. One name inside the other only counts
+// from 4 characters, so a short name ("B8", "9z") must match exactly.
+const FILLER = /\b(team|esports?|gaming|club|gg)\b/g;
+const norm = (s: string) => s.toLowerCase().replace(FILLER, "").replace(/[^a-z0-9]/g, "");
 const sameTeam = (a: string, b: string) => {
   const x = norm(a);
   const y = norm(b);
-  return x.length > 0 && y.length > 0 && (x === y || x.includes(y) || y.includes(x));
+  if (!x || !y) return false;
+  if (x === y) return true;
+  return Math.min(x.length, y.length) >= 4 && (x.includes(y) || y.includes(x));
 };
 
 const mapLabel = (m?: string) => {
