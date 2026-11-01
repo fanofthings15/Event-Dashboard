@@ -282,22 +282,19 @@ export function F1Track({ data }: { data: F1State }) {
         .map((s) => (
           <path key={s.number} d={s.d} fill="none" stroke="#3a404c" strokeWidth={14} strokeLinecap="round" strokeLinejoin="round" />
         ))}
-      {/* yellow sectors on top, wide and glowing so they read from across the room */}
-      {geo.sectors
-        .filter((s) => yellow.has(s.number))
-        .map((s) => (
-          <path
-            key={`y${s.number}`}
-            d={s.d}
-            fill="none"
-            stroke="#ffe500"
-            strokeWidth={30}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            filter="url(#f1-glow)"
-            className="f1-yellow"
-          />
-        ))}
+      {/* yellow sectors on top, wide and glowing so they read from across the
+          room. One group carries the glow and the pulse: per-path, the round
+          ends of neighbouring sectors overlapped and the fade doubled up into
+          a darker spot at each sector boundary. */}
+      {yellow.size > 0 && (
+        <g filter="url(#f1-glow)" className="f1-yellow">
+          {geo.sectors
+            .filter((s) => yellow.has(s.number))
+            .map((s) => (
+              <path key={`y${s.number}`} d={s.d} fill="none" stroke="#ffe500" strokeWidth={30} strokeLinecap="round" strokeLinejoin="round" />
+            ))}
+        </g>
+      )}
       {inPit.map((d, i) => {
         const pts = geo.pit.points;
         const [x, y] = pts[Math.min(pts.length - 1, Math.round(((i + 1) / (inPit.length + 1)) * (pts.length - 1)))];
