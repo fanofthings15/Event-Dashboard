@@ -414,12 +414,16 @@ export default function F1View({ data, leagueColor }: { data: F1State; leagueCol
                     style={{
                       display: "inline-grid",
                       placeItems: "center",
-                      width: "1.25em",
-                      height: "1.25em",
+                      // the ring sized off the letter, with room round it, so
+                      // a bold S or M doesn't touch it at any screen size
+                      width: "1.7em",
+                      height: "1.7em",
+                      boxSizing: "border-box",
                       borderRadius: "50%",
-                      border: `2px solid ${tyre(d.compound)!.color}`,
+                      border: `0.15em solid ${tyre(d.compound)!.color}`,
                       color: tyre(d.compound)!.color,
-                      fontSize: "0.75em",
+                      fontSize: "0.7em",
+                      lineHeight: 1,
                       fontWeight: 800,
                       verticalAlign: "middle",
                     }}
