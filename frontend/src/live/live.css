@@ -21,12 +21,14 @@ body.live-body {
 
 /* The same on the full display, drawn over everything inside it */
 .lv.lv-alert-sc,
-.lv.lv-alert-red {
+.lv.lv-alert-red,
+.lv.lv-alert-yellow {
   position: relative;
 }
 
 .lv.lv-alert-sc::after,
-.lv.lv-alert-red::after {
+.lv.lv-alert-red::after,
+.lv.lv-alert-yellow::after {
   content: "";
   position: absolute;
   inset: 0;
@@ -46,6 +48,10 @@ body.live-body {
 
 .lv.lv-alert-red {
   --alert: #ef4444;
+}
+
+.lv.lv-alert-yellow {
+  --alert: #facc15;
 }
 
 @keyframes lv-alert-flash {
@@ -1151,10 +1157,11 @@ body.live-body {
   animation: lv-tile-glow 1s ease-in-out infinite alternate;
 }
 
-/* F1 safety car (flashing yellow) and red flag (solid red), on a tile;
-   wins over the score glow while it lasts */
+/* F1 safety car (flashing yellow), red flag (solid red) and a yellow-flag
+   sector (solid yellow), on a tile; wins over the score glow while it lasts */
 .lv-tile.alert-sc,
-.lv-tile.alert-red {
+.lv-tile.alert-red,
+.lv-tile.alert-yellow {
   border-color: var(--alert);
   box-shadow: 0 0 0 0.2em var(--alert), 0 0 1.2em var(--alert);
 }
@@ -1166,6 +1173,11 @@ body.live-body {
 
 .lv-tile.alert-red {
   --alert: #ef4444;
+  animation: none;
+}
+
+.lv-tile.alert-yellow {
+  --alert: #facc15;
   animation: none;
 }
 

@@ -67,8 +67,9 @@ export function LiveFrame({
   // "side": surface left, panel right. "stack": surface on top and centred,
   // with a row of details underneath — for wide surfaces (rink, court, field).
   layout?: "side" | "stack";
-  // a border round the whole display: F1 safety car (flashing yellow) or red flag
-  alert?: "sc" | "red";
+  // a border round the whole display: F1 safety car (flashing yellow), red
+  // flag (red) or a yellow-flag sector (yellow)
+  alert?: "sc" | "red" | "yellow";
 }) {
   return (
     <div className={`lv${alert ? ` lv-alert-${alert}` : ""}`}>

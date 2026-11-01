@@ -21,11 +21,12 @@ const TRACK_STATUS: Record<string, { label: string; color: string; ink: string }
 };
 
 // Safety car / VSC (and its ending) flash the display's border yellow; a red
-// flag outlines it red.
-export function f1Alert(data: F1State): "sc" | "red" | undefined {
+// flag outlines it red; a yellow flag in any sector outlines it yellow.
+export function f1Alert(data: F1State): "sc" | "red" | "yellow" | undefined {
   const code = data.trackStatus?.code;
   if (code === "5") return "red";
   if (code === "4" || code === "6" || code === "7") return "sc";
+  if (code === "2" || data.yellowSectors.length > 0) return "yellow";
   return undefined;
 }
 

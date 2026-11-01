@@ -112,7 +112,8 @@ single pick unless nothing else is live). Layout, pins and hidden games are per 
 (localStorage), pruned when their games end. Tiles stay mounted while
 they move between grid areas, so a stream doesn't reload. F1 safety car / VSC (TrackStatus 4, 6, 7)
 flashes a yellow border round the F1 display or tile; a red flag (5)
-outlines it red (`f1Alert` in `F1View.tsx`). Each sport's
+outlines it red; a yellow flag (2, or any yellow sector) outlines it yellow,
+steady (`f1Alert` in `F1View.tsx`). Each sport's
 surface is a shared component (`FootballSurface`, `HockeySurface`,
 `BasketballSurface`, `BaseballSurface`, `F1Track`) used by both the full
 view and the tiles.
