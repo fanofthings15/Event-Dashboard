@@ -161,14 +161,23 @@ function moment(e: NormalizedEvent, now: number, hints: InterestHints): number {
 // the big one with the sound.
 const WATCHABLE_HERE = 10;
 
-// A game's worth before anything happens in it: event size, a followed
-// team, a stream that plays here. Steady for the whole game, so the Auto
-// layout (which uses it) only changes when games start or end, not on every
-// red-zone trip.
-function standing(e: NormalizedEvent, ranking?: Ranking): number {
+// How big the event is on its own: its size, and a stream that plays here.
+// What the Auto layout compares — a followed game earns the best spot, not
+// the whole screen, so Single is only for an event far bigger than the rest
+// (a World Series beside regular-season games), not for a follow (an F1
+// race you follow beside four NFL games was going Single, 2026-11-01).
+function eventSize(e: NormalizedEvent, ranking?: Ranking): number {
   let s = importance(e, ranking);
-  if (e.sport === "frc") return s; // no follow bonus either (see importance)
+  if (e.sport === "frc") return s;
   if (ESPORTS_SPORTS.has(e.sport) && embeddableStream((e.streams ?? []).map((x) => x.url).concat(e.streamUrl ?? []))) s += WATCHABLE_HERE;
+  return s;
+}
+
+// A game's worth before anything happens in it: event size plus a followed
+// team. Steady for the whole game, so it never churns on a red-zone trip.
+function standing(e: NormalizedEvent, ranking?: Ranking): number {
+  let s = eventSize(e, ranking);
+  if (e.sport === "frc") return s; // no follow bonus either (see importance)
   if (e.manuallyFollowed) s += 35;
   else if (e.followed) s += 30;
   return s;
@@ -184,7 +193,8 @@ export function spotEligible(live: NormalizedEvent[], ranking?: Ranking): Normal
   return live.filter((e) => importance(e, ranking) > MINOR);
 }
 
-// The Auto layout, from how the live games that can take a spot compare:
+// The Auto layout, from how big the live games that can take a spot are
+// (eventSize — follows don't count):
 //   single  — one game, or the top one is 35+ ahead of the next (a Major
 //             final against regular-season hockey)
 //   grid    — four or more games within 10 of the top (an NFL Sunday, a
@@ -193,7 +203,7 @@ export function spotEligible(live: NormalizedEvent[], ranking?: Ranking): Normal
 export function autoLayout(live: NormalizedEvent[], ranking?: Ranking): LiveLayout {
   const games = spotEligible(live, ranking);
   if (games.length <= 1) return "single";
-  const s = games.map((e) => standing(e, ranking)).sort((a, b) => b - a);
+  const s = games.map((e) => eventSize(e, ranking)).sort((a, b) => b - a);
   if (s[0] - s[1] >= 35) return "single";
   if (s.filter((x) => x >= s[0] - 10).length >= 4) return "grid";
   return "redzone";

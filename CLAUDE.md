@@ -86,8 +86,10 @@ from PandaScore's per-map status) — with a +15 bonus for games already shown s
 Nothing is dropped for being small; unwanted sources are filtered in
 settings. "Live" means `isLiveNow` (start time passed), same as the
 dashboard. Layout "Auto" (default) picks Single / RedZone / Grid
-from how the live games' standing (size + follow + stream, not moments)
-compares, so it only changes as games start or end, or a game is hidden:
+from how big the live games are (`eventSize`: size + stream — not follows,
+not moments; a followed game gets the best spot, never the whole screen —
+a followed F1 race beside four NFL games went Single before 2026-11-01).
+It compares them so it only changes as games start or end, or a game is hidden:
 hidden games (dragged to the strip) don't count, so dragging a far bigger
 game's Single view to the strip re-picks from the rest; Unpin all brings
 it back. Beside a big game

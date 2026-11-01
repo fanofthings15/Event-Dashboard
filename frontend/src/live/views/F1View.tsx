@@ -335,6 +335,23 @@ export function F1Track({ data }: { data: F1State }) {
   );
 }
 
+// The tyre compound as a ringed letter, drawn in SVG so the letter sits in
+// the exact middle: the baseline goes half a capital height below the centre
+// (cap height ≈ 0.72 em in the display's sans fonts). CSS centring went by
+// the font's line box and left S and M visibly off-centre.
+function TyreBadge({ compound }: { compound: string }) {
+  const t = tyre(compound)!;
+  return (
+    <svg viewBox="0 0 20 20" width="1.2em" height="1.2em" role="img" aria-label={compound} style={{ verticalAlign: "middle", overflow: "visible" }}>
+      <title>{compound}</title>
+      <circle cx="10" cy="10" r="8.6" fill="none" stroke={t.color} strokeWidth="2" />
+      <text x="10" y={10 + 11 * 0.36} textAnchor="middle" fontSize="11" fontWeight="800" fill={t.color}>
+        {t.letter}
+      </text>
+    </svg>
+  );
+}
+
 export default function F1View({ data, leagueColor }: { data: F1State; leagueColor: string }) {
   const geo = useTrackGeometry(data.circuit);
   const status = data.trackStatus ? TRACK_STATUS[data.trackStatus.code] : undefined;
@@ -408,29 +425,7 @@ export default function F1View({ data, leagueColor }: { data: F1State; leagueCol
                 <span style={{ display: "inline-block", width: "1.6em", color: C.muted, textAlign: "right" }}>{d.position < 99 ? d.position : ""}</span>{" "}
                 <span style={{ display: "inline-block", width: "0.25em", height: "0.9em", background: d.color, verticalAlign: "middle" }} />{" "}
                 <b>{d.tla}</b>{" "}
-                {tyre(d.compound) && (
-                  <span
-                    title={d.compound}
-                    style={{
-                      display: "inline-grid",
-                      placeItems: "center",
-                      // the ring sized off the letter, with room round it, so
-                      // a bold S or M doesn't touch it at any screen size
-                      width: "1.7em",
-                      height: "1.7em",
-                      boxSizing: "border-box",
-                      borderRadius: "50%",
-                      border: `0.15em solid ${tyre(d.compound)!.color}`,
-                      color: tyre(d.compound)!.color,
-                      fontSize: "0.7em",
-                      lineHeight: 1,
-                      fontWeight: 800,
-                      verticalAlign: "middle",
-                    }}
-                  >
-                    {tyre(d.compound)!.letter}
-                  </span>
-                )}
+                {tyre(d.compound) && <TyreBadge compound={d.compound!} />}
               </span>
               <span style={{ fontWeight: 400, color: d.inPit ? C.yellow : C.muted }}>{d.out ? "OUT" : d.inPit ? "PIT" : i === 0 ? "Leader" : d.gap}</span>
             </div>
