@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { toEmbedUrl } from "../streamEmbed";
 
 // The first link that can actually be framed — a YouTube channel's /live
@@ -22,52 +22,14 @@ export function embeddableStream(urls: string[], muted = true): { embed: string;
 // After games moved between spots, a tile came back playing another game's
 // stream (the Aurora tile showing MongolZ, and refreshing didn't help).
 // Navigating the frame ourselves always wins over that restore.
-// Twitch won't autoplay a player smaller than 400×300 — a small RedZone
-// tile's player (361×203 on a 1080p screen) sat on its play button after a
-// reload. Below that, the frame is laid out at 533×300 (16:9, over the
-// minimum) and scaled down to fit: Twitch measures the frame's own size,
-// which a CSS scale doesn't change.
-const TWITCH_MIN = { w: 533, h: 300 };
-
 export default function Stream({ embed }: { embed: string }) {
   const frame = useRef<HTMLIFrameElement>(null);
-  const box = useRef<HTMLDivElement>(null);
-  const [scale, setScale] = useState<number | null>(null);
-  const twitch = embed.startsWith("https://player.twitch.tv/");
-
   useEffect(() => {
     if (frame.current && frame.current.src !== embed) frame.current.src = embed;
   }, [embed]);
-
-  useEffect(() => {
-    const el = box.current;
-    if (!twitch || !el) {
-      setScale(null);
-      return;
-    }
-    const measure = () => {
-      const { width, height } = el.getBoundingClientRect();
-      setScale(width < 400 || height < 300 ? width / TWITCH_MIN.w : null);
-    };
-    measure();
-    const ro = new ResizeObserver(measure);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [twitch]);
-
   return (
-    <div className="lv-stream" ref={box}>
-      <iframe
-        ref={frame}
-        title="Live stream"
-        allow="autoplay; encrypted-media; fullscreen"
-        allowFullScreen
-        style={
-          scale !== null
-            ? { width: TWITCH_MIN.w, height: TWITCH_MIN.h, right: "auto", bottom: "auto", transform: `scale(${scale})`, transformOrigin: "0 0" }
-            : undefined
-        }
-      />
+    <div className="lv-stream">
+      <iframe ref={frame} title="Live stream" allow="autoplay; encrypted-media; fullscreen" allowFullScreen />
     </div>
   );
 }
