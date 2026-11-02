@@ -97,7 +97,7 @@ export default function EsportsView({
           <span style={{ color: ESPORTS_TEAM_COLORS[1] }}>{teams[1]?.name ?? "TBD"}</span>
         </div>
       }
-      status={event.league}
+      status={event.tournament ?? event.league}
     >
       {flash}
       <section className="lv-main" style={{ alignItems: "center", justifyContent: "center" }}>

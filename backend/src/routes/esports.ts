@@ -86,6 +86,17 @@ function allStreams(streamsList: any[] | undefined): { label: string; url: strin
 }
 
 
+// "IEM Beijing 2026 · Upper Bracket Quarterfinal 1": league + series, then
+// the round from the match name ("Upper Bracket Quarterfinal 1: LGC vs MGLZ"),
+// or the tournament ("Playoffs") when the name doesn't carry one.
+function tournamentTitle(m: any): string | undefined {
+  const league = String(m.league?.name ?? "").trim();
+  const serie = String(m.serie?.full_name || m.serie?.name || "").trim();
+  const event = serie && !league.includes(serie) ? `${league} ${serie}`.trim() : league;
+  const round = String(m.name ?? "").includes(":") ? String(m.name).split(":")[0].trim() : String(m.tournament?.name ?? "").trim();
+  return [event, round].filter(Boolean).join(" · ") || undefined;
+}
+
 function seriesScore(m: any): string | undefined {
   const bestOf = m.number_of_games;
   const games: any[] = m.games ?? [];
@@ -100,7 +111,9 @@ function seriesScore(m: any): string | undefined {
     if (g.winner.id === a) winsA++;
     else if (g.winner.id === b) winsB++;
   }
-  if (winsA === 0 && winsB === 0) {
+  // Before the first map ends: "Best of 3" while upcoming, but "0-0 (Bo3)"
+  // once it's under way, so a live match shows a score like any other.
+  if (winsA === 0 && winsB === 0 && m.status !== "running") {
     return bestOf > 1 ? `Best of ${bestOf}` : undefined;
   }
   return bestOf > 1 ? `${winsA}-${winsB} (Bo${bestOf})` : `${winsA}-${winsB}`;
@@ -179,6 +192,7 @@ export async function fetchGame(slug: string, sport: string, color: string, apiK
       streamUrl: streams[0]?.url,
       streams: streams.length ? streams : undefined,
       seriesScore: seriesScore(m),
+      tournament: tournamentTitle(m),
       tier: /^[sabcd]$/.test(m.tournament?.tier ?? "") ? m.tournament.tier : undefined,
       stage: stageOf(m),
       // between maps (one finished, the next not started) a match is on a
