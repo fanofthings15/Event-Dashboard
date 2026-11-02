@@ -78,7 +78,8 @@ function rowFor(event: NormalizedEvent, data: Detail | null, stream: { embed: st
       clock: event.seriesScore?.match(/\((Bo\d+)\)/)?.[1],
       tags: [],
       surface: stream ? <Stream embed={stream.embed} /> : <div className="lv-tile-empty">No stream</div>,
-      status: (data?.kind === "cs" && csMapsLine(data.maps)) || event.tournament || event.league,
+      // the league first, then CS maps when there are any: "IEM · Cache 13–9 · Mirage live"
+      status: [event.league, data?.kind === "cs" ? csMapsLine(data.maps) : null].filter(Boolean).join(" · "),
     };
   }
   if (!data) return null;

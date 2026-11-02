@@ -86,17 +86,6 @@ function allStreams(streamsList: any[] | undefined): { label: string; url: strin
 }
 
 
-// "IEM Beijing 2026 · Upper Bracket Quarterfinal 1": league + series, then
-// the round from the match name ("Upper Bracket Quarterfinal 1: LGC vs MGLZ"),
-// or the tournament ("Playoffs") when the name doesn't carry one.
-function tournamentTitle(m: any): string | undefined {
-  const league = String(m.league?.name ?? "").trim();
-  const serie = String(m.serie?.full_name || m.serie?.name || "").trim();
-  const event = serie && !league.includes(serie) ? `${league} ${serie}`.trim() : league;
-  const round = String(m.name ?? "").includes(":") ? String(m.name).split(":")[0].trim() : String(m.tournament?.name ?? "").trim();
-  return [event, round].filter(Boolean).join(" · ") || undefined;
-}
-
 function seriesScore(m: any): string | undefined {
   const bestOf = m.number_of_games;
   const games: any[] = m.games ?? [];
@@ -192,7 +181,6 @@ export async function fetchGame(slug: string, sport: string, color: string, apiK
       streamUrl: streams[0]?.url,
       streams: streams.length ? streams : undefined,
       seriesScore: seriesScore(m),
-      tournament: tournamentTitle(m),
       tier: /^[sabcd]$/.test(m.tournament?.tier ?? "") ? m.tournament.tier : undefined,
       stage: stageOf(m),
       // between maps (one finished, the next not started) a match is on a

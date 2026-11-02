@@ -39,7 +39,6 @@ export interface NormalizedEvent {
   mapLive?: boolean; // esports, while the match runs: a map is being played (false = between maps)
   postseason?: boolean; // ESPN sports: playoffs, World Series, bowls
   f1Session?: "practice" | "qualifying" | "sprint" | "race"; // F1 — which session of the race weekend
-  tournament?: string; // esports — full event title, e.g. "IEM Beijing 2026 · Upper Bracket Quarterfinal 1"
 }
 
 export interface StandingsRow {
