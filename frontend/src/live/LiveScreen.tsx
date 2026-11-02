@@ -476,8 +476,15 @@ export default function LiveScreen({ onBack, pin }: { onBack?: () => void; pin?:
   if (multi) {
     const shown = placement.slots.map((k) => byKey.get(k)).filter((e): e is NormalizedEvent => Boolean(e));
     const tpl = multiTemplate(layout, shown.length, portrait);
+    // RedZone's small column: a Twitch stream's row gets a little more height
+    // than the others, so on a 1080p screen its player can reach Twitch's
+    // 300px autoplay minimum (see GameTile)
+    const twitchTile = (e: NormalizedEvent) =>
+      ESPORTS_SPORTS.has(e.sport) && embeddableStream((e.streams ?? []).map((s) => s.url).concat(e.streamUrl ?? []))?.source === "Twitch";
+    const rows =
+      tpl.className === "rz" ? shown.slice(1).map((e) => (twitchTile(e) ? "minmax(0,1.15fr)" : "minmax(0,1fr)")).join(" ") : undefined;
     body = (
-      <div className={`lv-multi ${tpl.className}`} style={{ gridTemplateAreas: tpl.areas, gridTemplateColumns: tpl.columns }}>
+      <div className={`lv-multi ${tpl.className}`} style={{ gridTemplateAreas: tpl.areas, gridTemplateColumns: tpl.columns, gridTemplateRows: rows }}>
         {shown.map((e, i) => {
           const k = eventKey(e);
           return (

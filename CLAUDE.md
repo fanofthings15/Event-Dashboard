@@ -112,7 +112,12 @@ the view is shown (like a tap), the shown game dropped on the strip is
 hidden and the next pick takes over (hidden games are skipped by the
 single pick unless nothing else is live). Layout, pins and hidden games are per device
 (localStorage), pruned when their games end. Tiles stay mounted while
-they move between grid areas, so a stream doesn't reload. F1 safety car / VSC (TrackStatus 4, 6, 7)
+they move between grid areas, so a stream doesn't reload. Twitch won't autoplay a player under 400×300: a Twitch tile drops
+its score/status lines (stream only, the broadcast has a scoreboard) only
+when that gets the player over it (`useBareTwitch` in `GameTile.tsx`), and
+in RedZone's small column a Twitch row gets 1.15× the height so 1080p
+gets there. Don't CSS-scale a bigger player down instead — tried, looked
+crunchy at any quality (reverted 382f418). F1 safety car / VSC (TrackStatus 4, 6, 7)
 flashes a yellow border round the F1 display or tile; a red flag (5)
 outlines it red; a yellow flag (2, or any yellow sector) outlines it yellow,
 steady (`f1Alert` in `F1View.tsx`). Each sport's

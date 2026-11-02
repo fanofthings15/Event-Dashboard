@@ -1293,6 +1293,29 @@ body.live-body {
   display: block;
 }
 
+/* A Twitch tile too small for Twitch's 400×300 autoplay minimum with its
+   lines (GameTile's useBareTwitch) is only the stream, filling the tile —
+   the player letterboxes the video itself; the edge left round it is where
+   the tile is grabbed to drag it */
+.lv-tile.bare {
+  /* same padding as with the lines, so the size the tile measures — and so
+     its with/without decision — doesn't change when it switches */
+  grid-template-rows: minmax(0, 1fr);
+}
+
+.lv-tile.bare .lv-tile-surface .lv-stream {
+  width: 100%;
+  height: 100%;
+  aspect-ratio: auto;
+}
+
+.lv-tile-pin-float {
+  position: absolute;
+  top: 0.6em;
+  right: 0.6em;
+  z-index: 2;
+}
+
 .lv-tile-surface .lv-stream {
   flex: none;
   width: min(100cqw, 100cqh * 16 / 9);

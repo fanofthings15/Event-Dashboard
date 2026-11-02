@@ -13,6 +13,43 @@ import { BaseballSurface } from "./views/BaseballView";
 import { F1Track, f1Alert } from "./views/F1View";
 import { csMapsLine, csUrl } from "./views/EsportsView";
 
+// Twitch won't autoplay a player under 400×300. A Twitch tile drops its
+// score line and status line (the broadcast has its own scoreboard) only
+// when that's what gets the player over the minimum: a big enough tile keeps
+// them, and one too small either way keeps them too, since dropping them
+// wouldn't make it autoplay. Decided from the tile's size alone (the lines'
+// height is measured while they show), so it can't flip back and forth.
+function useBareTwitch(tile: React.RefObject<HTMLDivElement | null>, twitch: boolean): boolean {
+  const [bare, setBare] = useState(false);
+  const chrome = useRef<number | null>(null);
+  useEffect(() => {
+    const el = tile.current;
+    if (!twitch || !el) {
+      setBare(false);
+      return;
+    }
+    const measure = () => {
+      const cs = getComputedStyle(el);
+      const w = el.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+      const h = el.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+      const score = el.querySelector<HTMLElement>(".lv-tile-score");
+      const status = el.querySelector<HTMLElement>(".lv-tile-status");
+      if (score && status) chrome.current = score.offsetHeight + status.offsetHeight + 2 * parseFloat(cs.rowGap || "0");
+      const lines = chrome.current ?? 3.6 * parseFloat(cs.fontSize);
+      // the player with the lines: a 16:9 box in what's left under them
+      const fw = Math.min(w, ((h - lines) * 16) / 9);
+      const withLines = fw >= 400 && (fw * 9) / 16 >= 300;
+      // without them the player fills the tile (it letterboxes the video)
+      setBare(!withLines && w >= 400 && h >= 300);
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [tile, twitch]);
+  return bare;
+}
+
 // One game in the multi-game display: score row, the same playing surface
 // as its full view, and one line of what's happening. Polls its own live
 // data at the sport's usual rate.
@@ -216,51 +253,73 @@ export default function GameTile({
   );
 
   const alert = data?.kind === "f1" ? f1Alert(data) : undefined;
+  const tile = useRef<HTMLDivElement>(null);
+  const bare = useBareTwitch(tile, stream?.source === "Twitch");
 
   return (
     <div
-      className={`lv-tile${big ? " big" : ""}${glow ? " glow" : ""}${alert ? ` alert-${alert}` : ""}${dropping ? " drop" : ""}${lifted ? " lifted" : ""}`}
+      className={`lv-tile${big ? " big" : ""}${bare ? " bare" : ""}${glow ? " glow" : ""}${alert ? ` alert-${alert}` : ""}${dropping ? " drop" : ""}${lifted ? " lifted" : ""}`}
       style={{ gridArea: `s${slot}`, ["--glow" as string]: glow ?? "transparent" }}
+      ref={tile}
       data-slot={slot}
       data-key={`${event.sport}-${event.id}`}
       onPointerDown={onPointerDown}
     >
-      <div className="lv-tile-score">
-        {row ? (
-          <>
-            <span style={{ color: row.away.color }}>{row.away.name}</span>
-            {row.away.timeouts && <Timeouts {...row.away.timeouts} color={row.away.color} />}
-            {row.away.score !== undefined && row.home.score !== undefined && (
-              <span className="n">
-                {row.away.score} – {row.home.score}
-              </span>
+      {bare ? (
+        <>
+          <div className="lv-tile-surface">{row?.surface}</div>
+          {pinned && (
+            <button
+              className="lv-tile-pin lv-tile-pin-float"
+              aria-label="Unpin"
+              title="Unpin — let the display pick this spot again"
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={onUnpin}
+            >
+              Pinned ✕
+            </button>
+          )}
+        </>
+      ) : (
+        <>
+          <div className="lv-tile-score">
+            {row ? (
+              <>
+                <span style={{ color: row.away.color }}>{row.away.name}</span>
+                {row.away.timeouts && <Timeouts {...row.away.timeouts} color={row.away.color} />}
+                {row.away.score !== undefined && row.home.score !== undefined && (
+                  <span className="n">
+                    {row.away.score} – {row.home.score}
+                  </span>
+                )}
+                {row.home.name && <span style={{ color: row.home.color }}>{row.home.name}</span>}
+                {row.home.timeouts && <Timeouts {...row.home.timeouts} color={row.home.color} />}
+                {row.tags.map((t) => (
+                  <span key={t.text} className="lv-tile-tag" style={{ background: t.bg, color: t.ink }}>
+                    {t.text}
+                  </span>
+                ))}
+              </>
+            ) : (
+              <span>{event.name}</span>
             )}
-            {row.home.name && <span style={{ color: row.home.color }}>{row.home.name}</span>}
-            {row.home.timeouts && <Timeouts {...row.home.timeouts} color={row.home.color} />}
-            {row.tags.map((t) => (
-              <span key={t.text} className="lv-tile-tag" style={{ background: t.bg, color: t.ink }}>
-                {t.text}
-              </span>
-            ))}
-          </>
-        ) : (
-          <span>{event.name}</span>
-        )}
-        <span className="clock">{row?.clock ?? event.liveDetail}</span>
-        {pinned && (
-          <button
-            className="lv-tile-pin"
-            aria-label="Unpin"
-            title="Unpin — let the display pick this spot again"
-            onPointerDown={(e) => e.stopPropagation()}
-            onClick={onUnpin}
-          >
-            Pinned ✕
-          </button>
-        )}
-      </div>
-      <div className="lv-tile-surface">{row ? row.surface : <div className="lv-tile-empty">Loading…</div>}</div>
-      <div className="lv-tile-status">{row?.status}</div>
+            <span className="clock">{row?.clock ?? event.liveDetail}</span>
+            {pinned && (
+              <button
+                className="lv-tile-pin"
+                aria-label="Unpin"
+                title="Unpin — let the display pick this spot again"
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={onUnpin}
+              >
+                Pinned ✕
+              </button>
+            )}
+          </div>
+          <div className="lv-tile-surface">{row ? row.surface : <div className="lv-tile-empty">Loading…</div>}</div>
+          <div className="lv-tile-status">{row?.status}</div>
+        </>
+      )}
     </div>
   );
 }
