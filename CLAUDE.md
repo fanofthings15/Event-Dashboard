@@ -125,7 +125,11 @@ and resent; a player that hasn't confirmed in 8 s is reloaded with the right
 setting (Kick, with no API, always reloads) — an unconfirmed mute once left two
 streams' audio playing until a refresh. Tiles are also written into the page in
 first-seen order, and a stream-only Twitch tile hides its lines with CSS.
-While a player is fullscreen (`document.fullscreenElement` is an iframe)
+A stream paused itself the first time it was put fullscreen (user's screen,
+2026-11-03, not reproducible in headless Chrome): for 6 s after a playing
+stream goes fullscreen, a pause it reports (YouTube playerState 2, Twitch
+playback "Idle") is undone with a play command (YouTube playVideo, Twitch
+Play = 3) — checked for YouTube only. While a player is fullscreen (`document.fullscreenElement` is an iframe)
 nothing on the display changes: games going live wait in the strip and don't
 count as arrivals afterwards. When the display goes from Single to RedZone,
 the game shown in Single is pinned to the big spot. Twitch won't autoplay a player under 400×300: a Twitch tile drops

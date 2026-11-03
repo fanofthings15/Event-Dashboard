@@ -42,12 +42,15 @@ const playerOf = (embed: string): Player =>
 // is command 10 there; the player reports its state on its own.
 // Both checked in headless Chrome 2026-11-03: each reports muted true/false
 // after the command. Kick has no player API.
-function send(frame: HTMLIFrameElement, player: Player, msg: "listen" | "mute" | "unmute") {
+function send(frame: HTMLIFrameElement, player: Player, msg: "listen" | "mute" | "unmute" | "play") {
   const win = frame.contentWindow;
   if (!win) return;
   if (player === "youtube") {
-    const body = msg === "listen" ? { event: "listening", id: 1, channel: "widget" } : { event: "command", func: msg === "mute" ? "mute" : "unMute", args: [], id: 1, channel: "widget" };
+    const func = msg === "play" ? "playVideo" : msg === "mute" ? "mute" : "unMute";
+    const body = msg === "listen" ? { event: "listening", id: 1, channel: "widget" } : { event: "command", func, args: [], id: 1, channel: "widget" };
     win.postMessage(JSON.stringify(body), "https://www.youtube.com");
+  } else if (player === "twitch" && msg === "play") {
+    win.postMessage({ eventName: 3, params: null, namespace: "twitch-embed-player-proxy" }, "https://player.twitch.tv"); // Play
   } else if (player === "twitch" && msg !== "listen") {
     win.postMessage({ eventName: 10, params: msg === "mute", namespace: "twitch-embed-player-proxy" }, "https://player.twitch.tv");
   }
@@ -65,6 +68,24 @@ function reportedMuted(data: unknown): boolean | undefined {
   return undefined;
 }
 
+// Whether a player says it's paused: YouTube playerState 2 (1 = playing);
+// Twitch playback "Idle" (what its own isPaused() checks) vs "Playing".
+function reportedPaused(data: unknown): boolean | undefined {
+  try {
+    const d = typeof data === "string" ? JSON.parse(data) : data;
+    const yt = d?.info && typeof d.info === "object" ? d.info.playerState : undefined;
+    if (yt === 2) return true;
+    if (yt === 1) return false;
+    if (d?.namespace === "twitch-embed-player-proxy") {
+      if (d.params?.playback === "Idle") return true;
+      if (d.params?.playback === "Playing") return false;
+    }
+  } catch {
+    // not a player message
+  }
+  return undefined;
+}
+
 interface Entry {
   id: string;
   embed: string; // the address as last asked for, including its mute setting
@@ -76,6 +97,9 @@ interface Entry {
   confirm?: ReturnType<typeof setInterval>;
   listen?: ReturnType<typeof setInterval>;
   muted?: boolean; // as the player last reported it
+  paused?: boolean; // as the player last reported it
+  resumeUntil?: number; // just went fullscreen while playing: a pause now is undone
+  resumedAt?: number;
   placed: string;
 }
 
@@ -104,6 +128,11 @@ export class StreamLayer {
   private onMessage = (ev: MessageEvent) => {
     for (const e of this.entries.values()) {
       if (e.frame.contentWindow !== ev.source) continue;
+      const paused = reportedPaused(ev.data);
+      if (paused !== undefined) {
+        e.paused = paused;
+        if (paused) this.resumeIfFullscreened(e);
+      }
       const m = reportedMuted(ev.data);
       if (m !== undefined) {
         e.muted = m;
@@ -116,9 +145,32 @@ export class StreamLayer {
     }
   };
 
+  // A stream playing on the display paused itself the first time it was
+  // put fullscreen (seen on the user's screen 2026-11-03; it couldn't be
+  // reproduced here, where headless Chrome can't play the streams). For a
+  // few seconds after a playing stream goes fullscreen, a pause it reports
+  // is undone with a play command. A stream already paused is left alone.
+  private onFullscreen = () => {
+    const fs = document.fullscreenElement;
+    for (const e of this.entries.values()) {
+      if (e.frame !== fs || e.paused === true) continue;
+      e.resumeUntil = Date.now() + 6000;
+      for (const ms of [800, 2000, 3500, 5000]) setTimeout(() => this.resumeIfFullscreened(e), ms);
+    }
+  };
+
+  private resumeIfFullscreened(e: Entry) {
+    const now = Date.now();
+    if (!e.paused || !e.resumeUntil || now > e.resumeUntil || document.fullscreenElement !== e.frame) return;
+    if (e.resumedAt && now - e.resumedAt < 700) return;
+    e.resumedAt = now;
+    send(e.frame, playerOf(e.embed), "play");
+  }
+
   private ensureListening() {
     if (this.listening) return;
     window.addEventListener("message", this.onMessage);
+    document.addEventListener("fullscreenchange", this.onFullscreen);
     this.listening = true;
   }
 
@@ -200,6 +252,7 @@ export class StreamLayer {
     clearInterval(e.confirm);
     clearInterval(e.listen);
     e.muted = undefined;
+    e.paused = undefined;
     if (!e.box.isConnected) {
       e.pendingSrc = embed;
       return;
@@ -252,6 +305,7 @@ export class StreamLayer {
     this.raf = 0;
     for (const e of [...this.entries.values()]) this.remove(e);
     window.removeEventListener("message", this.onMessage);
+    document.removeEventListener("fullscreenchange", this.onFullscreen);
     this.listening = false;
   }
 }
