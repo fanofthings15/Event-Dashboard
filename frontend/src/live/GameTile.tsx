@@ -34,7 +34,8 @@ function useBareTwitch(tile: React.RefObject<HTMLDivElement | null>, twitch: boo
       const h = el.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
       const score = el.querySelector<HTMLElement>(".lv-tile-score");
       const status = el.querySelector<HTMLElement>(".lv-tile-status");
-      if (score && status) chrome.current = score.offsetHeight + status.offsetHeight + 2 * parseFloat(cs.rowGap || "0");
+      // (only while they show: hidden, they measure 0)
+      if (score && status && score.offsetHeight > 0) chrome.current = score.offsetHeight + status.offsetHeight + 2 * parseFloat(cs.rowGap || "0");
       const lines = chrome.current ?? 3.6 * parseFloat(cs.fontSize);
       // the player with the lines: a 16:9 box in what's left under them
       const fw = Math.min(w, ((h - lines) * 16) / 9);
@@ -265,60 +266,55 @@ export default function GameTile({
       data-key={`${event.sport}-${event.id}`}
       onPointerDown={onPointerDown}
     >
-      {bare ? (
-        <>
-          <div className="lv-tile-surface">{row?.surface}</div>
-          {pinned && (
-            <button
-              className="lv-tile-pin lv-tile-pin-float"
-              aria-label="Unpin"
-              title="Unpin — let the display pick this spot again"
-              onPointerDown={(e) => e.stopPropagation()}
-              onClick={onUnpin}
-            >
-              Pinned ✕
-            </button>
-          )}
-        </>
-      ) : (
-        <>
-          <div className="lv-tile-score">
-            {row ? (
-              <>
-                <span style={{ color: row.away.color }}>{row.away.name}</span>
-                {row.away.timeouts && <Timeouts {...row.away.timeouts} color={row.away.color} />}
-                {row.away.score !== undefined && row.home.score !== undefined && (
-                  <span className="n">
-                    {row.away.score} – {row.home.score}
-                  </span>
-                )}
-                {row.home.name && <span style={{ color: row.home.color }}>{row.home.name}</span>}
-                {row.home.timeouts && <Timeouts {...row.home.timeouts} color={row.home.color} />}
-                {row.tags.map((t) => (
-                  <span key={t.text} className="lv-tile-tag" style={{ background: t.bg, color: t.ink }}>
-                    {t.text}
-                  </span>
-                ))}
-              </>
-            ) : (
-              <span>{event.name}</span>
+      <div className="lv-tile-score">
+        {row ? (
+          <>
+            <span style={{ color: row.away.color }}>{row.away.name}</span>
+            {row.away.timeouts && <Timeouts {...row.away.timeouts} color={row.away.color} />}
+            {row.away.score !== undefined && row.home.score !== undefined && (
+              <span className="n">
+                {row.away.score} – {row.home.score}
+              </span>
             )}
-            <span className="clock">{row?.clock ?? event.liveDetail}</span>
-            {pinned && (
-              <button
-                className="lv-tile-pin"
-                aria-label="Unpin"
-                title="Unpin — let the display pick this spot again"
-                onPointerDown={(e) => e.stopPropagation()}
-                onClick={onUnpin}
-              >
-                Pinned ✕
-              </button>
-            )}
-          </div>
-          <div className="lv-tile-surface">{row ? row.surface : <div className="lv-tile-empty">Loading…</div>}</div>
-          <div className="lv-tile-status">{row?.status}</div>
-        </>
+            {row.home.name && <span style={{ color: row.home.color }}>{row.home.name}</span>}
+            {row.home.timeouts && <Timeouts {...row.home.timeouts} color={row.home.color} />}
+            {row.tags.map((t) => (
+              <span key={t.text} className="lv-tile-tag" style={{ background: t.bg, color: t.ink }}>
+                {t.text}
+              </span>
+            ))}
+          </>
+        ) : (
+          <span>{event.name}</span>
+        )}
+        <span className="clock">{row?.clock ?? event.liveDetail}</span>
+        {pinned && (
+          <button
+            className="lv-tile-pin"
+            aria-label="Unpin"
+            title="Unpin — let the display pick this spot again"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={onUnpin}
+          >
+            Pinned ✕
+          </button>
+        )}
+      </div>
+      <div className="lv-tile-surface">{row ? row.surface : <div className="lv-tile-empty">Loading…</div>}</div>
+      <div className="lv-tile-status">{row?.status}</div>
+      {/* stream only: score and status are hidden by CSS but stay in the page,
+          so the stream's frame isn't rebuilt (and its stream restarted) when a
+          tile switches between the two */}
+      {bare && pinned && (
+        <button
+          className="lv-tile-pin lv-tile-pin-float"
+          aria-label="Unpin"
+          title="Unpin — let the display pick this spot again"
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={onUnpin}
+        >
+          Pinned ✕
+        </button>
       )}
     </div>
   );

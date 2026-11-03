@@ -471,11 +471,20 @@ export default function LiveScreen({ onBack, pin }: { onBack?: () => void; pin?:
     save({ frcStreamUrls: next });
   };
 
+  const tileOrderRef = useRef<string[]>([]);
+
   // ----- render -----
   let body: ReactNode;
   if (multi) {
     const shown = placement.slots.map((k) => byKey.get(k)).filter((e): e is NormalizedEvent => Boolean(e));
     const tpl = multiTemplate(layout, shown.length, portrait);
+    // Tiles are written into the page in the order they first appeared, not
+    // spot order — each one is placed by its grid area. A new game taking a
+    // spot reordered the list, and the browser reloads any iframe that's
+    // moved in the page, so every stream restarted.
+    const shownKeys = shown.map(eventKey);
+    const tileOrder = tileOrderRef.current.filter((k) => shownKeys.includes(k)).concat(shownKeys.filter((k) => !tileOrderRef.current.includes(k)));
+    tileOrderRef.current = tileOrder;
     // RedZone's small column: a Twitch stream's row gets a little more height
     // than the others, so on a 1080p screen its player can reach Twitch's
     // 300px autoplay minimum (see GameTile)
@@ -485,8 +494,9 @@ export default function LiveScreen({ onBack, pin }: { onBack?: () => void; pin?:
       tpl.className === "rz" ? shown.slice(1).map((e) => (twitchTile(e) ? "minmax(0,1.15fr)" : "minmax(0,1fr)")).join(" ") : undefined;
     body = (
       <div className={`lv-multi ${tpl.className}`} style={{ gridTemplateAreas: tpl.areas, gridTemplateColumns: tpl.columns, gridTemplateRows: rows }}>
-        {shown.map((e, i) => {
-          const k = eventKey(e);
+        {tileOrder.map((k) => {
+          const i = shownKeys.indexOf(k);
+          const e = shown[i];
           return (
             <GameTile
               key={k}
