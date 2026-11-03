@@ -1,6 +1,6 @@
 import type { NormalizedEvent } from "../types";
 import { isLiveNow } from "../eventStatus";
-import { interest, STAY_BONUS, type Ranking } from "./multiGame";
+import { importance, interest, STAY_BONUS, type Ranking } from "./multiGame";
 
 // Esports titles the display shows (as their live stream). Dota 2 and
 // StarCraft II are deliberately left out — the display never picks them.
@@ -23,11 +23,15 @@ export const eventKey = (e: NormalizedEvent) => `${e.sport}-${e.id}`;
 //      about the same interest don't swap on every poll
 // `arrivals`: games that have only just gone live, which get the same bonus
 // as the one on screen for this pick, so a bigger new game can take over.
+// A tie goes to the bigger event (importance: tier × stage, postseason),
+// and between events the same size to the game that has been on longer.
 export function selectLiveEvent(events: NormalizedEvent[], currentKey: string | null, ranking?: Ranking, arrivals: Set<string> = new Set()): NormalizedEvent | null {
   const now = new Date();
   const live = events.filter((e) => isLiveNow(e, now) && LIVE_VIEW_SPORTS.has(e.sport));
   if (live.length === 0) return null;
   const t = now.getTime();
   const score = (e: NormalizedEvent) => interest(e, t, {}, ranking) + (eventKey(e) === currentKey || arrivals.has(eventKey(e)) ? STAY_BONUS : 0);
-  return [...live].sort((a, b) => score(b) - score(a) || new Date(b.startTime).getTime() - new Date(a.startTime).getTime())[0];
+  return [...live].sort(
+    (a, b) => score(b) - score(a) || importance(b, ranking) - importance(a, ranking) || new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
+  )[0];
 }

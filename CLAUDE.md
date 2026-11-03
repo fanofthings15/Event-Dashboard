@@ -82,7 +82,7 @@ final) + the strongest live moment capped at +35 (red zone from the ESPN
 scoreboard's `situation`, a score in the last 3 minutes, a power play, a
 close finish, a deciding map) + followed teams + 10 for a stream that plays
 on the display − 20 for an esports match between maps (`mapLive` false,
-from PandaScore's per-map status) — with a +15 bonus for games already shown so they don't churn on a close score or red-zone drive. When a game goes live, it gets that same +15 for one pass (`arrivals` in `placeGames`/`selectLiveEvent`), and ties go to the newer game, so a bigger new game takes over; ties between games already on screen keep their order.
+from PandaScore's per-map status) — with a +15 bonus for games already shown so they don't churn on a close score or red-zone drive. When a game goes live, it gets that same +15 for one pass (`arrivals` in `placeGames`/`selectLiveEvent`), so a new game that beats the one on screen takes over. Ties (the user's rule, 2026-11-03): between games already on screen they keep their order; otherwise the bigger event (`importance`, i.e. a tier/stage difference) wins, and between events the same size the game that has been on longer — a new game never wins a tie on being new.
 Nothing is dropped for being small; unwanted sources are filtered in
 settings. "Live" means `isLiveNow` (start time passed), same as the
 dashboard. Layout "Auto" (default) picks Single / RedZone / Grid
@@ -111,16 +111,24 @@ onto the strip (hide). Single drags the same way: a strip game dropped on
 the view is shown (like a tap), the shown game dropped on the strip is
 hidden and the next pick takes over (hidden games are skipped by the
 single pick unless nothing else is live). Layout, pins and hidden games are per device
-(localStorage), pruned when their games end. Tiles stay mounted while
-they move between grid areas, and a stream's frame is never reloaded unless
-its stream changes (until 2026-11-03 a new game arriving restarted every stream
-and undid a hand mute): tiles are written into the page in the order they first
-appeared, not spot order (the browser reloads an iframe moved in the page);
-a stream-only Twitch tile hides its lines with CSS rather than rendering
-different markup; and the sound moving to another tile is a mute/unmute
-command to the player (`setPlayerMuted` in `Stream.tsx`: YouTube IFrame API,
-Twitch's embed-proxy message), not a new URL — only Kick, with no player API,
-reloads for it. Twitch won't autoplay a player under 400×300: a Twitch tile drops
+(localStorage), pruned when their games end. Every stream player
+lives in one layer of the page (`StreamLayer` in `Stream.tsx`): a `Stream` is a
+placeholder and its iframe is laid over it every frame, keyed by the stream
+minus its mute setting, so a player is never rebuilt or moved in the page (the
+browser reloads a moved iframe) — Single becoming RedZone, tiles changing spot
+or shape, all keep the stream playing and a player's fullscreen open. Before
+2026-11-03 a new game going live restarted every stream, closed a fullscreen
+player mid-overtime and undid a hand mute. The sound moving between tiles is a
+mute/unmute message (YouTube IFrame API; Twitch's embed-proxy SetMuted = 10,
+both checked in headless Chrome), confirmed from the state the player reports
+and resent; a player that hasn't confirmed in 8 s is reloaded with the right
+setting (Kick, with no API, always reloads) — an unconfirmed mute once left two
+streams' audio playing until a refresh. Tiles are also written into the page in
+first-seen order, and a stream-only Twitch tile hides its lines with CSS.
+While a player is fullscreen (`document.fullscreenElement` is an iframe)
+nothing on the display changes: games going live wait in the strip and don't
+count as arrivals afterwards. When the display goes from Single to RedZone,
+the game shown in Single is pinned to the big spot. Twitch won't autoplay a player under 400×300: a Twitch tile drops
 its score/status lines (stream only, the broadcast has a scoreboard) only
 when that gets the player over it (`useBareTwitch` in `GameTile.tsx`), and
 in RedZone's small column a Twitch row gets 1.15× the height so 1080p

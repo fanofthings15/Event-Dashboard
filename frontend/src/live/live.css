@@ -894,6 +894,29 @@ body.live-body {
   overflow: hidden;
 }
 
+/* Stream players sit in one fixed layer over the page (StreamLayer in
+   Stream.tsx), each laid over its placeholder (.lv-stream-slot), so a
+   player is never rebuilt when the view around it changes. Under the
+   scoring flash (20), drag ghost (30) and a tile's floating pin (4). */
+.lv-stream-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.lv-stream-float {
+  position: absolute;
+  aspect-ratio: auto;
+  max-height: none;
+  pointer-events: auto;
+}
+
+.lv-stream-slot::after {
+  content: none;
+}
+
 /* Rounded corners drawn over the player rather than by clipping it: some
    browsers (Firefox especially) ignore border-radius/clip-path on an
    embedded player, and its square corners show through as white. This
@@ -1318,7 +1341,8 @@ body.live-body {
   position: absolute;
   top: 0.6em;
   right: 0.6em;
-  z-index: 2;
+  /* above the stream layer */
+  z-index: 4;
 }
 
 .lv-tile-surface .lv-stream {

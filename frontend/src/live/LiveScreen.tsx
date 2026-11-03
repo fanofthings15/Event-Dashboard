@@ -7,7 +7,7 @@ import { isLiveNow } from "../eventStatus";
 import { loadQuiet, saveQuiet, useQuietHours, type QuietHours } from "../quietHours";
 import { ESPORTS_SPORTS, eventKey, LIVE_VIEW_SPORTS, selectLiveEvent } from "./selectLiveEvent";
 import { useLiveDetail } from "./useLiveDetail";
-import { embeddableStream } from "./Stream";
+import { embeddableStream, StreamLayer, StreamLayerContext } from "./Stream";
 import type { BaseballState, BasketballState, F1State, FootballState, FrcState, HockeyState } from "./liveTypes";
 import FootballView from "./views/FootballView";
 import BasketballView from "./views/BasketballView";
@@ -114,6 +114,18 @@ function SportView({
 const HOURS = Array.from({ length: 24 }, (_, h) => h);
 const hourLabel = (h: number) => (h === 0 ? "12 AM" : h === 12 ? "12 PM" : h < 12 ? `${h} AM` : `${h - 12} PM`);
 
+// A player's own fullscreen button (Twitch's, YouTube's) makes its iframe
+// the page's fullscreen element.
+function usePlayerFullscreen(): boolean {
+  const [full, setFull] = useState(false);
+  useEffect(() => {
+    const update = () => setFull(document.fullscreenElement instanceof HTMLIFrameElement);
+    document.addEventListener("fullscreenchange", update);
+    return () => document.removeEventListener("fullscreenchange", update);
+  }, []);
+  return full;
+}
+
 function useIsFullscreen(): boolean {
   const check = () =>
     Boolean(document.fullscreenElement) ||
@@ -215,10 +227,28 @@ export default function LiveScreen({ onBack, pin }: { onBack?: () => void; pin?:
   const [currentKey, setCurrentKey] = useState<string | null>(null);
   // Same idea of "live" as the dashboard's LIVE badge, so a game shown live
   // there is never missing here.
-  const liveEvents = useMemo(() => {
+  const liveAll = useMemo(() => {
     const now = new Date();
     return events.filter((e) => isLiveNow(e, now) && LIVE_VIEW_SPORTS.has(e.sport));
   }, [events]);
+  // While a stream is fullscreen in its own player, nothing on the display
+  // changes: games that go live meanwhile wait in the strip and count for
+  // nothing until fullscreen ends (a new game once switched Single to
+  // RedZone mid-overtime, which closed the fullscreen player). They don't
+  // count as new arrivals afterwards either, so they don't jump the game
+  // being watched when they're let in.
+  const playerFullscreen = usePlayerFullscreen();
+  const held = useRef<Set<string> | null>(null);
+  if (!playerFullscreen) held.current = null;
+  else if (!held.current) held.current = new Set(liveAll.map(eventKey));
+  const heldKeys = held.current;
+  const liveEvents = useMemo(() => (heldKeys ? liveAll.filter((e) => heldKeys.has(eventKey(e))) : liveAll), [liveAll, heldKeys]);
+  const waiting = useMemo(() => (heldKeys ? liveAll.filter((e) => !heldKeys.has(eventKey(e))) : []), [liveAll, heldKeys]);
+  const pickEvents = useMemo(() => {
+    if (!waiting.length) return events;
+    const w = new Set(waiting.map(eventKey));
+    return events.filter((e) => !w.has(eventKey(e)));
+  }, [events, waiting]);
   // A game that has just gone live gets, for one pass, the same bonus that
   // keeps games already on screen in place — so a Worlds match starting
   // takes the big spot from a smaller game it ties or beats, instead of
@@ -232,12 +262,16 @@ export default function LiveScreen({ onBack, pin }: { onBack?: () => void; pin?:
     [liveEvents]
   );
   useEffect(() => {
-    seenLive.current = new Set(liveEvents.map(eventKey));
-  }, [liveEvents]);
+    seenLive.current = new Set(liveAll.map(eventKey));
+  }, [liveAll]);
   const chosen = chosenKey ? liveEvents.find((e) => eventKey(e) === chosenKey) : undefined;
   useEffect(() => {
     if (chosenKey && !chosen && events.length > 0) setChosenKey(null);
   }, [chosenKey, chosen, events.length]);
+
+  // every stream player on the display lives in one layer (see StreamLayer)
+  const [streamLayer] = useState(() => new StreamLayer());
+  useEffect(() => () => streamLayer.destroy(), [streamLayer]);
 
   const [prefs, setPrefsState] = useState<MultiPrefs>(loadPrefs);
   const prefsRef = useRef(prefs);
@@ -257,9 +291,9 @@ export default function LiveScreen({ onBack, pin }: { onBack?: () => void; pin?:
     }
     if (chosen) return chosen;
     const hidden = new Set(prefs.hidden);
-    const shown = events.filter((e) => !hidden.has(eventKey(e)));
-    return selectLiveEvent(shown, currentKey, settings.eventRanking, arrivals) ?? selectLiveEvent(events, currentKey, settings.eventRanking, arrivals);
-  }, [events, allEvents, currentKey, pinned, chosen, prefs.hidden, settings.eventRanking, arrivals]);
+    const shown = pickEvents.filter((e) => !hidden.has(eventKey(e)));
+    return selectLiveEvent(shown, currentKey, settings.eventRanking, arrivals) ?? selectLiveEvent(pickEvents, currentKey, settings.eventRanking, arrivals);
+  }, [pickEvents, allEvents, currentKey, pinned, chosen, prefs.hidden, settings.eventRanking, arrivals]);
   useEffect(() => {
     setCurrentKey(selected ? eventKey(selected) : null);
   }, [selected]);
@@ -329,12 +363,32 @@ export default function LiveScreen({ onBack, pin }: { onBack?: () => void; pin?:
     return out;
   }, [liveEvents, powerPlays, settings.eventRanking]);
 
+  // The game you were watching in Single keeps the screen when the display
+  // goes to RedZone: it's pinned to the big spot (unpinned like any pin),
+  // rather than handed to whatever game just went live.
+  const wasMulti = useRef(multi);
+  const watchedKey = useRef<string | null>(null);
+  const watched = watchedKey.current;
+  const placePrefs =
+    multi &&
+    !wasMulti.current &&
+    layout === "redzone" &&
+    watched &&
+    liveEvents.some((e) => eventKey(e) === watched) &&
+    !prefs.hidden.includes(watched) &&
+    prefs.pins[watched] === undefined &&
+    !Object.values(prefs.pins).includes(0)
+      ? { ...prefs, pins: { ...prefs.pins, [watched]: 0 } }
+      : prefs;
   const prevSlots = useRef<string[]>([]);
   const placement = useMemo(() => {
-    const r = placeGames(liveEvents, scores, prevSlots.current, prefs, layout, settings.eventRanking, arrivals);
+    const r = placeGames(liveEvents, scores, prevSlots.current, placePrefs, layout, settings.eventRanking, arrivals);
     prevSlots.current = r.slots;
     return r;
-  }, [liveEvents, scores, prefs, layout, settings.eventRanking, arrivals]);
+  }, [liveEvents, scores, placePrefs, layout, settings.eventRanking, arrivals]);
+  useEffect(() => {
+    if (placePrefs !== prefs) setPrefs(placePrefs);
+  }, [placePrefs, prefs, setPrefs]);
   const slotsRef = useRef(placement.slots);
   slotsRef.current = placement.slots;
   const byKey = useMemo(() => new Map(liveEvents.map((e) => [eventKey(e), e])), [liveEvents]);
@@ -348,6 +402,10 @@ export default function LiveScreen({ onBack, pin }: { onBack?: () => void; pin?:
   // Single drags too: a strip game dropped on the view is shown there (like a
   // tap), the shown game dropped on the strip is hidden so the next one takes over.
   const single = !multi && !pinned && Boolean(selected);
+  useEffect(() => {
+    wasMulti.current = multi;
+    if (single && selected) watchedKey.current = eventKey(selected);
+  });
   const singleRef = useRef({ single, key: selected ? eventKey(selected) : null });
   singleRef.current = { single, key: selected ? eventKey(selected) : null };
   const startPress = (e: React.PointerEvent, key: string, from: number | "strip") => {
@@ -553,7 +611,7 @@ export default function LiveScreen({ onBack, pin }: { onBack?: () => void; pin?:
     setChosenKey(null);
   };
 
-  const stripGames = multi ? placement.strip.map((k) => byKey.get(k)).filter((e): e is NormalizedEvent => Boolean(e)) : others;
+  const stripGames = (multi ? placement.strip.map((k) => byKey.get(k)).filter((e): e is NormalizedEvent => Boolean(e)) : others).concat(waiting);
   const hidden = new Set(prefs.hidden);
   const tapStrip = (key: string) => {
     if (suppressClick.current || pinned) return;
@@ -574,6 +632,7 @@ export default function LiveScreen({ onBack, pin }: { onBack?: () => void; pin?:
   }, [pin, events.length, liveEvents, multi, setPrefs]);
 
   return (
+    <StreamLayerContext.Provider value={streamLayer}>
     <div className={`live-root${controlsVisible ? "" : " live-idle"}${drag ? " lv-dragging" : ""}`} onPointerMove={poke} onPointerDown={poke}>
       {single && selected ? (
         <div
@@ -670,6 +729,8 @@ export default function LiveScreen({ onBack, pin }: { onBack?: () => void; pin?:
           {byKey.get(drag.key)?.name}
         </div>
       )}
+      <div ref={streamLayer.attach} className="lv-stream-layer" />
     </div>
+    </StreamLayerContext.Provider>
   );
 }
