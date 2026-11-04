@@ -1,6 +1,6 @@
 import type { NormalizedEvent } from "../types";
 import { isLiveNow } from "../eventStatus";
-import { importance, interest, STAY_BONUS, type Ranking } from "./multiGame";
+import { canTakeOver, importance, interest, isOnBreak, STAY_BONUS, type InterestHints, type Ranking } from "./multiGame";
 
 // Esports titles the display shows (as their live stream). Dota 2 and
 // StarCraft II are deliberately left out — the display never picks them.
@@ -25,21 +25,35 @@ export const eventKey = (e: NormalizedEvent) => `${e.sport}-${e.id}`;
 // as the one on screen for this pick, so a bigger new game can take over.
 // A tie goes to the bigger event (importance: tier × stage, postseason),
 // and between events the same size to the game that has been on longer.
-// `held`: matches counted as still on their break (see InterestHints.onBreak).
+// `hintsFor`: per-game hints from the display (InterestHints: a match held on
+// its break, one celebrating). A match between maps gives the screen to the
+// best one being played, if there's one that can take it (canTakeOver).
 export function selectLiveEvent(
   events: NormalizedEvent[],
   currentKey: string | null,
   ranking?: Ranking,
   arrivals: Set<string> = new Set(),
-  held: Set<string> = new Set()
+  hintsFor: (key: string) => InterestHints = () => ({})
 ): NormalizedEvent | null {
   const now = new Date();
   const live = events.filter((e) => isLiveNow(e, now) && LIVE_VIEW_SPORTS.has(e.sport));
   if (live.length === 0) return null;
   const t = now.getTime();
   const score = (e: NormalizedEvent) =>
-    interest(e, t, { onBreak: held.has(eventKey(e)) || undefined }, ranking) + (eventKey(e) === currentKey || arrivals.has(eventKey(e)) ? STAY_BONUS : 0);
-  return [...live].sort(
+    interest(e, t, hintsFor(eventKey(e)), ranking) + (eventKey(e) === currentKey || arrivals.has(eventKey(e)) ? STAY_BONUS : 0);
+  const sorted = [...live].sort(
     (a, b) => score(b) - score(a) || importance(b, ranking) - importance(a, ranking) || new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
-  )[0];
+  );
+  // Single: the match on screen that has just finished keeps the screen for
+  // its celebration (CELEBRATE_MS); any other that has finished is only
+  // shown while nothing else is live
+  const celebratingHere = sorted.find((e) => eventKey(e) === currentKey && hintsFor(eventKey(e)).celebrating);
+  if (celebratingHere) return celebratingHere;
+  const playingOn = sorted.filter((e) => !hintsFor(eventKey(e)).celebrating);
+  const pool = playingOn.length ? playingOn : sorted;
+  if (isOnBreak(pool[0], hintsFor(eventKey(pool[0])))) {
+    const playing = pool.find((e) => !isOnBreak(e, hintsFor(eventKey(e))) && canTakeOver(e, ranking));
+    if (playing) return playing;
+  }
+  return pool[0];
 }

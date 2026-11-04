@@ -49,6 +49,27 @@ export interface InterestHints {
   // counted as still on its break: the match that took its spot while it was
   // between maps is still playing that map (LiveScreen's `cover`)
   onBreak?: boolean;
+  // just finished on screen: kept on a small spot for CELEBRATE_MS
+  celebrating?: boolean;
+}
+
+// After a deciding map (the match is over), a match that was on screen stays
+// on the display this long, for the celebrations, then drops off (the user's
+// rules, 2026-11-04). In Single it keeps the screen (selectLiveEvent). In
+// RedZone/Grid it moves to a small spot — never keeping or taking the big
+// one, pinned or not, unless nothing else is live — and live gameplay comes
+// first there too: it ranks like a match between maps, so it keeps its tile
+// only while there's room or it outranks what's waiting in the strip.
+export const CELEBRATE_MS = 3 * 60_000;
+
+// Between maps a match hands the top spot (Single, RedZone's big spot) to one
+// being played (the user's rule, 2026-11-04) — any that could take a spot
+// beside it: not FRC or tier-D esports.
+export function isOnBreak(e: NormalizedEvent, hints: InterestHints = {}): boolean {
+  return e.mapLive === false || hints.onBreak === true;
+}
+export function canTakeOver(e: NormalizedEvent, ranking?: Ranking): boolean {
+  return e.sport !== "frc" && importance(e, ranking) > MINOR;
 }
 
 // How big the event is, before anything happens in it: a Worlds or Major
@@ -229,7 +250,7 @@ export function interest(e: NormalizedEvent, now: number, hints: InterestHints =
   // play, so it doesn't hold the spot through their break either (the user's
   // rule, 2026-11-04). The match that moves in keeps the spot until its own
   // map is over (`hints.onBreak`), then hands it back.
-  const onBreak = e.mapLive === false || hints.onBreak === true;
+  const onBreak = isOnBreak(e, hints) || hints.celebrating === true;
   let score = standing(e, ranking) + (onBreak ? 0 : moment(e, now, hints));
   if (onBreak) score -= BETWEEN_MAPS + followBonus(e);
   const diff = margin(e);
@@ -265,7 +286,8 @@ export function placeGames(
   // games that have only just gone live: for this one pass they get the same
   // bonus as games already on screen, so a bigger new game can take a spot
   // it ties or wins without anything else on screen being reshuffled
-  arrivals: Set<string> = new Set()
+  arrivals: Set<string> = new Set(),
+  hintsFor: (key: string) => InterestHints = () => ({})
 ): { slots: string[]; strip: string[] } {
   const hidden = new Set(prefs.hidden);
   const visible = live.filter((e) => !hidden.has(eventKey(e)));
@@ -275,7 +297,10 @@ export function placeGames(
   const slots: (string | null)[] = Array(n).fill(null);
 
   // pinned games keep their spot (or the nearest free one if the layout shrank)
-  const pinnedKeys = visible.map(eventKey).filter((k) => prefs.pins[k] !== undefined).sort((a, b) => prefs.pins[a] - prefs.pins[b]);
+  const pinnedKeys = visible
+    .map(eventKey)
+    .filter((k) => prefs.pins[k] !== undefined && !hintsFor(k).celebrating)
+    .sort((a, b) => prefs.pins[a] - prefs.pins[b]);
   for (const k of pinnedKeys) {
     const want = Math.min(prefs.pins[k], n - 1);
     const at = slots[want] === null ? want : slots.indexOf(null);
@@ -294,15 +319,25 @@ export function placeGames(
     if (prev.includes(a) && prev.includes(b)) return prev.indexOf(a) - prev.indexOf(b);
     return (sizeOf.get(b) ?? 0) - (sizeOf.get(a) ?? 0) || (startOf.get(a) ?? 0) - (startOf.get(b) ?? 0);
   };
-  const free = slots.filter((s) => s === null).length;
-  const chosen = visible
+  const ranked = visible
     .map(eventKey)
     .filter((k) => !slots.includes(k) && eligible.has(k))
-    .sort((a, b) => rank(b) - rank(a) || tieBreak(a, b))
-    .slice(0, free);
+    .sort((a, b) => rank(b) - rank(a) || tieBreak(a, b));
 
-  // RedZone: the big spot always goes to the most interesting unpinned game
-  if (layout === "redzone" && slots[0] === null && chosen.length > 0) slots[0] = chosen.shift()!;
+  // RedZone: the big spot always goes to the most interesting unpinned game —
+  // never one that has just finished (it's on a small spot, celebrating), and
+  // if that one is between maps, to the best one being played instead
+  if (layout === "redzone" && slots[0] === null && ranked.length > 0) {
+    const byK = new Map(visible.map((e) => [eventKey(e), e]));
+    const breaking = (k: string) => isOnBreak(byK.get(k)!, hintsFor(k));
+    const playingOn = ranked.filter((k) => !hintsFor(k).celebrating);
+    const pool = playingOn.length ? playingOn : ranked;
+    let pick = pool[0];
+    if (breaking(pick)) pick = pool.find((k) => !breaking(k) && canTakeOver(byK.get(k)!, ranking)) ?? pick;
+    ranked.splice(ranked.indexOf(pick), 1);
+    slots[0] = pick;
+  }
+  const chosen = ranked.slice(0, slots.filter((s) => s === null).length);
   // everything else stays where it was if that spot is still free...
   for (const k of [...chosen]) {
     const was = prev.indexOf(k);
@@ -410,6 +445,33 @@ export function loadPrefs(): MultiPrefs {
 export function savePrefs(prefs: MultiPrefs): void {
   try {
     localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
+  } catch {
+    /* storage unavailable */
+  }
+}
+
+// A match covering for one on its break between maps (LiveScreen's `cover`),
+// kept per device like the pins so a reload — a refresh, a new deploy, the
+// sign-in session renewing — doesn't hand the spot back early.
+export interface Cover {
+  holder: string;
+  for: string;
+}
+const COVER_KEY = "live-cover";
+
+export function loadCover(): Cover | null {
+  try {
+    const v = JSON.parse(localStorage.getItem(COVER_KEY) ?? "null");
+    return v && typeof v.holder === "string" && typeof v.for === "string" ? { holder: v.holder, for: v.for } : null;
+  } catch {
+    return null;
+  }
+}
+
+export function saveCover(c: Cover | null): void {
+  try {
+    if (c) localStorage.setItem(COVER_KEY, JSON.stringify(c));
+    else localStorage.removeItem(COVER_KEY);
   } catch {
     /* storage unavailable */
   }

@@ -3,7 +3,7 @@ import { useSettings } from "../SettingsContext";
 import { useEvents } from "../useEvents";
 import { sportMeta } from "../sportMeta";
 import type { NormalizedEvent } from "../types";
-import { isLiveNow } from "../eventStatus";
+import { hasEventEnded, isLiveNow } from "../eventStatus";
 import { loadQuiet, saveQuiet, useQuietHours, type QuietHours } from "../quietHours";
 import { ESPORTS_SPORTS, eventKey, LIVE_VIEW_SPORTS, selectLiveEvent } from "./selectLiveEvent";
 import { useLiveDetail } from "./useLiveDetail";
@@ -24,11 +24,14 @@ import {
   hideGame,
   interest,
   loadLayout,
+  CELEBRATE_MS,
+  loadCover,
   loadPrefs,
   multiTemplate,
   placeGames,
   pruneTo,
   saveLayout,
+  saveCover,
   savePrefs,
   tapToBig,
   unpinGame,
@@ -36,6 +39,8 @@ import {
   type LayoutChoice,
   autoLayout,
   type MultiPrefs,
+  type Cover,
+  type InterestHints,
 } from "./multiGame";
 import "./live.css";
 
@@ -214,7 +219,7 @@ export default function LiveScreen({ onBack, pin, onPinSaved }: { onBack?: () =>
   const [notLivePin, setNotLivePin] = useState<string | null>(null);
   const pinned = params.get("event") ?? notLivePin;
 
-  const { events, allEvents } = useEvents(
+  const { events: feedEvents, allEvents } = useEvents(
     settings.disabledCoreSources,
     settings.excludedLeagues,
     settings.frcRegions,
@@ -225,16 +230,52 @@ export default function LiveScreen({ onBack, pin, onPinSaved }: { onBack?: () =>
     30_000
   );
 
+  // An esports match that ends while it's on screen (its deciding map is
+  // over) moves to a small spot for CELEBRATE_MS, counted as live, then drops
+  // off (the user's rule, 2026-11-04; see CELEBRATE_MS). Spotted during
+  // render, from what was on screen at the last one, so its stream never
+  // leaves the screen in between.
+  const celebrateUntil = useRef(new Map<string, number>());
+  const lastOnScreen = useRef<Set<string>>(new Set());
+  const [, setCelebrateTick] = useState(0);
+  const renderNow = Date.now();
+  for (const e of feedEvents) {
+    const k = eventKey(e);
+    if (ESPORTS_SPORTS.has(e.sport) && lastOnScreen.current.has(k) && !celebrateUntil.current.has(k) && hasEventEnded(e, renderNow))
+      celebrateUntil.current.set(k, renderNow + CELEBRATE_MS);
+  }
+  const celebratingList = [...celebrateUntil.current].filter(([, until]) => until > renderNow).map(([k]) => k).sort().join(",");
+  const celebrating = useMemo(() => new Set(celebratingList ? celebratingList.split(",") : []), [celebratingList]);
+  useEffect(() => {
+    const next = Math.min(...[...celebrateUntil.current.values()].filter((t) => t > Date.now()));
+    if (!Number.isFinite(next)) return;
+    const t = setTimeout(() => setCelebrateTick((n) => n + 1), next - Date.now() + 50);
+    return () => clearTimeout(t);
+  }, [celebratingList]);
+  const events = useMemo(
+    () => (celebrating.size ? feedEvents.map((e) => (celebrating.has(eventKey(e)) ? { ...e, status: "live" as const, endTime: undefined, mapLive: undefined } : e)) : feedEvents),
+    [feedEvents, celebrating]
+  );
+
   // A game tapped in the strip overrides the automatic pick for as long as
   // it stays live; once it ends, selection goes back to selectLiveEvent.
   const [chosenKey, setChosenKey] = useState<string | null>(null);
   // A match that took the top spot (Single, or RedZone's big spot) while the
-  // one there was between maps keeps it until its own map is over: the one
-  // it replaced counts as still on its break until then, even once its next
-  // map has started, and gets the spot back after (the user's rule,
-  // 2026-11-04 — don't cut away from a map in progress to hand back).
-  const [cover, setCover] = useState<{ holder: string; for: string } | null>(null);
+  // one there was between maps keeps it until that match is over: the one it
+  // replaced counts as still on its break until then, even once its next map
+  // has started, and gets the spot back after (the user's rule, 2026-11-04).
+  // Saved per device, so a reload doesn't end it.
+  const [cover, setCoverState] = useState<Cover | null>(loadCover);
+  const setCover = useCallback((c: Cover | null) => {
+    setCoverState(c);
+    saveCover(c);
+  }, []);
+  const coverMissingSince = useRef<number | null>(null);
   const heldOnBreak = useMemo(() => new Set(cover ? [cover.for] : []), [cover]);
+  const hintsFor = useCallback(
+    (k: string): InterestHints => ({ onBreak: heldOnBreak.has(k) || undefined, celebrating: celebrating.has(k) || undefined }),
+    [heldOnBreak, celebrating]
+  );
   const [currentKey, setCurrentKey] = useState<string | null>(null);
   // Same idea of "live" as the dashboard's LIVE badge, so a game shown live
   // there is never missing here.
@@ -304,10 +345,10 @@ export default function LiveScreen({ onBack, pin, onPinSaved }: { onBack?: () =>
     const hidden = new Set(prefs.hidden);
     const shown = pickEvents.filter((e) => !hidden.has(eventKey(e)));
     return (
-      selectLiveEvent(shown, currentKey, settings.eventRanking, arrivals, heldOnBreak) ??
-      selectLiveEvent(pickEvents, currentKey, settings.eventRanking, arrivals, heldOnBreak)
+      selectLiveEvent(shown, currentKey, settings.eventRanking, arrivals, hintsFor) ??
+      selectLiveEvent(pickEvents, currentKey, settings.eventRanking, arrivals, hintsFor)
     );
-  }, [pickEvents, allEvents, currentKey, pinned, chosen, prefs.hidden, settings.eventRanking, arrivals, heldOnBreak]);
+  }, [pickEvents, allEvents, currentKey, pinned, chosen, prefs.hidden, settings.eventRanking, arrivals, hintsFor]);
   useEffect(() => {
     setCurrentKey(selected ? eventKey(selected) : null);
   }, [selected]);
@@ -372,10 +413,10 @@ export default function LiveScreen({ onBack, pin, onPinSaved }: { onBack?: () =>
       const seen = lastScore.current.get(k);
       if (!seen) lastScore.current.set(k, { score: e.seriesScore });
       else if (seen.score !== e.seriesScore) lastScore.current.set(k, { score: e.seriesScore, at: now });
-      out.set(k, interest(e, now, { scoredAt: lastScore.current.get(k)?.at, powerPlay: powerPlays[k], onBreak: heldOnBreak.has(k) || undefined }, settings.eventRanking));
+      out.set(k, interest(e, now, { scoredAt: lastScore.current.get(k)?.at, powerPlay: powerPlays[k], ...hintsFor(k) }, settings.eventRanking));
     }
     return out;
-  }, [liveEvents, powerPlays, settings.eventRanking, heldOnBreak]);
+  }, [liveEvents, powerPlays, settings.eventRanking, hintsFor]);
 
   // The game you were watching in Single keeps the screen when the display
   // goes to RedZone: it's pinned to the big spot (unpinned like any pin),
@@ -396,7 +437,7 @@ export default function LiveScreen({ onBack, pin, onPinSaved }: { onBack?: () =>
       : prefs;
   const prevSlots = useRef<string[]>([]);
   const placement = useMemo(() => {
-    const r = placeGames(liveEvents, scores, prevSlots.current, placePrefs, layout, settings.eventRanking, arrivals);
+    const r = placeGames(liveEvents, scores, prevSlots.current, placePrefs, layout, settings.eventRanking, arrivals, hintsFor);
     prevSlots.current = r.slots;
     return r;
   }, [liveEvents, scores, placePrefs, layout, settings.eventRanking, arrivals]);
@@ -418,18 +459,35 @@ export default function LiveScreen({ onBack, pin, onPinSaved }: { onBack?: () =>
   const single = !multi && !pinned && Boolean(selected);
 
   // the cover (see `cover`): starts when the top spot passes from a match on
-  // its break to one mid-map, ends when that map (or either match) is over
+  // its break to one mid-map; ends when that map is over — a map that isn't
+  // the decider hands the spot straight back, a decider (the match is over)
+  // after the celebration — or when the match it covers for ends. A match
+  // that's only missing from the data (a failed poll, a page still loading)
+  // has to stay missing for 3 minutes before that counts.
   const topKey = multi ? (layout === "redzone" ? (placement.slots[0] ?? null) : null) : single && selected ? eventKey(selected) : null;
   const prevTop = useRef<string | null>(null);
   useEffect(() => {
     const byK = new Map(liveAll.map((e) => [eventKey(e), e]));
     if (cover) {
-      if (byK.get(cover.holder)?.mapLive !== true || !byK.has(cover.for)) setCover(null);
+      const missing = [cover.holder, cover.for].filter((k) => !byK.has(k));
+      const holder = byK.get(cover.holder);
+      if (holder && holder.mapLive !== true) setCover(null);
+      else if (missing.length === 0) coverMissingSince.current = null;
+      else {
+        const now = Date.now();
+        const ended = missing.some((k) => {
+          const e = allEvents.find((x) => eventKey(x) === k);
+          return e !== undefined && hasEventEnded(e, now);
+        });
+        coverMissingSince.current ??= now;
+        if (ended || now - coverMissingSince.current > 3 * 60_000) setCover(null);
+      }
     } else {
       const was = prevTop.current;
       if (topKey && was && topKey !== was && byK.get(was)?.mapLive === false && byK.get(topKey)?.mapLive === true) setCover({ holder: topKey, for: was });
     }
     prevTop.current = topKey;
+    lastOnScreen.current = new Set(multi ? placement.slots : selected ? [eventKey(selected)] : []);
   });
   useEffect(() => {
     wasMulti.current = multi;
