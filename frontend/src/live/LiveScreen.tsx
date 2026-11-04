@@ -206,7 +206,9 @@ const followedFirst =(a: NormalizedEvent, b: NormalizedEvent) =>
 // from the dashboard's "Watch live": a live game is pinned to the big spot
 // (as if tapped in the strip, so Unpin all undoes it); one that isn't live
 // yet gets the whole display to itself, like /live?event=.
-export default function LiveScreen({ onBack, pin }: { onBack?: () => void; pin?: string } = {}) {
+// onPinSaved: the pin became a saved pin (the multi-game display keeps it
+// across reloads itself), so whoever passed it needn't keep it either.
+export default function LiveScreen({ onBack, pin, onPinSaved }: { onBack?: () => void; pin?: string; onPinSaved?: () => void } = {}) {
   const { settings, save } = useSettings();
   const params = useMemo(() => new URLSearchParams(window.location.search), []);
   const [notLivePin, setNotLivePin] = useState<string | null>(null);
@@ -630,9 +632,11 @@ export default function LiveScreen({ onBack, pin }: { onBack?: () => void; pin?:
     if (!pin || pinApplied.current || events.length === 0) return;
     pinApplied.current = true;
     if (!liveEvents.some((e) => eventKey(e) === pin)) setNotLivePin(pin);
-    else if (multi) setPrefs(tapToBig(prefsRef.current, pin));
-    else setChosenKey(pin);
-  }, [pin, events.length, liveEvents, multi, setPrefs]);
+    else if (multi) {
+      setPrefs(tapToBig(prefsRef.current, pin));
+      onPinSaved?.();
+    } else setChosenKey(pin);
+  }, [pin, events.length, liveEvents, multi, setPrefs, onPinSaved]);
 
   return (
     <StreamLayerContext.Provider value={streamLayer}>

@@ -25,6 +25,11 @@ const LiveScreen = lazy(() => import("../live/LiveScreen"));
 
 type View = "home" | "calendar" | "finished" | "standings" | "settings" | "live" | "more";
 
+function liveFromUrl(): { pin: string | null } | null {
+  const q = new URLSearchParams(window.location.search);
+  return q.get("view") === "live" ? { pin: q.get("pin") } : null;
+}
+
 const FINISHED_SHELF_LIFE_DAYS = 7;
 const UPCOMING_PAGE = 60;
 // Key kept from when this UI lived at /beta, so devices keep their toggles.
@@ -139,9 +144,50 @@ export default function App() {
   const now = useNow();
   const tz = settings.timezone;
 
-  const [view, setView] = useState<View>("home");
+  // The live display is in the address (?view=live, plus &pin= for a game
+  // opened with "Watch live"), so a refresh stays on it and the browser's
+  // back button returns to the dashboard. Other views aren't.
+  const [view, setView] = useState<View>(() => (liveFromUrl() ? "live" : "home"));
   const [selected, setSelected] = useState<NormalizedEvent | null>(null);
-  const [livePin, setLivePin] = useState<string | null>(null);
+  const [livePin, setLivePin] = useState<string | null>(() => liveFromUrl()?.pin ?? null);
+  const openLive = (pin: string | null) => {
+    setLivePin(pin);
+    setView("live");
+    const q = new URLSearchParams({ view: "live" });
+    if (pin) q.set("pin", pin);
+    if (liveFromUrl()) window.history.replaceState({ view: "live" }, "", `${window.location.pathname}?${q}`);
+    else window.history.pushState({ view: "live" }, "", `${window.location.pathname}?${q}`);
+  };
+  const closeLive = () => {
+    // opened from the dashboard (even before a refresh): step back to it, so
+    // a forward press can return; a /?view=live link opened directly has
+    // nothing behind it to go back to
+    if (window.history.state?.view === "live") window.history.back();
+    else {
+      window.history.replaceState(null, "", window.location.pathname);
+      setLivePin(null);
+      setView("home");
+    }
+  };
+  // a pin the live display has saved itself would otherwise be re-applied on
+  // every refresh, even after it was unpinned
+  const dropPinFromUrl = useCallback(() => {
+    if (liveFromUrl()?.pin) window.history.replaceState(window.history.state, "", `${window.location.pathname}?view=live`);
+  }, []);
+  useEffect(() => {
+    const onPop = () => {
+      const l = liveFromUrl();
+      if (l) {
+        setLivePin(l.pin);
+        setView("live");
+      } else {
+        setLivePin(null);
+        setView((v) => (v === "live" ? "home" : v));
+      }
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
   // the new/edit custom event form: a date to start on, or an event to edit
   const [sheet, setSheet] = useState<{ editing?: CustomEvent; date?: string } | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -221,9 +267,8 @@ export default function App() {
   };
   const dismiss = (e: NormalizedEvent) => save({ dismissedFinishedEventIds: [...settings.dismissedFinishedEventIds, eventKey(e)] });
   const watchLive = (e: NormalizedEvent) => {
-    setLivePin(eventKey(e));
     setSelected(null);
-    setView("live");
+    openLive(eventKey(e));
   };
   const goToTeam = (team: string) => {
     setSearch(team);
@@ -236,13 +281,7 @@ export default function App() {
   if (view === "live") {
     return (
       <Suspense fallback={null}>
-        <LiveScreen
-          onBack={() => {
-            setLivePin(null);
-            setView("home");
-          }}
-          pin={livePin ?? undefined}
-        />
+        <LiveScreen onBack={closeLive} pin={livePin ?? undefined} onPinSaved={dropPinFromUrl} />
       </Suspense>
     );
   }
@@ -434,7 +473,7 @@ export default function App() {
                   className={`b-tab${active ? " active" : ""}`}
                   aria-current={active ? "page" : undefined}
                   onClick={() => {
-                    if (v === "live") setLivePin(null);
+                    if (v === "live") return openLive(null);
                     setView(v);
                     window.scrollTo(0, 0);
                   }}
@@ -478,7 +517,7 @@ export default function App() {
                 className={`b-nav${view === v ? " active" : ""}`}
                 aria-current={view === v ? "page" : undefined}
                 onClick={() => {
-                  if (v === "live") setLivePin(null);
+                  if (v === "live") return openLive(null);
                   setView(v);
                 }}
               >
@@ -567,7 +606,7 @@ export default function App() {
                   <h2 className="b-h1">Live now</h2>
                   <span className="b-muted">{live.length === 1 ? "1 game" : `${live.length} games`}</span>
                   {live.length > 0 && (
-                    <button type="button" className="b-link" onClick={() => setView("live")}>
+                    <button type="button" className="b-link" onClick={() => openLive(null)}>
                       Open live display →
                     </button>
                   )}
