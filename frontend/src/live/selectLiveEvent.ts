@@ -25,12 +25,20 @@ export const eventKey = (e: NormalizedEvent) => `${e.sport}-${e.id}`;
 // as the one on screen for this pick, so a bigger new game can take over.
 // A tie goes to the bigger event (importance: tier × stage, postseason),
 // and between events the same size to the game that has been on longer.
-export function selectLiveEvent(events: NormalizedEvent[], currentKey: string | null, ranking?: Ranking, arrivals: Set<string> = new Set()): NormalizedEvent | null {
+// `held`: matches counted as still on their break (see InterestHints.onBreak).
+export function selectLiveEvent(
+  events: NormalizedEvent[],
+  currentKey: string | null,
+  ranking?: Ranking,
+  arrivals: Set<string> = new Set(),
+  held: Set<string> = new Set()
+): NormalizedEvent | null {
   const now = new Date();
   const live = events.filter((e) => isLiveNow(e, now) && LIVE_VIEW_SPORTS.has(e.sport));
   if (live.length === 0) return null;
   const t = now.getTime();
-  const score = (e: NormalizedEvent) => interest(e, t, {}, ranking) + (eventKey(e) === currentKey || arrivals.has(eventKey(e)) ? STAY_BONUS : 0);
+  const score = (e: NormalizedEvent) =>
+    interest(e, t, { onBreak: held.has(eventKey(e)) || undefined }, ranking) + (eventKey(e) === currentKey || arrivals.has(eventKey(e)) ? STAY_BONUS : 0);
   return [...live].sort(
     (a, b) => score(b) - score(a) || importance(b, ranking) - importance(a, ranking) || new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
   )[0];

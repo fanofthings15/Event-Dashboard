@@ -46,6 +46,9 @@ function clockSeconds(e: NormalizedEvent): number | undefined {
 export interface InterestHints {
   scoredAt?: number; // last time the score changed, ms
   powerPlay?: boolean; // hockey, from the tile's own live data
+  // counted as still on its break: the match that took its spot while it was
+  // between maps is still playing that map (LiveScreen's `cover`)
+  onBreak?: boolean;
 }
 
 // How big the event is, before anything happens in it: a Worlds or Major
@@ -219,13 +222,16 @@ const BETWEEN_MAPS = 20;
 // happening in it, plus a team the user follows, plus a stream that plays here. A late blowout sinks a
 // little, and among equals the closer game edges ahead.
 export function interest(e: NormalizedEvent, now: number, hints: InterestHints = {}, ranking?: Ranking): number {
-  let score = standing(e, ranking) + moment(e, now, hints);
-  // a match on a break between maps gives way to one being played — by
+  // A match on a break between maps gives way to one being played — by
   // more than the on-screen bonus, so a comparable live map takes the spot.
-  // A followed team's bonus is for watching them play, so it doesn't hold
-  // the spot through their break either (the user's rule, 2026-11-04): the
-  // other match moves in, and theirs takes it back when its next map starts.
-  if (e.mapLive === false) score -= BETWEEN_MAPS + followBonus(e);
+  // Nothing is happening in it, so no moment counts (a map just won isn't a
+  // highlight to stay for), and a followed team's bonus is for watching them
+  // play, so it doesn't hold the spot through their break either (the user's
+  // rule, 2026-11-04). The match that moves in keeps the spot until its own
+  // map is over (`hints.onBreak`), then hands it back.
+  const onBreak = e.mapLive === false || hints.onBreak === true;
+  let score = standing(e, ranking) + (onBreak ? 0 : moment(e, now, hints));
+  if (onBreak) score -= BETWEEN_MAPS + followBonus(e);
   const diff = margin(e);
   const p = period(e);
   if (diff !== undefined && p !== undefined) {

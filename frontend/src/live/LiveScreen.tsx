@@ -228,6 +228,13 @@ export default function LiveScreen({ onBack, pin, onPinSaved }: { onBack?: () =>
   // A game tapped in the strip overrides the automatic pick for as long as
   // it stays live; once it ends, selection goes back to selectLiveEvent.
   const [chosenKey, setChosenKey] = useState<string | null>(null);
+  // A match that took the top spot (Single, or RedZone's big spot) while the
+  // one there was between maps keeps it until its own map is over: the one
+  // it replaced counts as still on its break until then, even once its next
+  // map has started, and gets the spot back after (the user's rule,
+  // 2026-11-04 — don't cut away from a map in progress to hand back).
+  const [cover, setCover] = useState<{ holder: string; for: string } | null>(null);
+  const heldOnBreak = useMemo(() => new Set(cover ? [cover.for] : []), [cover]);
   const [currentKey, setCurrentKey] = useState<string | null>(null);
   // Same idea of "live" as the dashboard's LIVE badge, so a game shown live
   // there is never missing here.
@@ -296,8 +303,11 @@ export default function LiveScreen({ onBack, pin, onPinSaved }: { onBack?: () =>
     if (chosen) return chosen;
     const hidden = new Set(prefs.hidden);
     const shown = pickEvents.filter((e) => !hidden.has(eventKey(e)));
-    return selectLiveEvent(shown, currentKey, settings.eventRanking, arrivals) ?? selectLiveEvent(pickEvents, currentKey, settings.eventRanking, arrivals);
-  }, [pickEvents, allEvents, currentKey, pinned, chosen, prefs.hidden, settings.eventRanking, arrivals]);
+    return (
+      selectLiveEvent(shown, currentKey, settings.eventRanking, arrivals, heldOnBreak) ??
+      selectLiveEvent(pickEvents, currentKey, settings.eventRanking, arrivals, heldOnBreak)
+    );
+  }, [pickEvents, allEvents, currentKey, pinned, chosen, prefs.hidden, settings.eventRanking, arrivals, heldOnBreak]);
   useEffect(() => {
     setCurrentKey(selected ? eventKey(selected) : null);
   }, [selected]);
@@ -362,10 +372,10 @@ export default function LiveScreen({ onBack, pin, onPinSaved }: { onBack?: () =>
       const seen = lastScore.current.get(k);
       if (!seen) lastScore.current.set(k, { score: e.seriesScore });
       else if (seen.score !== e.seriesScore) lastScore.current.set(k, { score: e.seriesScore, at: now });
-      out.set(k, interest(e, now, { scoredAt: lastScore.current.get(k)?.at, powerPlay: powerPlays[k] }, settings.eventRanking));
+      out.set(k, interest(e, now, { scoredAt: lastScore.current.get(k)?.at, powerPlay: powerPlays[k], onBreak: heldOnBreak.has(k) || undefined }, settings.eventRanking));
     }
     return out;
-  }, [liveEvents, powerPlays, settings.eventRanking]);
+  }, [liveEvents, powerPlays, settings.eventRanking, heldOnBreak]);
 
   // The game you were watching in Single keeps the screen when the display
   // goes to RedZone: it's pinned to the big spot (unpinned like any pin),
@@ -406,6 +416,21 @@ export default function LiveScreen({ onBack, pin, onPinSaved }: { onBack?: () =>
   // Single drags too: a strip game dropped on the view is shown there (like a
   // tap), the shown game dropped on the strip is hidden so the next one takes over.
   const single = !multi && !pinned && Boolean(selected);
+
+  // the cover (see `cover`): starts when the top spot passes from a match on
+  // its break to one mid-map, ends when that map (or either match) is over
+  const topKey = multi ? (layout === "redzone" ? (placement.slots[0] ?? null) : null) : single && selected ? eventKey(selected) : null;
+  const prevTop = useRef<string | null>(null);
+  useEffect(() => {
+    const byK = new Map(liveAll.map((e) => [eventKey(e), e]));
+    if (cover) {
+      if (byK.get(cover.holder)?.mapLive !== true || !byK.has(cover.for)) setCover(null);
+    } else {
+      const was = prevTop.current;
+      if (topKey && was && topKey !== was && byK.get(was)?.mapLive === false && byK.get(topKey)?.mapLive === true) setCover({ holder: topKey, for: was });
+    }
+    prevTop.current = topKey;
+  });
   useEffect(() => {
     wasMulti.current = multi;
     if (single && selected) watchedKey.current = eventKey(selected);
