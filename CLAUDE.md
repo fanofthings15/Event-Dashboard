@@ -56,7 +56,7 @@ frontend/src/
                               "which game to show" policy — change it there),
                               views/ (one per sport), surfaces/ (regulation rink,
                               court, field, ballpark from the real fence, BallFlight),
-                              Stream.tsx (esports and pasted FRC webcasts)
+                              Stream.tsx (esports and FRC webcasts)
 ```
 
 /live layout rule: all text is HTML in `live/Layout.tsx`'s shell (header,
@@ -155,7 +155,7 @@ regardless of source.
 |---|---|---|---|
 | NFL/NBA/NHL | ESPN scoreboard endpoint (unofficial) | No | Undocumented, could change without notice |
 | F1 | Jolpica (Ergast successor) | No | Schedule/results only, no live timing. Every session is an event (`f1Session`: practice / qualifying / sprint / race; FP1–3, Sprint Qualifying, Sprint, Qualifying, Race) — the race keeps id `season-round`, sessions get `-fp1`, `-q`, `-sq`, `-sprint`. "Live" = start + the session's usual length (75 min practice/quali, 60 sprint/SQ, 3 h race). Live ranking: `f1` (race, sprint) 55, `f1-qualifying` 40, `f1-practice` 10 |
-| FRC | The Blue Alliance API | Yes (free) | Full events only, not individual matches |
+| FRC | The Blue Alliance API | Yes (free) | Full events only, not individual matches. The season list is `/events/{year}` (full model), not `/simple` — only the full model has `webcasts` (the organizer's own stream: youtube = video id, twitch = channel, direct_link = URL), mapped to `streamUrl`/`streams` in `frc.ts`. A link pasted on the FRC view (`frcStreamUrls`) overrides it; clearing that falls back to TBA's |
 | Esports | PandaScore | Yes (free tier) | ~1000 req/month cap |
 | /live team sports | ESPN game summary (unofficial) | No | Shot/pitch coordinates, drives, box stats — quirks below |
 | /live F1 | F1 live timing, SignalR Core | No | Anonymous; old /signalr and /static/ archive 401 as of 2026-10-20. `Position.z`/`CarData.z` are NOT sent anonymously (checked live, 2026 US GP) — cars are placed from TimingData mini-sectors instead, and in a race by gap to the leader (`f1Live.ts`, `F1View.tsx`) |

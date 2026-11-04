@@ -1038,6 +1038,22 @@ body.live-body {
   cursor: pointer;
 }
 
+.lv-frc-stream-note {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2em;
+}
+
+.lv-frc-stream-note > span {
+  font-size: 0.8em;
+  color: var(--muted);
+}
+
+.lv-frc-stream-note .lv-textbtn {
+  align-self: flex-start;
+  padding-top: 0;
+}
+
 .lv-fade-in {
   animation: lv-fade-in 500ms ease-out both;
 }

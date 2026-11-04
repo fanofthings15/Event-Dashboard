@@ -58,6 +58,7 @@ function SportView({
   label,
   color,
   frcStreamUrl,
+  frcStreamAuto,
   onSaveFrcStream,
   muted = true,
 }: {
@@ -65,6 +66,7 @@ function SportView({
   label: string;
   color: string;
   frcStreamUrl?: string;
+  frcStreamAuto?: boolean;
   onSaveFrcStream: (url: string) => void;
   muted?: boolean;
 }) {
@@ -96,7 +98,7 @@ function SportView({
     case "f1":
       return <F1View data={data as F1State} leagueColor={color} />;
     case "frc":
-      return <FrcView data={data as FrcState} eventName={event.name} leagueColor={color} streamUrl={frcStreamUrl} onSaveStream={onSaveFrcStream} muted={muted} />;
+      return <FrcView data={data as FrcState} eventName={event.name} leagueColor={color} streamUrl={frcStreamUrl} streamAuto={frcStreamAuto} onSaveStream={onSaveFrcStream} muted={muted} />;
     default:
       return (
         <LiveFrame league={label} leagueColor={color} live={false} centre={event.name}>
@@ -565,7 +567,7 @@ export default function LiveScreen({ onBack, pin }: { onBack?: () => void; pin?:
               pinned={prefs.pins[k] !== undefined}
               dropping={drag !== null && drag.over === i && drag.key !== k}
               lifted={drag?.key === k}
-              frcStreamUrl={e.sport === "frc" ? settings.frcStreamUrls?.[e.id] : undefined}
+              frcStreamUrl={e.sport === "frc" ? settings.frcStreamUrls?.[e.id] ?? e.streamUrl : undefined}
               onUnpin={() => setPrefs(unpinGame(prefs, k))}
               onPowerPlay={(on) => reportPowerPlay(k, on)}
               onPointerDown={(ev) => startPress(ev, k, i)}
@@ -596,7 +598,8 @@ export default function LiveScreen({ onBack, pin }: { onBack?: () => void; pin?:
         event={sel}
         label={meta.label}
         color={meta.color}
-        frcStreamUrl={sel.sport === "frc" ? settings.frcStreamUrls?.[sel.id] : undefined}
+        frcStreamUrl={sel.sport === "frc" ? settings.frcStreamUrls?.[sel.id] ?? sel.streamUrl : undefined}
+        frcStreamAuto={sel.sport === "frc" && !settings.frcStreamUrls?.[sel.id] && Boolean(sel.streamUrl)}
         muted={quiet}
         onSaveFrcStream={(url) => saveFrcStream(sel.id, url)}
       />

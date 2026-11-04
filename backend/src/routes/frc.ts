@@ -7,6 +7,12 @@ import type { NormalizedEvent } from "../types.js";
 
 const router = Router();
 
+interface TbaWebcast {
+  type: string; // "youtube" | "twitch" | "direct_link" | "iframe" | ... (TBA's full enum)
+  channel: string;
+  file?: string | null;
+}
+
 interface TbaEvent {
   key: string;
   name: string;
@@ -17,6 +23,41 @@ interface TbaEvent {
   state_prov: string | null;
   country: string | null;
   website: string | null;
+  // Only present on the full (non-"/simple") event model — the event
+  // organizer's own stream link(s), as entered in TBA (sometimes via FIRST's
+  // own Nexus integration). Absent or empty when nobody's published one.
+  webcasts?: TbaWebcast[];
+}
+
+// TBA's "channel" field means something different per webcast type (a video
+// id, a channel name, or occasionally the full URL itself) — this is TBA's
+// own convention for turning one into a link, not a guess. Types with no
+// reliable URL form (iframe embed HTML, legacy "mms"/"justin"/"stemtv") are
+// left out rather than building something that won't actually play.
+function webcastToUrl(w: TbaWebcast): string | null {
+  const ch = w.channel?.trim();
+  if (!ch) return null;
+  switch (w.type) {
+    case "youtube":
+      return `https://www.youtube.com/watch?v=${ch}`;
+    case "twitch":
+      return `https://www.twitch.tv/${ch}`;
+    case "direct_link":
+      return /^https?:\/\//.test(ch) ? ch : null;
+    default:
+      return null;
+  }
+}
+
+function webcastStreams(webcasts: TbaWebcast[] | undefined): { label: string; url: string }[] {
+  if (!webcasts?.length) return [];
+  const labels: Record<string, string> = { youtube: "YouTube", twitch: "Twitch", direct_link: "Stream" };
+  const out: { label: string; url: string }[] = [];
+  for (const w of webcasts) {
+    const url = webcastToUrl(w);
+    if (url) out.push({ label: labels[w.type] ?? w.type, url });
+  }
+  return out;
 }
 
 interface TbaDistrict {
@@ -125,7 +166,9 @@ router.get("/", async (req, res) => {
   try {
     // Always the full event list — the followed team never hides other events.
     const data: TbaEvent[] = await cached(`frc:events:${year}`, 60 * 60, async () => {
-      const r = await fetch(`https://www.thebluealliance.com/api/v3/events/${year}/simple`, { headers: authHeaders });
+      // The full event model, not /simple — that's the only one carrying
+      // webcasts (see TbaEvent above).
+      const r = await fetch(`https://www.thebluealliance.com/api/v3/events/${year}`, { headers: authHeaders });
       if (!r.ok) {
         const body = await r.text().catch(() => "");
         throw new Error(`TBA responded ${r.status}${body ? `: ${body.slice(0, 200)}` : ""}`);
@@ -180,6 +223,7 @@ router.get("/", async (req, res) => {
         // WA, Australia) was mislabeled region "PNW" before this check.
         const isDistrictCountry = e.country === "USA" || e.country === "United States" || e.country === "Canada";
         const districtRegion = districtMap.get(e.key) || (e.state_prov && isDistrictCountry ? STATE_TO_DISTRICT[e.state_prov] : undefined);
+        const streams = webcastStreams(e.webcasts);
         return {
           id: e.key,
           sport: "frc",
@@ -193,6 +237,11 @@ router.get("/", async (req, res) => {
           extra: location ? [{ label: "Location", value: location }] : undefined,
           followed: followedKeys.has(e.key) || undefined,
           region: districtRegion || e.state_prov || undefined,
+          // The event's own published stream, if TBA has one — a pasted
+          // link in settings (frcStreamUrls) always overrides this one, and
+          // clearing that override falls back to this.
+          streamUrl: streams[0]?.url,
+          streams: streams.length ? streams : undefined,
         };
       });
 

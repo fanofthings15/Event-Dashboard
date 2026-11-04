@@ -41,8 +41,11 @@ function Alliance({ alliance, color, mine, compact }: { alliance?: FrcAlliance; 
   );
 }
 
-// Paste-a-link bar for the event's webcast. TBA's data the app reads has no
-// stream, so the link is saved per event in settings.
+// Paste-a-link bar for the event's webcast. TBA's own full event model
+// (not the "/simple" one) carries the organizer's published stream when
+// there is one (frc.ts maps it to streamUrl/streams) — this box is the
+// override for when that's missing, wrong, or an off-season event with
+// nothing published; the link is saved per event in settings either way.
 function StreamLinkBar({ initial, onSave, onCancel }: { initial?: string; onSave: (url: string) => void; onCancel?: () => void }) {
   const [value, setValue] = useState(initial ?? "");
   const embeddable = value.trim() === "" || Boolean(embeddableStream([value.trim()]));
@@ -87,6 +90,7 @@ export default function FrcView({
   eventName,
   leagueColor,
   streamUrl,
+  streamAuto,
   onSaveStream,
   muted = true,
 }: {
@@ -94,6 +98,10 @@ export default function FrcView({
   eventName: string;
   leagueColor: string;
   streamUrl?: string;
+  // streamUrl came from the event's own published webcast (TBA), not a
+  // link pasted in settings — shown so overriding it doesn't look like
+  // undoing work the user did themselves.
+  streamAuto?: boolean;
   onSaveStream: (url: string) => void;
   muted?: boolean;
 }) {
@@ -167,9 +175,12 @@ export default function FrcView({
             <Alliance alliance={data.onField?.blue} color={BLUE} mine={mine} compact />
             {lastMatch}
             {following}
-            <button className="lv-textbtn" onClick={() => setEditing(true)}>
-              Change stream link
-            </button>
+            <div className="lv-frc-stream-note">
+              {streamAuto && <span>Official webcast from the event</span>}
+              <button className="lv-textbtn" onClick={() => setEditing(true)}>
+                {streamAuto ? "Use a different link instead" : "Change stream link"}
+              </button>
+            </div>
           </Side>
         </>
       ) : (
