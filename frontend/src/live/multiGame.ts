@@ -146,8 +146,11 @@ function moment(e: NormalizedEvent, now: number, hints: InterestHints): number {
         break;
     }
   }
-  if (ESPORTS_SPORTS.has(e.sport)) {
-    // a deciding map: "2-2 (Bo5)", "1-1 (Bo3)" — a Bo1 doesn't count
+  // a deciding map: "2-2 (Bo5)", "1-1 (Bo3)" — a Bo1 doesn't count. Only
+  // while that map is being played, not the break before it (the user's
+  // rule, 2026-11-04): a followed match waiting to start its decider gives
+  // way to another match playing its own.
+  if (ESPORTS_SPORTS.has(e.sport) && e.mapLive !== false) {
     const w = e.seriesScore?.match(/(\d+)-(\d+)/);
     const bo = e.seriesScore?.match(/Bo(\d+)/i);
     if (w && bo && w[1] === w[2] && Number(bo[1]) > 1 && Number(w[1]) === Math.floor(Number(bo[1]) / 2)) m = Math.max(m, 25);
@@ -176,11 +179,12 @@ function eventSize(e: NormalizedEvent, ranking?: Ranking): number {
 // A game's worth before anything happens in it: event size plus a followed
 // team. Steady for the whole game, so it never churns on a red-zone trip.
 function standing(e: NormalizedEvent, ranking?: Ranking): number {
-  let s = eventSize(e, ranking);
-  if (e.sport === "frc") return s; // no follow bonus either (see importance)
-  if (e.manuallyFollowed) s += 35;
-  else if (e.followed) s += 30;
-  return s;
+  return eventSize(e, ranking) + followBonus(e);
+}
+
+function followBonus(e: NormalizedEvent): number {
+  if (e.sport === "frc") return 0; // no follow bonus either (see importance)
+  return e.manuallyFollowed ? 35 : e.followed ? 30 : 0;
 }
 
 // The smallest events (tier-D esports, any FRC event) are welcome when
@@ -217,8 +221,11 @@ const BETWEEN_MAPS = 20;
 export function interest(e: NormalizedEvent, now: number, hints: InterestHints = {}, ranking?: Ranking): number {
   let score = standing(e, ranking) + moment(e, now, hints);
   // a match on a break between maps gives way to one being played — by
-  // more than the on-screen bonus, so a comparable live map takes the spot
-  if (e.mapLive === false) score -= BETWEEN_MAPS;
+  // more than the on-screen bonus, so a comparable live map takes the spot.
+  // A followed team's bonus is for watching them play, so it doesn't hold
+  // the spot through their break either (the user's rule, 2026-11-04): the
+  // other match moves in, and theirs takes it back when its next map starts.
+  if (e.mapLive === false) score -= BETWEEN_MAPS + followBonus(e);
   const diff = margin(e);
   const p = period(e);
   if (diff !== undefined && p !== undefined) {

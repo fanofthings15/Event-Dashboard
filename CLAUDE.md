@@ -80,9 +80,13 @@ changed keys stored); the user set NFL regular season =
 esports tier A, and a red-zone drive beats a Major's Swiss map but not its
 final) + the strongest live moment capped at +35 (red zone from the ESPN
 scoreboard's `situation`, a score in the last 3 minutes, a power play, a
-close finish, a deciding map) + followed teams + 10 for a stream that plays
+close finish, a deciding map — counted only while that map is being played,
+not the break before it) + followed teams + 10 for a stream that plays
 on the display − 20 for an esports match between maps (`mapLive` false,
-from PandaScore's per-map status) — with a +15 bonus for games already shown so they don't churn on a close score or red-zone drive. When a game goes live, it gets that same +15 for one pass (`arrivals` in `placeGames`/`selectLiveEvent`), so a new game that beats the one on screen takes over. Ties (the user's rule, 2026-11-03): between games already on screen they keep their order; otherwise the bigger event (`importance`, i.e. a tier/stage difference) wins, and between events the same size the game that has been on longer — a new game never wins a tie on being new.
+from PandaScore's per-map status), and on that break its follow bonus doesn't
+count either (user's rule, 2026-11-04: another match being played moves in
+while your team is between maps, and yours takes the spot back when its next
+map starts) — with a +15 bonus for games already shown so they don't churn on a close score or red-zone drive. When a game goes live, it gets that same +15 for one pass (`arrivals` in `placeGames`/`selectLiveEvent`), so a new game that beats the one on screen takes over. Ties (the user's rule, 2026-11-03): between games already on screen they keep their order; otherwise the bigger event (`importance`, i.e. a tier/stage difference) wins, and between events the same size the game that has been on longer — a new game never wins a tie on being new.
 Nothing is dropped for being small; unwanted sources are filtered in
 settings. "Live" means `isLiveNow` (start time passed), same as the
 dashboard. Layout "Auto" (default) picks Single / RedZone / Grid
