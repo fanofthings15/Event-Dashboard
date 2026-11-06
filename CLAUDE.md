@@ -188,8 +188,11 @@ YouTube and Kick don't check. So with v2 (`GUARD_TWITCH`), a Twitch box is
 `.lv-guard`: corners clipped (border-radius + overflow) instead of masked, and
 the bar/menus open as a drawer under the frame, which shrinks by their height
 plus 1px (`--sc-bottom`; boxes sit on whole pixels — a drawer meeting the frame
-on a fractional edge overlapped one pixel row and stopped it). Menus are a
-short row of choices for every service, to keep that drawer shallow. A guarded
+on a fractional edge overlapped one pixel row and stopped it). The stream and
+quality menus are a box above the bar (user's ask, 2026-11-06 — not a
+full-width row); on a guarded player the frame gives up a column at the right
+for the open box (`--sc-right`: narrower video, not a much shorter one). A
+tap that closes a menu only closes it (its click is matched by pointerId). A guarded
 player that stops by itself (a tile being dragged dims it, a score banner) is
 told to play every 1.5 s for 15 s (`revive`). A guarded stream-only tile's pin
 button moves into the bar (it floated over the player). Testing tip: a

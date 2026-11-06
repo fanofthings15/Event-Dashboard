@@ -104,6 +104,8 @@ export default function StreamControls({
   const menuRef = useRef<HTMLDivElement>(null);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const lastPointer = useRef<string>("mouse");
+  // a tap that closes a menu does only that: its own click is let go
+  const menuClosedBy = useRef<{ id: number; at: number } | null>(null);
 
   const wake = useCallback((ms = HIDE_MS) => {
     setAwake(true);
@@ -130,7 +132,9 @@ export default function StreamControls({
   useEffect(() => {
     if (!menu) return;
     const onDown = (e: PointerEvent) => {
-      if (!(e.target as Element | null)?.closest?.(".lv-sc-menu, .lv-sc-menu-btn")) setMenu(null);
+      if ((e.target as Element | null)?.closest?.(".lv-sc-menu, .lv-sc-menu-btn")) return;
+      menuClosedBy.current = { id: e.pointerId, at: Date.now() };
+      setMenu(null);
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
@@ -156,16 +160,19 @@ export default function StreamControls({
   const source = currentOption?.source ?? (v.player === "youtube" ? "YouTube" : v.player === "twitch" ? "Twitch" : "Kick");
   const volume = v.muted ? 0 : v.volume;
 
-  // A guarded player's frame gives up the strip the open bar and menu take
-  // at the bottom (and, with its own controls on, a strip at the top for the
-  // way back), so they never overlap it.
+  // A guarded player's frame gives up the strip the open bar takes at the
+  // bottom, a column at the right for an open menu (narrower than the
+  // video shrinking under a tall menu), and, with its own controls on, a
+  // strip at the top for the way back — so none of them overlap it.
   // (plus a pixel's gap: edges that only meet can still overlap by a pixel row
   // once they're snapped to the screen)
   useLayoutEffect(() => {
     const open = v.guard && !v.native && visible;
-    const h = (el: HTMLElement | null) => el?.getBoundingClientRect().height ?? 0;
-    const bottom = open ? Math.ceil(h(barRef.current) + h(menuRef.current)) + 1 : 0;
-    entry.box.style.setProperty("--sc-bottom", `${bottom}px`);
+    const r = (el: HTMLElement | null) => el?.getBoundingClientRect();
+    const bar = r(barRef.current);
+    const box = r(menuRef.current);
+    entry.box.style.setProperty("--sc-bottom", open && bar ? `${Math.ceil(bar.height) + 1}px` : "0px");
+    entry.box.style.setProperty("--sc-right", open && box ? `${Math.ceil(box.width) + 1}px` : "0px");
     entry.box.style.setProperty("--sc-top", v.guard && v.native ? "calc(var(--sc-top-strip) + 1px)" : "0px");
   });
 
@@ -202,8 +209,12 @@ export default function StreamControls({
         onPointerLeave={(e) => {
           if (e.pointerType === "mouse" && !menu) setAwake(false);
         }}
-        onClick={() => {
+        onClick={(e) => {
+          const c = menuClosedBy.current;
+          const id = (e.nativeEvent as Partial<PointerEvent>).pointerId;
+          menuClosedBy.current = null;
           if (menu) setMenu(null);
+          else if (c && (id !== undefined && id >= 0 ? id === c.id : Date.now() - c.at < 400)) return;
           else if (lastPointer.current !== "mouse" && awake) setAwake(false);
           else wake(lastPointer.current === "mouse" ? HIDE_MS : 4000);
         }}
@@ -294,13 +305,14 @@ export default function StreamControls({
                   if (o !== currentOption) onPick?.(o.url);
                 }}
               >
-                {o === currentOption && <CheckIcon />}
+                <span className="lv-sc-check">{o === currentOption && <CheckIcon />}</span>
                 {o.label}
               </button>
             ))}
             <span className="lv-sc-sep" role="separator" />
             {currentOption && (
               <a role="menuitem" href={currentOption.url} target="_blank" rel="noopener noreferrer" onClick={() => setMenu(null)}>
+                <span className="lv-sc-check" />
                 Open on {source} ↗
               </a>
             )}
@@ -311,6 +323,7 @@ export default function StreamControls({
                 layer.setNative(entry, true);
               }}
             >
+              <span className="lv-sc-check" />
               {source}'s own controls
             </button>
           </div>
@@ -327,7 +340,7 @@ export default function StreamControls({
                   layer.setQuality(entry, q.group);
                 }}
               >
-                {(v.quality ?? "auto") === q.group && <CheckIcon />}
+                <span className="lv-sc-check">{(v.quality ?? "auto") === q.group && <CheckIcon />}</span>
                 {q.name}
               </button>
             ))}
