@@ -56,7 +56,10 @@ frontend/src/
                               "which game to show" policy — change it there),
                               views/ (one per sport), surfaces/ (regulation rink,
                               court, field, ballpark from the real fence, BallFlight),
-                              Stream.tsx (esports and FRC webcasts)
+                              Stream.tsx (esports and FRC webcasts; the player
+                              layer), StreamControls.tsx (the display's own
+                              controls over every player), streamPicks.ts
+                              (stream switcher picks)
 ```
 
 /live layout rule: all text is HTML in `live/Layout.tsx`'s shell (header,
@@ -143,11 +146,63 @@ and resent; a player that hasn't confirmed in 8 s is reloaded with the right
 setting (Kick, with no API, always reloads) — an unconfirmed mute once left two
 streams' audio playing until a refresh. Tiles are also written into the page in
 first-seen order, and a stream-only Twitch tile hides its lines with CSS.
+
+**Stream controls (user's ask, 2026-11-06): one set for every service.** The
+players' own controls are off (`toEmbedUrl`: YouTube `controls=0` +
+playsinline/rel/iv_load_policy/disablekb, Twitch `controls=false`; Kick has
+no option) and `StreamControls.tsx` draws ours in each player's box, so they
+go fullscreen with it: play/pause, mute, volume, the stream switcher, quality
+(Twitch only — YouTube's setPlaybackQuality does nothing any more), fullscreen.
+An opacity-0 layer (`.lv-sc-catch`) covers the whole player so the player
+never sees the mouse and its hover UI (YouTube's title/share/"More videos",
+Kick's bar) never shows; YouTube still shows its title for a few seconds when
+it starts, pauses or resumes, which can't be turned off. What each service
+takes: YouTube and Twitch play/pause/mute/volume by message (Twitch Pause 2,
+Play 3, SetQuality 8, SetMuted 10, SetVolume 11 = 0–1, all checked in headless
+Chrome); **Kick has no player API** (no message listener in player.kick.com's
+bundle) — mute reloads it, no pause/volume; its HLS token only allows
+kick.com origins, so playing it in our own `<video>` would mean getting round
+that (not done). Fullscreen puts the box fullscreen (`requestFullscreen`);
+where a page can't (iPhone) the box fills the window (`.lv-pseudo-fs`, Escape
+leaves it, before LiveScreen takes Escape as Back). Volume is one level per
+device (`live-volume`), applied to whichever stream has the sound; unmuting a
+stream by hand mutes the others. "<Service>'s own controls" in the stream
+menu reloads that player with its controls on (age/sign-in prompts, YouTube's
+quality menu); the button at the top brings ours back. A stopped stream shows a
+big Play; Play that doesn't take within 3.5 s lets clicks through to the
+player (its own prompt). The **stream switcher** lists every embeddable
+stream of the game (`streamOptions`/`pickStream` in `streamEmbed.ts`: esports
+`streams`, FRC pasted link then TBA webcasts); the pick is per device
+(`live-stream-pick`, by eventKey), pruned with pins when the game ends; a
+pasted FRC link replaces the pick.
+
+**Twitch in Chrome stops when anything covers it** (checked 2026-11-06):
+its player watches IntersectionObserver v2 `isVisible` (`trackVisibility` in
+its code), and Chrome counts any box over the frame — transparent, pointer-
+events: none, the old rounded-corner `::after` mask, a control bar, even for
+0.6 s — as covering it. It stops (Idle) and doesn't restart when uncovered; a
+Play does restart it. Opacity-0 boxes don't count, and shrinking the frame
+doesn't stop it (even 533×300, with sound). Firefox has no v2 and Twitch falls
+back to a check that ignores covers (so Twitch worked there under the mask);
+YouTube and Kick don't check. So with v2 (`GUARD_TWITCH`), a Twitch box is
+`.lv-guard`: corners clipped (border-radius + overflow) instead of masked, and
+the bar/menus open as a drawer under the frame, which shrinks by their height
+plus 1px (`--sc-bottom`; boxes sit on whole pixels — a drawer meeting the frame
+on a fractional edge overlapped one pixel row and stopped it). Menus are a
+short row of choices for every service, to keep that drawer shallow. A guarded
+player that stops by itself (a tile being dragged dims it, a score banner) is
+told to play every 1.5 s for 15 s (`revive`). A guarded stream-only tile's pin
+button moves into the bar (it floated over the player). Testing tip: a
+Playwright `page.route("**/api/**")` also catches Twitch's own
+usher.ttvnw.net/api/... playlist request — route only `localhost:5290/api/**`
+or Twitch fails with Error #1000.
+
 A stream paused itself the first time it was put fullscreen (user's screen,
 2026-11-03, not reproducible in headless Chrome): for 6 s after a playing
 stream goes fullscreen, a pause it reports (YouTube playerState 2, Twitch
 playback "Idle") is undone with a play command (YouTube playVideo, Twitch
-Play = 3) — checked for YouTube only. While a player is fullscreen (`document.fullscreenElement` is an iframe)
+Play = 3) — checked for YouTube only. While a stream is fullscreen (`isStreamFullscreen()`: its box, a player's
+own iframe, or filling the window on an iPhone)
 nothing on the display changes: games going live wait in the strip and don't
 count as arrivals afterwards. When the display goes from Single to RedZone,
 the game shown in Single is pinned to the big spot. Twitch won't autoplay a player under 400×300: a Twitch tile drops

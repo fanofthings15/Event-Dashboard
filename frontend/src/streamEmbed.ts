@@ -23,6 +23,24 @@
 const jsApiParams =
   typeof window !== "undefined" ? `&enablejsapi=1&origin=${encodeURIComponent(window.location.origin)}` : "&enablejsapi=1";
 
+// The live display draws its own controls over every player
+// (live/StreamControls.tsx), so the players' own are turned off: YouTube's
+// controls=0 drops its bar (mute, gear, fullscreen); playsinline stops an
+// iPhone opening its own fullscreen player; rel=0 keeps end-screen
+// suggestions to the same channel; iv_load_policy=3 hides annotations;
+// disablekb=1 stops its keyboard shortcuts. Twitch's controls=false drops its
+// whole bar (checked in headless Chrome 2026-11-06). Kick has no such option;
+// the overlay keeps the mouse off its player, so its bar never appears.
+// nativeControls() puts them back, for "the player's own controls".
+const ytControlParams = "&controls=0&playsinline=1&rel=0&iv_load_policy=3&disablekb=1";
+const YT_CONTROL_KEYS: [string, string][] = [
+  ["controls", "0"],
+  ["playsinline", "1"],
+  ["rel", "0"],
+  ["iv_load_policy", "3"],
+  ["disablekb", "1"],
+];
+
 // Twitch's embed player refuses to load unless `parent` names the exact
 // hostname (no protocol/port) it's being framed from — omitting it, or
 // getting it wrong, is why a raw twitch.tv link just shows blank.
@@ -39,17 +57,17 @@ export function toEmbedUrl(rawUrl: string, { muted = true }: { muted?: boolean }
 
     if (host === "youtu.be") {
       const id = u.pathname.slice(1);
-      if (id) return `https://www.youtube.com/embed/${id}?autoplay=1${muteParam}${jsApiParams}`;
+      if (id) return `https://www.youtube.com/embed/${id}?autoplay=1${muteParam}${jsApiParams}${ytControlParams}`;
     }
 
     if (host === "youtube.com" || host === "m.youtube.com") {
       if (u.pathname === "/watch") {
         const id = u.searchParams.get("v");
-        if (id) return `https://www.youtube.com/embed/${id}?autoplay=1${muteParam}${jsApiParams}`;
+        if (id) return `https://www.youtube.com/embed/${id}?autoplay=1${muteParam}${jsApiParams}${ytControlParams}`;
       }
       if (u.pathname.startsWith("/live/")) {
         const id = u.pathname.split("/")[2];
-        if (id) return `https://www.youtube.com/embed/${id}?autoplay=1${muteParam}${jsApiParams}`;
+        if (id) return `https://www.youtube.com/embed/${id}?autoplay=1${muteParam}${jsApiParams}${ytControlParams}`;
       }
       if (u.pathname.startsWith("/embed/")) {
         u.searchParams.set("autoplay", "1");
@@ -57,6 +75,7 @@ export function toEmbedUrl(rawUrl: string, { muted = true }: { muted?: boolean }
         else u.searchParams.delete("mute");
         u.searchParams.set("enablejsapi", "1");
         if (typeof window !== "undefined") u.searchParams.set("origin", window.location.origin);
+        for (const [k, v] of YT_CONTROL_KEYS) u.searchParams.set(k, v);
         return u.toString();
       }
       // A channel's live tab (e.g. /@handle/live or /channel/UC.../live) has
@@ -77,7 +96,7 @@ export function toEmbedUrl(rawUrl: string, { muted = true }: { muted?: boolean }
 
     if (host === "twitch.tv") {
       const parentParam = twitchParentParam();
-      const twitchMute = `&muted=${muted ? "true" : "false"}`;
+      const twitchMute = `&muted=${muted ? "true" : "false"}&controls=false`;
       const parts = u.pathname.split("/").filter(Boolean);
       if (parts[0] === "videos" && parts[1]) {
         return `https://player.twitch.tv/?video=${parts[1]}&autoplay=true${twitchMute}${parentParam}`;
@@ -100,6 +119,7 @@ export function toEmbedUrl(rawUrl: string, { muted = true }: { muted?: boolean }
       }
       u.searchParams.set("autoplay", "true");
       u.searchParams.set("muted", muted ? "true" : "false");
+      u.searchParams.set("controls", "false");
       return u.toString();
     }
 
@@ -113,4 +133,97 @@ export function toEmbedUrl(rawUrl: string, { muted = true }: { muted?: boolean }
 // shape the IFrame Player API (and so forced quality) can attach to.
 export function isYoutubeEmbed(embedUrl: string): boolean {
   return /^https:\/\/(www\.)?youtube\.com\/embed\//.test(embedUrl);
+}
+
+// The same player with its own controls back (YouTube's bar, Twitch's bar),
+// for when the live display's overlay is switched off for a stream.
+export function nativeControls(embedUrl: string): string {
+  try {
+    const u = new URL(embedUrl);
+    if (isYoutubeEmbed(embedUrl)) {
+      for (const [k] of YT_CONTROL_KEYS) if (k !== "playsinline") u.searchParams.delete(k);
+    } else {
+      u.searchParams.delete("controls");
+    }
+    return u.toString();
+  } catch {
+    return embedUrl;
+  }
+}
+
+export type StreamSource = "YouTube" | "Twitch" | "Kick";
+
+// The first link that can actually be framed — a YouTube channel's /live
+// tab has no video id to embed, so it's skipped in favour of whatever comes
+// next (Kick, then Twitch, in the backend's ranking).
+// Muted unless asked otherwise: browsers block unmuted autoplay, and only
+// the multi-game display's big spot plays with sound.
+export function embeddableStream(urls: string[], muted = true): { embed: string; source: StreamSource } | null {
+  for (const url of urls) {
+    const embed = toEmbedUrl(url, { muted });
+    if (isYoutubeEmbed(embed)) return { embed, source: "YouTube" };
+    if (embed.startsWith("https://player.kick.com/")) return { embed, source: "Kick" };
+    if (embed.startsWith("https://player.twitch.tv/")) return { embed, source: "Twitch" };
+  }
+  return null;
+}
+
+// The stream a frame is on, leaving out its mute setting: a tile gaining or
+// losing the sound is the same stream.
+export function streamIdentity(embed: string): string {
+  try {
+    const u = new URL(embed);
+    u.searchParams.delete("mute");
+    u.searchParams.delete("muted");
+    return u.toString();
+  } catch {
+    return embed;
+  }
+}
+
+export interface StreamOption {
+  url: string; // the link as the source gave it (a youtube.com/watch, twitch.tv or kick.com page)
+  source: StreamSource;
+  label: string; // "YouTube", or "YouTube 2" when one game has two
+}
+
+// Every stream of a game that can play on the display, in the order given
+// (the backend's ranking), one per player — the stream switcher's list.
+export function streamOptions(urls: string[]): StreamOption[] {
+  const out: StreamOption[] = [];
+  const seen = new Set<string>();
+  for (const url of urls) {
+    const s = embeddableStream([url]);
+    if (!s) continue;
+    const id = streamIdentity(s.embed);
+    if (seen.has(id)) continue;
+    seen.add(id);
+    out.push({ url, source: s.source, label: s.source });
+  }
+  const total: Record<string, number> = {};
+  for (const o of out) total[o.source] = (total[o.source] ?? 0) + 1;
+  const n: Record<string, number> = {};
+  for (const o of out) {
+    if (total[o.source] < 2) continue;
+    n[o.source] = (n[o.source] ?? 0) + 1;
+    o.label = `${o.source} ${n[o.source]}`;
+  }
+  return out;
+}
+
+export interface PickedStream {
+  embed: string;
+  source: StreamSource;
+  url: string;
+  options: StreamOption[];
+}
+
+// The stream to play: the one picked in the switcher if the game still has
+// it, otherwise the first that can play.
+export function pickStream(urls: string[], pick: string | undefined, muted = true): PickedStream | null {
+  const options = streamOptions(urls);
+  if (!options.length) return null;
+  const chosen = options.find((o) => o.url === pick) ?? options[0];
+  const s = embeddableStream([chosen.url], muted);
+  return s ? { ...s, url: chosen.url, options } : null;
 }

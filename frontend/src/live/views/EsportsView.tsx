@@ -1,4 +1,5 @@
 import type { NormalizedEvent } from "../../types";
+import type { PickedStream } from "../../streamEmbed";
 import Stream from "../Stream";
 import { C, ESPORTS_TEAM_COLORS, LiveFrame, Message, Side, SideLabel, useScoreFlash } from "../Layout";
 import { useLiveDetail } from "../useLiveDetail";
@@ -70,11 +71,13 @@ export default function EsportsView({
   label,
   leagueColor,
   stream,
+  onPickStream,
 }: {
   event: NormalizedEvent;
   label: string;
   leagueColor: string;
-  stream: { embed: string; source: string } | null;
+  stream: PickedStream | null;
+  onPickStream: (url: string) => void;
 }) {
   const teams = event.teams ?? [];
   const { wins, bestOf } = parseSeries(event.seriesScore);
@@ -101,7 +104,7 @@ export default function EsportsView({
     >
       {flash}
       <section className="lv-main" style={{ alignItems: "center", justifyContent: "center" }}>
-        {stream ? <Stream embed={stream.embed} /> : <Message>No embeddable stream for this match</Message>}
+        {stream ? <Stream embed={stream.embed} options={stream.options} current={stream.url} onPick={onPickStream} /> : <Message>No embeddable stream for this match</Message>}
       </section>
       <Side>
         <SideLabel>{bestOf ? `Series · best of ${bestOf}` : "Match"}</SideLabel>

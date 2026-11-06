@@ -1,10 +1,12 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import type { NormalizedEvent } from "../types";
 import { useLiveDetail } from "./useLiveDetail";
 import { teamColors, teamLabel } from "./teamColors";
 import { C, ESPORTS_TEAM_COLORS, Timeouts } from "./Layout";
-import Stream, { embeddableStream } from "./Stream";
-import { ESPORTS_SPORTS } from "./selectLiveEvent";
+import Stream, { GUARD_TWITCH } from "./Stream";
+import { pickStream, type PickedStream } from "../streamEmbed";
+import { setStreamPick, useStreamPicks } from "./streamPicks";
+import { ESPORTS_SPORTS, eventKey } from "./selectLiveEvent";
 import type { BaseballState, BasketballState, CsState, F1State, FootballState, FrcState, HockeyState, LiveTeam } from "./liveTypes";
 import { FootballSurface, PlayKind, timeoutsOf } from "./views/FootballView";
 import { HockeySurface } from "./views/HockeyView";
@@ -106,7 +108,19 @@ function teamRow(teams: LiveTeam[]): Pick<Row, "away" | "home"> {
   };
 }
 
-function rowFor(event: NormalizedEvent, data: Detail | null, stream: { embed: string } | null, frcStream?: { embed: string } | null): Row | null {
+// A stream with the game's other streams in its switcher
+const streamFor = (s: PickedStream, onPick: (url: string) => void, onUnpin?: () => void) => (
+  <Stream embed={s.embed} options={s.options} current={s.url} onPick={onPick} onUnpin={onUnpin} />
+);
+
+function rowFor(
+  event: NormalizedEvent,
+  data: Detail | null,
+  stream: PickedStream | null,
+  frcStream: PickedStream | null,
+  onPick: (url: string) => void,
+  onUnpin?: () => void
+): Row | null {
   if (ESPORTS_SPORTS.has(event.sport)) {
     const t = event.teams ?? [];
     const w = event.seriesScore?.match(/(\d+)-(\d+)/);
@@ -115,7 +129,7 @@ function rowFor(event: NormalizedEvent, data: Detail | null, stream: { embed: st
       home: { name: t[1]?.name ?? "TBD", color: ESPORTS_TEAM_COLORS[1], score: w?.[2] },
       clock: event.seriesScore?.match(/\((Bo\d+)\)/)?.[1],
       tags: [],
-      surface: stream ? <Stream embed={stream.embed} /> : <div className="lv-tile-empty">No stream</div>,
+      surface: stream ? streamFor(stream, onPick, onUnpin) : <div className="lv-tile-empty">No stream</div>,
       // the league first, then CS maps when there are any: "IEM · Cache 13–9 · Mirage live"
       status: [event.league, data?.kind === "cs" ? csMapsLine(data.maps) : null].filter(Boolean).join(" · "),
     };
@@ -198,7 +212,7 @@ function rowFor(event: NormalizedEvent, data: Detail | null, stream: { embed: st
         clock: m?.label,
         tags: [],
         surface: frcStream ? (
-          <Stream embed={frcStream.embed} />
+          streamFor(frcStream, onPick)
         ) : (
           <div className="lv-tile-frc">
             <span style={{ color: "#ef4444" }}>{m?.red.teams.join(" · ") ?? "Red"}</span>
@@ -240,10 +254,20 @@ export default function GameTile({
   onPointerDown: (e: React.PointerEvent) => void;
 }) {
   const { data } = useLiveDetail<Detail>(detailUrl(event), POLL_MS[event.sport] ?? 10_000);
+  // the stream picked in the switcher, else the backend's first choice; an
+  // FRC link pasted on the FRC view comes before the event's own webcasts
+  const key = eventKey(event);
+  const pick = useStreamPicks()[key];
+  const onPick = useCallback((url: string) => setStreamPick(key, url), [key]);
   const urls = (event.streams ?? []).map((s) => s.url).concat(event.streamUrl ?? []);
-  const stream = ESPORTS_SPORTS.has(event.sport) ? embeddableStream(urls, !withSound) : null;
-  const frcStream = frcStreamUrl ? embeddableStream([frcStreamUrl], !withSound) : null;
-  const row = rowFor(event, data, stream, frcStream);
+  const stream = ESPORTS_SPORTS.has(event.sport) ? pickStream(urls, pick, !withSound) : null;
+  const frcStream = frcStreamUrl ? pickStream([frcStreamUrl, ...(event.streams ?? []).map((s) => s.url)], pick, !withSound) : null;
+  const tile = useRef<HTMLDivElement>(null);
+  const bare = useBareTwitch(tile, stream?.source === "Twitch");
+  // a stream-only tile's pin button floats over its player — which stops a
+  // guarded Twitch player (GUARD_TWITCH), so there it's in the stream's bar
+  const pinInBar = bare && pinned && GUARD_TWITCH;
+  const row = rowFor(event, data, stream, frcStream, onPick, pinInBar ? onUnpin : undefined);
 
   const powerPlay = data?.kind === "hockey" && Boolean(data.powerPlayTeamId);
   useEffect(() => onPowerPlay(powerPlay), [powerPlay, onPowerPlay]);
@@ -254,8 +278,6 @@ export default function GameTile({
   );
 
   const alert = data?.kind === "f1" ? f1Alert(data) : undefined;
-  const tile = useRef<HTMLDivElement>(null);
-  const bare = useBareTwitch(tile, stream?.source === "Twitch");
 
   return (
     <div
@@ -305,7 +327,7 @@ export default function GameTile({
       {/* stream only: score and status are hidden by CSS but stay in the page,
           so the stream's frame isn't rebuilt (and its stream restarted) when a
           tile switches between the two */}
-      {bare && pinned && (
+      {bare && pinned && !pinInBar && (
         <button
           className="lv-tile-pin lv-tile-pin-float"
           aria-label="Unpin"

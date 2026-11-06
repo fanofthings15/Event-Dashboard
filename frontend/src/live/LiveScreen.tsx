@@ -7,7 +7,9 @@ import { hasEventEnded, isLiveNow } from "../eventStatus";
 import { loadQuiet, saveQuiet, useQuietHours, type QuietHours } from "../quietHours";
 import { ESPORTS_SPORTS, eventKey, LIVE_VIEW_SPORTS, selectLiveEvent } from "./selectLiveEvent";
 import { useLiveDetail } from "./useLiveDetail";
-import { embeddableStream, StreamLayer, StreamLayerContext } from "./Stream";
+import { isStreamFullscreen, STREAM_FULLSCREEN_EVENT, streamSlotAt, StreamLayer, StreamLayerContext } from "./Stream";
+import { pickStream } from "../streamEmbed";
+import { pruneStreamPicks, setStreamPick, useStreamPicks } from "./streamPicks";
 import type { BaseballState, BasketballState, F1State, FootballState, FrcState, HockeyState } from "./liveTypes";
 import FootballView from "./views/FootballView";
 import BasketballView from "./views/BasketballView";
@@ -66,6 +68,8 @@ function SportView({
   frcStreamAuto,
   onSaveFrcStream,
   muted = true,
+  pick,
+  onPickStream,
 }: {
   event: NormalizedEvent;
   label: string;
@@ -74,6 +78,8 @@ function SportView({
   frcStreamAuto?: boolean;
   onSaveFrcStream: (url: string) => void;
   muted?: boolean;
+  pick?: string;
+  onPickStream: (url: string) => void;
 }) {
   const url = ESPN_SPORTS.has(event.sport)
     ? `/api/live/espn/${event.sport}/${event.id}`
@@ -103,7 +109,20 @@ function SportView({
     case "f1":
       return <F1View data={data as F1State} leagueColor={color} />;
     case "frc":
-      return <FrcView data={data as FrcState} eventName={event.name} leagueColor={color} streamUrl={frcStreamUrl} streamAuto={frcStreamAuto} onSaveStream={onSaveFrcStream} muted={muted} />;
+      return (
+        <FrcView
+          data={data as FrcState}
+          eventName={event.name}
+          leagueColor={color}
+          streamUrl={frcStreamUrl}
+          streamAuto={frcStreamAuto}
+          onSaveStream={onSaveFrcStream}
+          muted={muted}
+          otherStreams={(event.streams ?? []).map((s) => s.url)}
+          pick={pick}
+          onPickStream={onPickStream}
+        />
+      );
     default:
       return (
         <LiveFrame league={label} leagueColor={color} live={false} centre={event.name}>
@@ -121,14 +140,19 @@ function SportView({
 const HOURS = Array.from({ length: 24 }, (_, h) => h);
 const hourLabel = (h: number) => (h === 0 ? "12 AM" : h === 12 ? "12 PM" : h < 12 ? `${h} AM` : `${h - 12} PM`);
 
-// A player's own fullscreen button (Twitch's, YouTube's) makes its iframe
-// the page's fullscreen element.
+// One stream filling the screen: the stream controls' fullscreen (the
+// stream's box), a player's own fullscreen button with its own controls on
+// (its iframe), or a stream filling the window on an iPhone.
 function usePlayerFullscreen(): boolean {
   const [full, setFull] = useState(false);
   useEffect(() => {
-    const update = () => setFull(document.fullscreenElement instanceof HTMLIFrameElement);
+    const update = () => setFull(isStreamFullscreen());
     document.addEventListener("fullscreenchange", update);
-    return () => document.removeEventListener("fullscreenchange", update);
+    document.addEventListener(STREAM_FULLSCREEN_EVENT, update);
+    return () => {
+      document.removeEventListener("fullscreenchange", update);
+      document.removeEventListener(STREAM_FULLSCREEN_EVENT, update);
+    };
   }, []);
   return full;
 }
@@ -184,7 +208,9 @@ interface Press {
 type DropTarget = number | "strip" | null;
 
 function dropTargetAt(x: number, y: number): DropTarget {
-  const el = document.elementFromPoint(x, y);
+  // over a stream, the point hits its box in the stream layer: count its tile
+  const hit = document.elementFromPoint(x, y);
+  const el = streamSlotAt(hit) ?? hit;
   const tile = el?.closest<HTMLElement>("[data-slot]");
   if (tile) return Number(tile.dataset.slot);
   return el?.closest(".lv-others") ? "strip" : null;
@@ -386,10 +412,11 @@ export default function LiveScreen({ onBack, pin, onPinSaved }: { onBack?: () =>
   };
   const multi = !pinned && layout !== "single" && liveEvents.length >= 2;
 
-  // pins and hidden games are dropped once their game is no longer live
+  // pins, hidden games and stream picks are dropped once their game is no longer live
   useEffect(() => {
     if (events.length === 0) return;
     const live = new Set(liveEvents.map(eventKey));
+    pruneStreamPicks(live);
     const next = pruneTo(prefs, live);
     if (
       Object.keys(next.pins).length !== Object.keys(prefs.pins).length ||
@@ -594,14 +621,18 @@ export default function LiveScreen({ onBack, pin, onPinSaved }: { onBack?: () =>
     };
   }, []);
 
+  // the stream picked in each game's switcher (per device)
+  const picks = useStreamPicks();
+  const urlsOf = (e: NormalizedEvent) => (e.streams ?? []).map((s) => s.url).concat(e.streamUrl ?? []);
+  const selectedPick = selected ? picks[eventKey(selected)] : undefined;
   const stream = useMemo(
     // the one game on screen has sound — never during quiet hours
-    () => (selected && ESPORTS_SPORTS.has(selected.sport) ? embeddableStream((selected.streams ?? []).map((s) => s.url).concat(selected.streamUrl ?? []), quiet) : null),
-    [selected, quiet]
+    () => (selected && ESPORTS_SPORTS.has(selected.sport) ? pickStream(urlsOf(selected), selectedPick, quiet) : null),
+    [selected, selectedPick, quiet]
   );
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && onBack && !document.fullscreenElement) onBack();
+      if (e.key === "Escape" && onBack && !document.fullscreenElement && !isStreamFullscreen()) onBack();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -609,11 +640,13 @@ export default function LiveScreen({ onBack, pin, onPinSaved }: { onBack?: () =>
 
   // FRC webcasts aren't in TBA's data the app reads, so a stream link is
   // pasted in per event and kept in settings.
+  // A link pasted there is what plays, over a stream picked in the switcher.
   const saveFrcStream = (eventId: string, url: string) => {
     const next = { ...settings.frcStreamUrls };
     if (url) next[eventId] = url;
     else delete next[eventId];
     save({ frcStreamUrls: next });
+    setStreamPick(`frc-${eventId}`, url || undefined);
   };
 
   const tileOrderRef = useRef<string[]>([]);
@@ -633,8 +666,7 @@ export default function LiveScreen({ onBack, pin, onPinSaved }: { onBack?: () =>
     // RedZone's small column: a Twitch stream's row gets a little more height
     // than the others, so on a 1080p screen its player can reach Twitch's
     // 300px autoplay minimum (see GameTile)
-    const twitchTile = (e: NormalizedEvent) =>
-      ESPORTS_SPORTS.has(e.sport) && embeddableStream((e.streams ?? []).map((s) => s.url).concat(e.streamUrl ?? []))?.source === "Twitch";
+    const twitchTile = (e: NormalizedEvent) => ESPORTS_SPORTS.has(e.sport) && pickStream(urlsOf(e), picks[eventKey(e)])?.source === "Twitch";
     const rows =
       tpl.className === "rz" ? shown.slice(1).map((e) => (twitchTile(e) ? "minmax(0,1.15fr)" : "minmax(0,1fr)")).join(" ") : undefined;
     body = (
@@ -676,7 +708,7 @@ export default function LiveScreen({ onBack, pin, onPinSaved }: { onBack?: () =>
     const meta = metaFor(selected);
     const sel = selected;
     body = ESPORTS_SPORTS.has(sel.sport) ? (
-      <EsportsView event={sel} label={meta.label} leagueColor={meta.color} stream={stream} />
+      <EsportsView event={sel} label={meta.label} leagueColor={meta.color} stream={stream} onPickStream={(url) => setStreamPick(eventKey(sel), url)} />
     ) : (
       <SportView
         key={eventKey(sel)}
@@ -687,6 +719,8 @@ export default function LiveScreen({ onBack, pin, onPinSaved }: { onBack?: () =>
         frcStreamAuto={sel.sport === "frc" && !settings.frcStreamUrls?.[sel.id] && Boolean(sel.streamUrl)}
         muted={quiet}
         onSaveFrcStream={(url) => saveFrcStream(sel.id, url)}
+        pick={picks[eventKey(sel)]}
+        onPickStream={(url) => setStreamPick(eventKey(sel), url)}
       />
     );
   }

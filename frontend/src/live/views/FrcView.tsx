@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { FrcAlliance, FrcState } from "../liveTypes";
 import Stream, { embeddableStream } from "../Stream";
+import { pickStream } from "../../streamEmbed";
 import { C, LiveFrame, Message, Side, SideLabel } from "../Layout";
 
 const RED = "#ef4444";
@@ -93,6 +94,9 @@ export default function FrcView({
   streamAuto,
   onSaveStream,
   muted = true,
+  otherStreams,
+  pick,
+  onPickStream,
 }: {
   data: FrcState;
   eventName: string;
@@ -104,9 +108,13 @@ export default function FrcView({
   streamAuto?: boolean;
   onSaveStream: (url: string) => void;
   muted?: boolean;
+  // the event's webcasts from TBA, offered in the stream switcher after streamUrl
+  otherStreams?: string[];
+  pick?: string;
+  onPickStream?: (url: string) => void;
 }) {
   const [editing, setEditing] = useState(false);
-  const stream = streamUrl ? embeddableStream([streamUrl], muted) : null;
+  const stream = streamUrl ? pickStream([streamUrl, ...(otherStreams ?? [])], pick, muted) : null;
   const mine = data.myTeam?.number;
   const last = data.last;
   const total = (last?.red.score ?? 0) + (last?.blue.score ?? 0);
@@ -167,7 +175,7 @@ export default function FrcView({
       ) : stream && !editing ? (
         <>
           <section className="lv-main" style={{ alignItems: "center", justifyContent: "center" }}>
-            <Stream embed={stream.embed} />
+            <Stream embed={stream.embed} options={stream.options} current={stream.url} onPick={onPickStream} />
           </section>
           <Side>
             <SideLabel>{data.onField ? `Up now · ${data.onField.label}` : "No match queued"}</SideLabel>
