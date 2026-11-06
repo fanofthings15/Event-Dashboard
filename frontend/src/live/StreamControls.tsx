@@ -287,7 +287,8 @@ export default function StreamControls({
         <button
           className="lv-sc-btn"
           aria-label={v.fullscreen ? "Exit fullscreen" : "Fullscreen"}
-          title={v.fullscreen ? "Exit fullscreen" : "Fullscreen"}
+          aria-keyshortcuts="F"
+          title={v.fullscreen ? "Exit fullscreen (F)" : "Fullscreen (F)"}
           onClick={() => layer.toggleFullscreen(entry)}
         >
           <ExpandIcon out={v.fullscreen} />

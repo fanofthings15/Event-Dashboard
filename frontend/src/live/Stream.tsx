@@ -234,6 +234,7 @@ export class StreamLayer {
   private layer: HTMLDivElement | null = null;
   private raf = 0;
   private listening = false;
+  private pointer: { x: number; y: number } | null = null;
 
   private onMessage = (ev: MessageEvent) => {
     for (const e of this.entries.values()) {
@@ -340,21 +341,53 @@ export class StreamLayer {
     send(e.frame, playerOf(e.embed), "play");
   }
 
-  // Escape leaves a stream that's filling the window — before the display
-  // sees it, which would otherwise take Escape as Back.
-  private onKey = (ev: KeyboardEvent) => {
-    if (ev.key !== "Escape") return;
-    const e = [...this.entries.values()].find((x) => x.pseudoFs);
-    if (!e) return;
-    ev.stopPropagation();
-    ev.preventDefault();
-    this.setPseudo(e, false);
+  private onPointer = (ev: PointerEvent) => {
+    this.pointer = { x: ev.clientX, y: ev.clientY };
   };
+
+  // Escape leaves a stream that's filling the window — before the display
+  // sees it, which would otherwise take Escape as Back. F puts a stream
+  // fullscreen, or takes the one that is out of it (fullscreenStream).
+  private onKey = (ev: KeyboardEvent) => {
+    if (ev.key === "Escape") {
+      const e = [...this.entries.values()].find((x) => x.pseudoFs);
+      if (!e) return;
+      ev.stopPropagation();
+      ev.preventDefault();
+      this.setPseudo(e, false);
+      return;
+    }
+    if ((ev.key === "f" || ev.key === "F") && !ev.repeat && !ev.ctrlKey && !ev.metaKey && !ev.altKey) {
+      const t = ev.target as HTMLElement | null;
+      if (t?.closest?.("input, textarea, select, [contenteditable]")) return;
+      const e = this.fullscreenTarget();
+      if (!e) return;
+      ev.preventDefault();
+      this.toggleFullscreen(e);
+    }
+  };
+
+  // Which stream F means: the one already fullscreen (to leave it), else
+  // the one under the mouse, else the one with the sound, else the biggest
+  // on screen (the big spot, or Single's only one).
+  private fullscreenTarget(): Entry | undefined {
+    const shown = [...this.entries.values()].filter((e) => e.slot && e.box.style.visibility !== "hidden");
+    const full = shown.find((e) => e.pseudoFs || document.fullscreenElement === e.box);
+    if (full) return full;
+    if (this.pointer) {
+      const box = document.elementFromPoint(this.pointer.x, this.pointer.y)?.closest(".lv-stream-float");
+      const hovered = box ? boxEntries.get(box) : undefined;
+      if (hovered && shown.includes(hovered)) return hovered;
+    }
+    const area = (e: Entry) => e.box.offsetWidth * e.box.offsetHeight;
+    return shown.find((e) => !this.mutedNow(e)) ?? shown.sort((a, b) => area(b) - area(a))[0];
+  }
 
   private ensureListening() {
     if (this.listening) return;
     window.addEventListener("message", this.onMessage);
     window.addEventListener("keydown", this.onKey, true);
+    window.addEventListener("pointermove", this.onPointer, { passive: true });
     document.addEventListener("fullscreenchange", this.onFullscreen);
     this.listening = true;
   }
@@ -667,6 +700,7 @@ export class StreamLayer {
     for (const e of [...this.entries.values()]) this.remove(e);
     window.removeEventListener("message", this.onMessage);
     window.removeEventListener("keydown", this.onKey, true);
+    window.removeEventListener("pointermove", this.onPointer);
     document.removeEventListener("fullscreenchange", this.onFullscreen);
     this.listening = false;
   }

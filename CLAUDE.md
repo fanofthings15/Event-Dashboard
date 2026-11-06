@@ -162,7 +162,10 @@ Play 3, SetQuality 8, SetMuted 10, SetVolume 11 = 0–1, all checked in headless
 Chrome); **Kick has no player API** (no message listener in player.kick.com's
 bundle) — mute reloads it, no pause/volume; its HLS token only allows
 kick.com origins, so playing it in our own `<video>` would mean getting round
-that (not done). Fullscreen puts the box fullscreen (`requestFullscreen`);
+that (not done). Fullscreen puts the box fullscreen (`requestFullscreen`); the **F key** does
+too (user's ask, 2026-11-06; not while typing in a field): it leaves the
+stream that's fullscreen, else takes the one under the mouse, else the one
+with sound, else the biggest (`fullscreenTarget` in `Stream.tsx`);
 where a page can't (iPhone) the box fills the window (`.lv-pseudo-fs`, Escape
 leaves it, before LiveScreen takes Escape as Back). Volume is one level per
 device (`live-volume`), applied to whichever stream has the sound; unmuting a
