@@ -112,6 +112,7 @@ export interface F1Driver {
   interval?: string;
   inPit: boolean;
   out: boolean;
+  finished?: boolean; // has taken the chequered flag: parked in the pit lane, not on track
   compound?: string;
   stops: number;
   x?: number;

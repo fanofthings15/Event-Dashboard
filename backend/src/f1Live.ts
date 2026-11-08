@@ -106,6 +106,40 @@ function noteSegments(numbers: string[]) {
   }
 }
 
+// ---------- the chequered flag ----------
+//
+// Timing stops placing a car once it has taken the flag: its mini-sectors
+// freeze (all filled, or a couple left blank mid-lap) and its gap stays at
+// the result. Left on the map, the dots sat still or crept round and jumped
+// back for the rest of the session (2026 São Paulo GP). So from the flag a
+// car has finished once it next crosses the line, which is when its lap
+// count goes up, and the display parks it in the pit lane. The lap counts
+// are noted when the flag comes in on the feed. A snapshot that already has
+// the flag can't say who had crossed, so then it falls back to: the race
+// distance done, the results finalised, or PARK_AFTER_MS since the flag
+// (the last car is round within a lap).
+const PARK_AFTER_MS = 3 * 60_000;
+let flagLaps: { session: string; laps: Map<string, number> | null } | null = null;
+
+const sessionKey = () => String(state.SessionInfo?.Key ?? state.SessionInfo?.Path ?? "");
+
+function chequeredAt(): number | undefined {
+  const messages: any[] = Object.values(state.RaceControlMessages?.Messages ?? {});
+  const m = messages.find((x) => x?.Flag === "CHEQUERED");
+  if (!m) return undefined;
+  const t = Date.parse(/Z|[+-]\d\d:?\d\d$/.test(m.Utc ?? "") ? m.Utc : `${m.Utc}Z`);
+  return Number.isFinite(t) ? t : Date.now();
+}
+
+function noteChequer(fromSnapshot: boolean) {
+  if (chequeredAt() === undefined || flagLaps?.session === sessionKey()) return;
+  const lines: Record<string, any> = state.TimingData?.Lines ?? {};
+  flagLaps = {
+    session: sessionKey(),
+    laps: fromSnapshot ? null : new Map(Object.entries(lines).map(([num, l]) => [num, Number(l?.NumberOfLaps) || 0])),
+  };
+}
+
 function applyTopic(topic: string, data: any) {
   if (topic.endsWith(".z")) {
     const decoded = decodeZ(data);
@@ -162,8 +196,10 @@ function onMessage(raw: string) {
     }
     if (msg.type === 3 && msg.result) {
       for (const [topic, data] of Object.entries(msg.result)) applyTopic(topic, data);
+      noteChequer(true);
     } else if (msg.type === 1 && msg.target === "feed" && Array.isArray(msg.arguments)) {
       applyTopic(msg.arguments[0], msg.arguments[1]);
+      noteChequer(false);
     } else if (msg.type === 7) {
       lastError = msg.error ?? "server closed the connection";
     }
@@ -266,6 +302,9 @@ export interface F1Driver {
   interval?: string;
   inPit: boolean;
   out: boolean; // retired or stopped
+  // has taken the chequered flag: no longer placed on track (see
+  // noteChequer), the display parks it in the pit lane
+  finished: boolean;
   compound?: string; // current tyre: SOFT, MEDIUM, HARD, INTERMEDIATE, WET
   stops: number;
   x?: number;
@@ -347,12 +386,28 @@ export async function getF1LiveState(): Promise<F1LiveState> {
     return { from: bounds[seg.done], to: bounds[seg.done + 1], perSec, ageMs };
   };
 
+  const flagAt = chequeredAt();
+  const totalLaps = Number(state.LapCount?.TotalLaps) || undefined;
+  const lapsAtFlag = flagLaps?.session === sessionKey() ? flagLaps.laps : null;
+  const finished = (num: string, t: any): boolean => {
+    if (flagAt === undefined || t.Retired || t.Stopped) return false;
+    const laps = Number(t.NumberOfLaps) || 0;
+    const atFlag = lapsAtFlag?.get(num);
+    return (
+      /finalised|ends/i.test(info?.SessionStatus ?? "") ||
+      (totalLaps !== undefined && laps >= totalLaps) ||
+      (atFlag !== undefined && laps > atFlag) ||
+      now - flagAt > PARK_AFTER_MS
+    );
+  };
+
   const list: F1Driver[] = Object.entries(drivers)
     .filter(([num]) => /^\d+$/.test(num))
     .map(([num, d]: [string, any]) => {
       const t = lines[num] ?? {};
       const p = latestPositions[num];
       const stints: any[] = Object.values(appLines[num]?.Stints ?? {});
+      const done = finished(num, t);
       return {
         number: num,
         tla: d.Tla ?? num,
@@ -363,11 +418,12 @@ export async function getF1LiveState(): Promise<F1LiveState> {
         interval: t.IntervalToPositionAhead?.Value,
         inPit: Boolean(t.InPit),
         out: Boolean(t.Retired || t.Stopped),
+        finished: done,
         compound: stints.at(-1)?.Compound,
         stops: Math.max(0, stints.length - 1),
         x: typeof p?.X === "number" ? p.X : undefined,
         y: typeof p?.Y === "number" ? p.Y : undefined,
-        track: estimateTrack(num, t),
+        track: done ? undefined : estimateTrack(num, t),
       };
     })
     .sort((a, b) => a.position - b.position);

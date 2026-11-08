@@ -103,11 +103,23 @@ function useTrackGeometry(circuit: F1State["circuit"]) {
       }
       lane.push([x + nx * 34, y + ny * 34]);
     }
+    // the point a fraction f of the way down the lane, entry to exit, by distance
+    const laneLen: number[] = new Array(lane.length).fill(0);
+    for (let i = 1; i < lane.length; i++) laneLen[i] = laneLen[i - 1] + Math.hypot(lane[i][0] - lane[i - 1][0], lane[i][1] - lane[i - 1][1]);
+    const along = (f: number): [number, number] => {
+      const want = Math.max(0, Math.min(1, f)) * laneLen[laneLen.length - 1];
+      let i = 1;
+      while (i < lane.length - 1 && laneLen[i] < want) i++;
+      const t = (want - laneLen[i - 1]) / (laneLen[i] - laneLen[i - 1] || 1);
+      return [lane[i - 1][0] + (lane[i][0] - lane[i - 1][0]) * t, lane[i - 1][1] + (lane[i][1] - lane[i - 1][1]) * t];
+    };
     const pit = {
       d: path(lane),
       entry: path([at(-k - 3), lane[0]]),
       exit: path([lane[lane.length - 1], at(k + 3)]),
       points: lane,
+      along,
+      length: laneLen[laneLen.length - 1],
     };
     return { toView, outline: path(pts) + " Z", sectors, start: pts[0], w, h, pit };
   }, [circuit]);
@@ -147,10 +159,15 @@ function estimateTargets(data: F1State, now: number, receivedAt: number): Map<st
 // Each car drives on smoothly at its own pace every frame and is steered
 // toward where the timing says it is (half the difference closed per
 // second), instead of jumping on every update. It never reverses: a car
-// ahead of its estimate eases off to no less than 30% pace. A big miss (out
-// of the pits, a tab coming back from the background) snaps straight there.
+// ahead of its estimate eases off to no less than 30% pace, and once it's
+// HOLD_S seconds ahead it waits there for the timing to catch up. Without
+// that stop, a car whose timing had stalled crept on until it was an eighth
+// of a lap ahead and was snapped back, over and over — cars "teleporting"
+// round the track. A big miss (out of the pits, a tab coming back from the
+// background) snaps straight there.
 const STEER = 0.5;
 const MIN_PACE = 0.3;
+const HOLD_S = 3;
 
 function useSmoothCars(data: F1State, geo: ReturnType<typeof useTrackGeometry>) {
   const estimated = Boolean(data.positionsEstimated && data.circuit && geo);
@@ -197,7 +214,8 @@ function useSmoothCars(data: F1State, geo: ReturnType<typeof useTrackGeometry>) 
             if (err < -n / 2) err += n;
             if (Math.abs(err) <= n / 8) {
               const pace = target.perSec * dt;
-              p = wrap(prev + Math.max(pace * MIN_PACE, pace + err * STEER * dt));
+              const floor = -err < HOLD_S * target.perSec ? pace * MIN_PACE : 0;
+              p = wrap(prev + Math.max(floor, pace + err * STEER * dt));
             }
           }
           cars.current.set(num, p);
@@ -249,7 +267,14 @@ export function F1Track({ data }: { data: F1State }) {
   const carRef = useSmoothCars(data, geo);
   const yellow = new Set(data.yellowSectors);
   const pad = 36;
-  const inPit = data.drivers.filter((d) => d.inPit && !d.out);
+  // in the pit lane: cars in the pits, and every car that has taken the
+  // chequered flag (parc fermé — timing no longer places them), in race
+  // order with the leader nearest the exit. Of the finishers only the podium
+  // is labelled, as on track, and once the lane is too full for three names
+  // side by side, only the winner.
+  const inPit = data.drivers.filter((d) => !d.out && (d.inPit || d.finished)).sort((a, b) => a.position - b.position);
+  const roomy = geo ? geo.pit.length / (inPit.length + 1) >= 44 : true;
+  const labelled = (d: (typeof inPit)[number]) => !d.finished || d.position === 1 || (d.position <= 3 && roomy);
   if (!geo) return <Message>{data.error ?? "Waiting for the circuit map…"}</Message>;
   return (
     <svg viewBox={`${-pad} ${-pad} ${geo.w + pad * 2} ${geo.h + pad * 2}`} preserveAspectRatio="xMidYMid meet" role="img" aria-label="Circuit map">
@@ -299,14 +324,15 @@ export function F1Track({ data }: { data: F1State }) {
         </g>
       )}
       {inPit.map((d, i) => {
-        const pts = geo.pit.points;
-        const [x, y] = pts[Math.min(pts.length - 1, Math.round(((i + 1) / (inPit.length + 1)) * (pts.length - 1)))];
+        const [x, y] = geo.pit.along(1 - (i + 1) / (inPit.length + 1));
         return (
           <g key={`pit${d.number}`}>
             <circle cx={x} cy={y} r={11} fill={d.color} stroke={C.bg} strokeWidth={2} />
-            <text x={x} y={y} dy={30} fontSize={18} fontWeight={700} fill={C.text} textAnchor="middle">
-              {d.tla}
-            </text>
+            {labelled(d) && (
+              <text x={x} y={y} dy={30} fontSize={18} fontWeight={700} fill={C.text} textAnchor="middle">
+                {d.tla}
+              </text>
+            )}
           </g>
         );
       })}
