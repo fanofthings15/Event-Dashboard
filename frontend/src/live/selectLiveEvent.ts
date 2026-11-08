@@ -25,9 +25,10 @@ export const eventKey = (e: NormalizedEvent) => `${e.sport}-${e.id}`;
 // as the one on screen for this pick, so a bigger new game can take over.
 // A tie goes to the bigger event (importance: tier × stage, postseason),
 // and between events the same size to the game that has been on longer.
-// `hintsFor`: per-game hints from the display (InterestHints: a match held on
-// its break, one celebrating). A match between maps gives the screen to the
-// best one being played, if there's one that can take it (canTakeOver).
+// `hintsFor`: per-game hints from the display (InterestHints: one
+// celebrating). A match between maps gives the screen to the best one being
+// played, if there's one that can take it (canTakeOver), and gets it back as
+// soon as its next map starts.
 export function selectLiveEvent(
   events: NormalizedEvent[],
   currentKey: string | null,
@@ -51,8 +52,8 @@ export function selectLiveEvent(
   if (celebratingHere) return celebratingHere;
   const playingOn = sorted.filter((e) => !hintsFor(eventKey(e)).celebrating);
   const pool = playingOn.length ? playingOn : sorted;
-  if (isOnBreak(pool[0], hintsFor(eventKey(pool[0])))) {
-    const playing = pool.find((e) => !isOnBreak(e, hintsFor(eventKey(e))) && canTakeOver(e, ranking));
+  if (isOnBreak(pool[0])) {
+    const playing = pool.find((e) => !isOnBreak(e) && canTakeOver(e, ranking));
     if (playing) return playing;
   }
   return pool[0];

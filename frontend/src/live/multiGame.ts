@@ -46,9 +46,6 @@ function clockSeconds(e: NormalizedEvent): number | undefined {
 export interface InterestHints {
   scoredAt?: number; // last time the score changed, ms
   powerPlay?: boolean; // hockey, from the tile's own live data
-  // counted as still on its break: the match that took its spot while it was
-  // between maps is still playing that map (LiveScreen's `cover`)
-  onBreak?: boolean;
   // just finished on screen: kept on a small spot for CELEBRATE_MS
   celebrating?: boolean;
 }
@@ -64,9 +61,12 @@ export const CELEBRATE_MS = 3 * 60_000;
 
 // Between maps a match hands the top spot (Single, RedZone's big spot) to one
 // being played (the user's rule, 2026-11-04) — any that could take a spot
-// beside it: not FRC or tier-D esports.
-export function isOnBreak(e: NormalizedEvent, hints: InterestHints = {}): boolean {
-  return e.mapLive === false || hints.onBreak === true;
+// beside it: not FRC or tier-D esports — and takes it back as soon as its
+// next map starts (the user's rule, 2026-11-08). The stand-in used to keep
+// the spot until its own map was over, which kept an IEM final's map 3 off
+// the screen behind a CCT group map; don't bring that hold back.
+export function isOnBreak(e: NormalizedEvent): boolean {
+  return e.mapLive === false;
 }
 export function canTakeOver(e: NormalizedEvent, ranking?: Ranking): boolean {
   return e.sport !== "frc" && importance(e, ranking) > MINOR;
@@ -248,9 +248,9 @@ export function interest(e: NormalizedEvent, now: number, hints: InterestHints =
   // Nothing is happening in it, so no moment counts (a map just won isn't a
   // highlight to stay for), and a followed team's bonus is for watching them
   // play, so it doesn't hold the spot through their break either (the user's
-  // rule, 2026-11-04). The match that moves in keeps the spot until its own
-  // map is over (`hints.onBreak`), then hands it back.
-  const onBreak = isOnBreak(e, hints) || hints.celebrating === true;
+  // rule, 2026-11-04). Once its next map starts it ranks as before and takes
+  // the spot straight back (2026-11-08).
+  const onBreak = isOnBreak(e) || hints.celebrating === true;
   let score = standing(e, ranking) + (onBreak ? 0 : moment(e, now, hints));
   if (onBreak) score -= BETWEEN_MAPS + followBonus(e);
   const diff = margin(e);
@@ -329,7 +329,7 @@ export function placeGames(
   // if that one is between maps, to the best one being played instead
   if (layout === "redzone" && slots[0] === null && ranked.length > 0) {
     const byK = new Map(visible.map((e) => [eventKey(e), e]));
-    const breaking = (k: string) => isOnBreak(byK.get(k)!, hintsFor(k));
+    const breaking = (k: string) => isOnBreak(byK.get(k)!);
     const playingOn = ranked.filter((k) => !hintsFor(k).celebrating);
     const pool = playingOn.length ? playingOn : ranked;
     let pick = pool[0];
@@ -445,33 +445,6 @@ export function loadPrefs(): MultiPrefs {
 export function savePrefs(prefs: MultiPrefs): void {
   try {
     localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
-  } catch {
-    /* storage unavailable */
-  }
-}
-
-// A match covering for one on its break between maps (LiveScreen's `cover`),
-// kept per device like the pins so a reload — a refresh, a new deploy, the
-// sign-in session renewing — doesn't hand the spot back early.
-export interface Cover {
-  holder: string;
-  for: string;
-}
-const COVER_KEY = "live-cover";
-
-export function loadCover(): Cover | null {
-  try {
-    const v = JSON.parse(localStorage.getItem(COVER_KEY) ?? "null");
-    return v && typeof v.holder === "string" && typeof v.for === "string" ? { holder: v.holder, for: v.for } : null;
-  } catch {
-    return null;
-  }
-}
-
-export function saveCover(c: Cover | null): void {
-  try {
-    if (c) localStorage.setItem(COVER_KEY, JSON.stringify(c));
-    else localStorage.removeItem(COVER_KEY);
   } catch {
     /* storage unavailable */
   }

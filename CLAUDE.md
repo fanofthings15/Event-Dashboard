@@ -90,11 +90,11 @@ from PandaScore's per-map status), and on that break neither its follow bonus
 nor any moment counts. Live gameplay comes first (user's rules, 2026-11-04):
 a match between maps hands the top spot (Single, RedZone's big spot) to the
 best match or game being played that `canTakeOver` (not FRC or tier D), and
-the one that moves in keeps it until its own map is over — the one it replaced
-counts as still on its break meanwhile, even once its next map has started
-(`cover` in `LiveScreen.tsx`, saved per device as `live-cover`,
-`InterestHints.onBreak`). A map that isn't the decider hands back straight
-away. A match that finishes on screen (its decider is over) stays for
+takes it back as soon as its own next map starts (user's rule, 2026-11-08).
+This reverses the 2026-11-04 hold, where the stand-in kept the spot until its
+own map was over: that kept an IEM final's map 3 off the screen behind a CCT
+group map. Don't bring the hold back (the old `live-cover` localStorage key is
+dead and ignored). A match that finishes on screen (its decider is over) stays for
 `CELEBRATE_MS` (3 min) then drops off: in Single it keeps the screen; in
 RedZone/Grid it moves to a small tile, never the big spot even if pinned, and
 ranks like a break there, so live games still come first — with a +15 bonus for games already shown so they don't churn on a close score or red-zone drive. When a game goes live, it gets that same +15 for one pass (`arrivals` in `placeGames`/`selectLiveEvent`), so a new game that beats the one on screen takes over. Ties (the user's rule, 2026-11-03): between games already on screen they keep their order; otherwise the bigger event (`importance`, i.e. a tier/stage difference) wins, and between events the same size the game that has been on longer — a new game never wins a tie on being new.

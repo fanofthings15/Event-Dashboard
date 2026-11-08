@@ -27,13 +27,11 @@ import {
   interest,
   loadLayout,
   CELEBRATE_MS,
-  loadCover,
   loadPrefs,
   multiTemplate,
   placeGames,
   pruneTo,
   saveLayout,
-  saveCover,
   savePrefs,
   tapToBig,
   unpinGame,
@@ -41,7 +39,6 @@ import {
   type LayoutChoice,
   autoLayout,
   type MultiPrefs,
-  type Cover,
   type InterestHints,
 } from "./multiGame";
 import "./live.css";
@@ -286,22 +283,10 @@ export default function LiveScreen({ onBack, pin, onPinSaved }: { onBack?: () =>
   // A game tapped in the strip overrides the automatic pick for as long as
   // it stays live; once it ends, selection goes back to selectLiveEvent.
   const [chosenKey, setChosenKey] = useState<string | null>(null);
-  // A match that took the top spot (Single, or RedZone's big spot) while the
-  // one there was between maps keeps it until that match is over: the one it
-  // replaced counts as still on its break until then, even once its next map
-  // has started, and gets the spot back after (the user's rule, 2026-11-04).
-  // Saved per device, so a reload doesn't end it.
-  const [cover, setCoverState] = useState<Cover | null>(loadCover);
-  const setCover = useCallback((c: Cover | null) => {
-    setCoverState(c);
-    saveCover(c);
-  }, []);
-  const coverMissingSince = useRef<number | null>(null);
-  const heldOnBreak = useMemo(() => new Set(cover ? [cover.for] : []), [cover]);
-  const hintsFor = useCallback(
-    (k: string): InterestHints => ({ onBreak: heldOnBreak.has(k) || undefined, celebrating: celebrating.has(k) || undefined }),
-    [heldOnBreak, celebrating]
-  );
+  // A match between maps lends the top spot (Single, RedZone's big spot) to
+  // one being played and takes it back as soon as its next map starts (the
+  // user's rule, 2026-11-08) — no hold for the stand-in's map to finish.
+  const hintsFor = useCallback((k: string): InterestHints => ({ celebrating: celebrating.has(k) || undefined }), [celebrating]);
   const [currentKey, setCurrentKey] = useState<string | null>(null);
   // Same idea of "live" as the dashboard's LIVE badge, so a game shown live
   // there is never missing here.
@@ -485,35 +470,7 @@ export default function LiveScreen({ onBack, pin, onPinSaved }: { onBack?: () =>
   // tap), the shown game dropped on the strip is hidden so the next one takes over.
   const single = !multi && !pinned && Boolean(selected);
 
-  // the cover (see `cover`): starts when the top spot passes from a match on
-  // its break to one mid-map; ends when that map is over — a map that isn't
-  // the decider hands the spot straight back, a decider (the match is over)
-  // after the celebration — or when the match it covers for ends. A match
-  // that's only missing from the data (a failed poll, a page still loading)
-  // has to stay missing for 3 minutes before that counts.
-  const topKey = multi ? (layout === "redzone" ? (placement.slots[0] ?? null) : null) : single && selected ? eventKey(selected) : null;
-  const prevTop = useRef<string | null>(null);
   useEffect(() => {
-    const byK = new Map(liveAll.map((e) => [eventKey(e), e]));
-    if (cover) {
-      const missing = [cover.holder, cover.for].filter((k) => !byK.has(k));
-      const holder = byK.get(cover.holder);
-      if (holder && holder.mapLive !== true) setCover(null);
-      else if (missing.length === 0) coverMissingSince.current = null;
-      else {
-        const now = Date.now();
-        const ended = missing.some((k) => {
-          const e = allEvents.find((x) => eventKey(x) === k);
-          return e !== undefined && hasEventEnded(e, now);
-        });
-        coverMissingSince.current ??= now;
-        if (ended || now - coverMissingSince.current > 3 * 60_000) setCover(null);
-      }
-    } else {
-      const was = prevTop.current;
-      if (topKey && was && topKey !== was && byK.get(was)?.mapLive === false && byK.get(topKey)?.mapLive === true) setCover({ holder: topKey, for: was });
-    }
-    prevTop.current = topKey;
     lastOnScreen.current = new Set(multi ? placement.slots : selected ? [eventKey(selected)] : []);
   });
   useEffect(() => {
