@@ -113,14 +113,34 @@ function seriesScore(m: any): string | undefined {
 // pile up in every poll's response forever.
 const FINISHED_SHELF_LIFE_DAYS = 7;
 
-async function fetchMatches(slug: string, apiKey: string, filterStatus: string, sort: string, pageSize: number): Promise<any[]> {
-  const url = `https://api.pandascore.co/${slug}/matches?filter[status]=${filterStatus}&sort=${sort}&page[size]=${pageSize}`;
+async function fetchMatches(slug: string, apiKey: string, filterStatus: string, sort: string, pageSize: number, page = 1): Promise<any[]> {
+  const url = `https://api.pandascore.co/${slug}/matches?filter[status]=${filterStatus}&sort=${sort}&page[size]=${pageSize}&page[number]=${page}`;
   const r = await fetch(url, { headers: { Authorization: `Bearer ${apiKey}` } });
   if (!r.ok) {
     const body = await r.text().catch(() => "");
     throw new Error(`${slug} responded ${r.status}${body ? `: ${body.slice(0, 200)}` : ""}`);
   }
   return r.json();
+}
+
+// Every running and upcoming match, soonest first: PandaScore's biggest page
+// is 100, so follow the pages until one comes back short, up to ACTIVE_PAGES.
+// It used to be the first 25 only, and CS has hundreds (291 on 2026-11-10,
+// mostly tier C/D) — the 25th started 7 hours out, so BLAST Rivals, a tier-S
+// event 14 hours away, wasn't on the dashboard at all. Each page is one
+// request against the free plan's 1000 an hour; with the 2-minute cache CS
+// costs at most 4 (3 pages + finished) every 2 minutes.
+const ACTIVE_PAGE_SIZE = 100;
+const ACTIVE_PAGES = 3;
+
+async function fetchActive(slug: string, apiKey: string): Promise<any[]> {
+  const all: any[] = [];
+  for (let page = 1; page <= ACTIVE_PAGES; page++) {
+    const batch = await fetchMatches(slug, apiKey, "running,not_started", "begin_at", ACTIVE_PAGE_SIZE, page);
+    all.push(...batch);
+    if (batch.length < ACTIVE_PAGE_SIZE) break;
+  }
+  return all;
 }
 
 export async function fetchGame(slug: string, sport: string, color: string, apiKey: string): Promise<NormalizedEvent[]> {
@@ -134,7 +154,7 @@ export async function fetchGame(slug: string, sport: string, color: string, apiK
   // effectively unsorted slice spanning many months instead of the most
   // recent matches).
   const [active, finishedRaw] = await Promise.all([
-    fetchMatches(slug, apiKey, "running,not_started", "begin_at", 25),
+    fetchActive(slug, apiKey),
     fetchMatches(slug, apiKey, "finished", "-scheduled_at", 15),
   ]);
 
@@ -265,7 +285,7 @@ router.get("/", async (req, res) => {
 
   res.json({
     events: await liveStreamsFirst(events),
-    source: "pandascore (free tier — ~1000 req/month)",
+    source: "pandascore (free tier — 1000 req/hour)",
     warnings: warnings.length ? warnings : undefined,
   });
 });
