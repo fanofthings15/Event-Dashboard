@@ -123,22 +123,27 @@ async function fetchMatches(slug: string, apiKey: string, filterStatus: string, 
   return r.json();
 }
 
-// Every running and upcoming match, soonest first: PandaScore's biggest page
-// is 100, so follow the pages until one comes back short, up to ACTIVE_PAGES.
-// It used to be the first 25 only, and CS has hundreds (291 on 2026-11-10,
-// mostly tier C/D) — the 25th started 7 hours out, so BLAST Rivals, a tier-S
-// event 14 hours away, wasn't on the dashboard at all. Each page is one
-// request against the free plan's 1000 an hour; with the 2-minute cache CS
-// costs at most 4 (3 pages + finished) every 2 minutes.
+// Every running match and every upcoming one starting in the next
+// ACTIVE_DAYS (the user's window, 2026-11-10: nothing a month away), soonest
+// first. PandaScore's biggest page is 100, so follow the pages until one
+// comes back short or runs past the window, up to ACTIVE_PAGES. It used to
+// be the first 25 only, and CS has hundreds (291 on 2026-11-10, mostly tier
+// C/D) — the 25th started 7 hours out, so BLAST Rivals, a tier-S event 14
+// hours away, wasn't on the dashboard at all. Each page is one request
+// against the free plan's 1000 an hour; with the 2-minute cache CS costs at
+// most 4 (3 pages + finished) every 2 minutes.
+const ACTIVE_DAYS = 14;
 const ACTIVE_PAGE_SIZE = 100;
 const ACTIVE_PAGES = 3;
 
 async function fetchActive(slug: string, apiKey: string): Promise<any[]> {
+  const until = Date.now() + ACTIVE_DAYS * 24 * 60 * 60 * 1000;
+  const startOf = (m: any) => new Date(m.begin_at ?? m.scheduled_at).getTime();
   const all: any[] = [];
   for (let page = 1; page <= ACTIVE_PAGES; page++) {
     const batch = await fetchMatches(slug, apiKey, "running,not_started", "begin_at", ACTIVE_PAGE_SIZE, page);
-    all.push(...batch);
-    if (batch.length < ACTIVE_PAGE_SIZE) break;
+    all.push(...batch.filter((m) => m.status === "running" || !(startOf(m) > until)));
+    if (batch.length < ACTIVE_PAGE_SIZE || batch.some((m) => startOf(m) > until)) break;
   }
   return all;
 }
