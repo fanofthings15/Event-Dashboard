@@ -207,7 +207,18 @@ player (its own prompt). So does a YouTube `onError` (an unavailable video
 sends 150; a "sign in to confirm you're not a bot" prompt blocked the user,
 2026-11-11 — it reports no play state, so it never looked stopped), and a
 YouTube/Twitch player that reports nothing for 8 s (`SILENT_MS`), until it
-plays. The **stream switcher** lists every embeddable
+plays. The bot check itself is the browser's doing, not the code's:
+Firefox's Total Cookie Protection gives the embedded youtube.com its own
+cookie jar, so the player is signed out whatever the user does in a tab
+(its "Sign in" link opens a tab that's already signed in, and the player
+stays signed out). **Fix, confirmed by the user 2026-11-11: turn off
+Enhanced Tracking Protection for events.omurray.me (shield icon) in each
+Firefox**; the player then shares the YouTube sign-in. Safari has only the
+global "Prevent Cross-Site Tracking" switch. Not the network: the home IP
+(WOW, residential) gets the stream signed-out with no check, and fresh
+headless Firefox at standard/strict protection played it too. The user
+doesn't want it worked around (an auto-switch to Twitch on a YouTube error
+was built and dropped, 2026-11-11: "ignoring the problem is not a solution"). The **stream switcher** lists every embeddable
 stream of the game (`streamOptions`/`pickStream` in `streamEmbed.ts`: esports
 `streams`, FRC pasted link then TBA webcasts); the pick is per device
 (`live-stream-pick`, by eventKey), pruned with pins when the game ends; a
