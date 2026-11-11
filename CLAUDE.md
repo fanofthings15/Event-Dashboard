@@ -203,7 +203,11 @@ stream by hand mutes the others. "<Service>'s own controls" in the stream
 menu reloads that player with its controls on (age/sign-in prompts, YouTube's
 quality menu); the button at the top brings ours back. A stopped stream shows a
 big Play; Play that doesn't take within 3.5 s lets clicks through to the
-player (its own prompt). The **stream switcher** lists every embeddable
+player (its own prompt). So does a YouTube `onError` (an unavailable video
+sends 150; a "sign in to confirm you're not a bot" prompt blocked the user,
+2026-11-11 — it reports no play state, so it never looked stopped), and a
+YouTube/Twitch player that reports nothing for 8 s (`SILENT_MS`), until it
+plays. The **stream switcher** lists every embeddable
 stream of the game (`streamOptions`/`pickStream` in `streamEmbed.ts`: esports
 `streams`, FRC pasted link then TBA webcasts); the pick is per device
 (`live-stream-pick`, by eventKey), pruned with pins when the game ends; a

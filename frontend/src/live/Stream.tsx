@@ -78,6 +78,7 @@ interface Report {
   muted?: boolean;
   volume?: number; // 0–100
   state?: PlayState;
+  error?: number; // the player can't play and shows a screen of its own
   qualities?: Quality[];
   quality?: string;
 }
@@ -98,6 +99,11 @@ function readReport(data: unknown): Report | null {
   }
   if (!d || typeof d !== "object") return null;
   if (d.event === "onStateChange" && typeof d.info === "number") return { state: YT_STATE[d.info] };
+  // YouTube can't play it and shows its own screen instead — an unavailable
+  // video (150, checked in headless Chrome), or a "sign in to confirm you're
+  // not a bot" prompt (2026-11-11, on the user's screen) — and reports no
+  // play state at all, so it never looked stopped and never got clicks
+  if (d.event === "onError") return { error: typeof d.info === "number" ? d.info : 0 };
   if (d.info && typeof d.info === "object") {
     const i = d.info;
     const r: Report = {};
@@ -165,6 +171,7 @@ export interface Entry {
   stateAt: number;
   handPaused: boolean; // paused with the display's own button
   playAskedAt?: number; // Play pressed while it wasn't playing
+  error?: number; // the player reported it can't play (YouTube onError)
   qualities?: Quality[];
   quality?: string;
   native: boolean; // the player's own controls instead of the display's
@@ -183,6 +190,7 @@ export interface StreamView {
   stateAt: number;
   handPaused: boolean;
   playAskedAt?: number;
+  error?: number;
   qualities: Quality[];
   quality?: string;
   native: boolean;
@@ -258,7 +266,12 @@ export class StreamLayer {
         if (r.state === "playing") {
           e.handPaused = false;
           e.playAskedAt = undefined;
+          e.error = undefined;
         }
+      }
+      if (r.error !== undefined && r.error !== e.error) {
+        e.error = r.error;
+        changed = true;
       }
       if (r.state === "paused" || r.state === "playing") {
         e.paused = r.state === "paused";
@@ -523,6 +536,7 @@ export class StreamLayer {
       stateAt: e.stateAt,
       handPaused: e.handPaused,
       playAskedAt: e.playAskedAt,
+      error: e.error,
       qualities: e.qualities ?? [],
       quality: e.quality,
       native: e.native,
@@ -684,6 +698,7 @@ export class StreamLayer {
     e.stateAt = Date.now();
     e.handPaused = false;
     e.playAskedAt = undefined;
+    e.error = undefined;
     e.qualities = undefined;
     e.quality = undefined;
     e.volumeSynced = false;

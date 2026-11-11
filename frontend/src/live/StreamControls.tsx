@@ -25,6 +25,11 @@ const STOPPED_MS = 2500;
 // showing a prompt of its own (age check, sign-in, Twitch's small-player
 // play button), so clicks go through to it until it plays
 const THROUGH_MS = 3500;
+// A YouTube or Twitch player that has said nothing about playing this long
+// after loading is showing a screen of its own (YouTube's sign-in check
+// sends no state, 2026-11-11): clicks go through to it until it plays.
+// Kick never reports, so it doesn't count.
+const SILENT_MS = 8000;
 
 function Icon({ children }: { children: ReactNode }) {
   return (
@@ -120,12 +125,18 @@ export default function StreamControls({
   const stopped = v.state === "paused" || v.state === "idle";
   const stoppedFor = stopped ? now - v.stateAt : 0;
   const askedFor = v.playAskedAt ? now - v.playAskedAt : 0;
+  const reports = v.player === "youtube" || v.player === "twitch";
+  const silentFor = reports && v.state === undefined ? now - v.stateAt : 0;
   useEffect(() => {
-    const waits = [stopped && stoppedFor < STOPPED_MS ? STOPPED_MS - stoppedFor : 0, v.playAskedAt && askedFor < THROUGH_MS ? THROUGH_MS - askedFor : 0].filter((ms) => ms > 0);
+    const waits = [
+      stopped && stoppedFor < STOPPED_MS ? STOPPED_MS - stoppedFor : 0,
+      v.playAskedAt && askedFor < THROUGH_MS ? THROUGH_MS - askedFor : 0,
+      silentFor > 0 && silentFor < SILENT_MS ? SILENT_MS - silentFor : 0,
+    ].filter((ms) => ms > 0);
     if (!waits.length) return;
     const t = setTimeout(() => setTick((n) => n + 1), Math.min(...waits) + 30);
     return () => clearTimeout(t);
-  }, [stopped, stoppedFor, askedFor, v.playAskedAt]);
+  }, [stopped, stoppedFor, askedFor, v.playAskedAt, silentFor]);
 
   // An open menu closes on a tap anywhere else, or Escape (before the
   // display sees Escape and takes it as Back).
@@ -151,7 +162,9 @@ export default function StreamControls({
 
   const canPlay = v.player !== null;
   const playing = v.state === "playing" || v.state === "buffering";
-  const through = Boolean(v.playAskedAt) && askedFor >= THROUGH_MS && !playing;
+  // the player's own screen is waiting for a click: Play didn't take, it
+  // reported it can't play, or it never said anything
+  const through = !playing && ((Boolean(v.playAskedAt) && askedFor >= THROUGH_MS) || v.error !== undefined || silentFor >= SILENT_MS);
   const stoppedLong = canPlay && !through && stopped && (v.handPaused || stoppedFor >= STOPPED_MS);
   // a guarded player can't have the big button over it: the bar stays open instead
   const bigPlay = stoppedLong && !v.guard;
