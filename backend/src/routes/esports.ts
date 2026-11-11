@@ -224,6 +224,16 @@ export async function fetchGame(slug: string, sport: string, color: string, apiK
               ? false
               : undefined
           : undefined,
+      // when the last map ended, while between maps: the display counts the
+      // break as over BREAK_CAP after this (multiGame.ts isOnBreak)
+      mapEndedAt:
+        m.status === "running" && m.games?.length && !m.games.some((g: any) => g.status === "running")
+          ? (m.games
+              .filter((g: any) => g.status === "finished" && g.end_at)
+              .map((g: any) => g.end_at as string)
+              .sort()
+              .at(-1) ?? undefined)
+          : undefined,
       extra: extra.length ? extra : undefined,
       detailUrl: m.league?.url ?? undefined,
     };

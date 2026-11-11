@@ -37,6 +37,7 @@ export interface NormalizedEvent {
   tier?: "s" | "a" | "b" | "c" | "d"; // esports tournament tier (PandaScore)
   stage?: "group" | "playoffs" | "semifinal" | "final"; // esports — where in the tournament the match is
   mapLive?: boolean; // esports, while the match runs: a map is being played (false = between maps)
+  mapEndedAt?: string; // esports, between maps: when the last map ended (ISO)
   postseason?: boolean; // ESPN sports: playoffs, World Series, bowls
   f1Session?: "practice" | "qualifying" | "sprint" | "race"; // F1 — which session of the race weekend
 }

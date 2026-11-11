@@ -67,8 +67,8 @@ export function selectLiveEvent(
   if (celebratingHere) return celebratingHere;
   const playingOn = sorted.filter((e) => !hintsFor(eventKey(e)).celebrating);
   const pool = playingOn.length ? playingOn : sorted;
-  if (isOnBreak(pool[0])) {
-    const playing = pool.find((e) => !isOnBreak(e) && canTakeOver(e, ranking));
+  if (isOnBreak(pool[0], t)) {
+    const playing = pool.find((e) => !isOnBreak(e, t) && canTakeOver(e, ranking));
     if (playing) return playing;
   }
   return pool[0];

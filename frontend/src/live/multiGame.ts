@@ -65,8 +65,29 @@ export const CELEBRATE_MS = 3 * 60_000;
 // next map starts (the user's rule, 2026-11-08). The stand-in used to keep
 // the spot until its own map was over, which kept an IEM final's map 3 off
 // the screen behind a CCT group map; don't bring that hold back.
-export function isOnBreak(e: NormalizedEvent): boolean {
-  return e.mapLive === false;
+//
+// "Its next map starts" can't wait for PandaScore to say so: that comes ~2
+// minutes late, plus the backend's 2-minute cache, and the first rounds were
+// missed (2026-11-11, BLAST Rivals behind an NBA game). So a break counts as
+// over BREAK_CAP after the last map ended, by PandaScore's own end time.
+// Measured on 217 PandaScore breaks (2026-11-11): tier S 17.6–21 min, tier
+// C/D median ~14 (p10 ~9) — at 12 a big match is back a few minutes before
+// its map, a small one about on time, and anything quicker still comes
+// back when PandaScore reports it.
+//
+// Halftime (NBA, NFL, college football) and the NHL's intermissions (ESPN's
+// "End of 1st"/"End of 2nd", ~18 min) are breaks too: nothing is being
+// played, so they don't take the screen from a match that is — an NBA game
+// at halftime held it through a BLAST match's first round. Quarter breaks
+// are too short to count.
+export const BREAK_CAP_MS = 12 * 60_000;
+export function isOnBreak(e: NormalizedEvent, now: number = Date.now()): boolean {
+  if (e.mapLive === false) {
+    const ended = e.mapEndedAt ? Date.parse(e.mapEndedAt) : NaN;
+    return !(now - ended > BREAK_CAP_MS);
+  }
+  const d = e.liveDetail ?? "";
+  return /^halftime\b/i.test(d) || (e.sport === "nhl" && /^end of (1st|2nd)\b|intermission/i.test(d));
 }
 export function canTakeOver(e: NormalizedEvent, ranking?: Ranking): boolean {
   return e.sport !== "frc" && importance(e, ranking) > MINOR;
@@ -174,7 +195,7 @@ function moment(e: NormalizedEvent, now: number, hints: InterestHints): number {
   // while that map is being played, not the break before it (the user's
   // rule, 2026-11-04): a followed match waiting to start its decider gives
   // way to another match playing its own.
-  if (ESPORTS_SPORTS.has(e.sport) && e.mapLive !== false) {
+  if (ESPORTS_SPORTS.has(e.sport) && !isOnBreak(e, now)) {
     const w = e.seriesScore?.match(/(\d+)-(\d+)/);
     const bo = e.seriesScore?.match(/Bo(\d+)/i);
     if (w && bo && w[1] === w[2] && Number(bo[1]) > 1 && Number(w[1]) === Math.floor(Number(bo[1]) / 2)) m = Math.max(m, 25);
@@ -250,7 +271,7 @@ export function interest(e: NormalizedEvent, now: number, hints: InterestHints =
   // play, so it doesn't hold the spot through their break either (the user's
   // rule, 2026-11-04). Once its next map starts it ranks as before and takes
   // the spot straight back (2026-11-08).
-  const onBreak = isOnBreak(e) || hints.celebrating === true;
+  const onBreak = isOnBreak(e, now) || hints.celebrating === true;
   let score = standing(e, ranking) + (onBreak ? 0 : moment(e, now, hints));
   if (onBreak) score -= BETWEEN_MAPS + followBonus(e);
   const diff = margin(e);

@@ -88,7 +88,12 @@ not the break before it) + followed teams + 10 for a stream that plays
 on the display − 20 for an esports match between maps (`mapLive` false,
 from PandaScore's per-map status: a map played and none being played — not
 before map 1, which used to count as a break and cost the first round,
-2026-11-10), and on that break neither its follow bonus
+2026-11-10; and over `BREAK_CAP_MS` = 12 min after the last map ended,
+`mapEndedAt`, since PandaScore reports the next map ~2 min late + our
+2-min cache — tier-S breaks run 17–21 min, C/D ~14). Halftime (NBA, NFL,
+NCAAF) and NHL intermissions ("End of 1st/2nd") are breaks too (2026-11-11:
+an NBA game at halftime held the screen through a BLAST match's round 1);
+quarter breaks aren't. `isOnBreak` in `multiGame.ts`. On that break neither its follow bonus
 nor any moment counts. Live gameplay comes first (user's rules, 2026-11-04):
 a match between maps hands the top spot (Single, RedZone's big spot) to the
 best match or game being played that `canTakeOver` (not FRC or tier D), and
