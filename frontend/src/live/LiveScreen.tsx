@@ -3,9 +3,9 @@ import { useSettings } from "../SettingsContext";
 import { useEvents } from "../useEvents";
 import { sportMeta } from "../sportMeta";
 import type { NormalizedEvent } from "../types";
-import { hasEventEnded, isLiveNow } from "../eventStatus";
+import { hasEventEnded } from "../eventStatus";
 import { loadQuiet, saveQuiet, useQuietHours, type QuietHours } from "../quietHours";
-import { ESPORTS_SPORTS, eventKey, LIVE_VIEW_SPORTS, selectLiveEvent } from "./selectLiveEvent";
+import { ESPORTS_SPORTS, eventKey, isOnLiveDisplay, LIVE_VIEW_SPORTS, selectLiveEvent } from "./selectLiveEvent";
 import { useLiveDetail } from "./useLiveDetail";
 import { isStreamFullscreen, STREAM_FULLSCREEN_EVENT, streamSlotAt, StreamLayer, StreamLayerContext } from "./Stream";
 import { pickStream } from "../streamEmbed";
@@ -289,10 +289,11 @@ export default function LiveScreen({ onBack, pin, onPinSaved }: { onBack?: () =>
   const hintsFor = useCallback((k: string): InterestHints => ({ celebrating: celebrating.has(k) || undefined }), [celebrating]);
   const [currentKey, setCurrentKey] = useState<string | null>(null);
   // Same idea of "live" as the dashboard's LIVE badge, so a game shown live
-  // there is never missing here.
+  // there is never missing here — plus a CS match from 10 minutes before its
+  // start (isOnLiveDisplay), so the first round isn't missed.
   const liveAll = useMemo(() => {
     const now = new Date();
-    return events.filter((e) => isLiveNow(e, now) && LIVE_VIEW_SPORTS.has(e.sport));
+    return events.filter((e) => isOnLiveDisplay(e, now) && LIVE_VIEW_SPORTS.has(e.sport));
   }, [events]);
   // While a stream is fullscreen in its own player, nothing on the display
   // changes: games that go live meanwhile wait in the strip and count for

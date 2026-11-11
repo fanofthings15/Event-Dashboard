@@ -1,5 +1,5 @@
 import type { NormalizedEvent } from "../types";
-import { isLiveNow } from "../eventStatus";
+import { hasEventEnded, isLiveNow } from "../eventStatus";
 import { canTakeOver, importance, interest, isOnBreak, STAY_BONUS, type InterestHints, type Ranking } from "./multiGame";
 
 // Esports titles the display shows (as their live stream). Dota 2 and
@@ -11,11 +11,26 @@ export const LIVE_VIEW_SPORTS = new Set(["nfl", "ncaaf", "nba", "nhl", "mlb", "f
 
 export const eventKey = (e: NormalizedEvent) => `${e.sport}-${e.id}`;
 
+// What the display counts as live: the dashboard's idea (isLiveNow, past
+// its start time and not over), except that a CS match joins CS_LEAD_MS
+// before its scheduled start, for the pre-show, so its stream is already up
+// when the first round starts (the user's rule, 2026-11-10: the first round
+// kept being missed; CS matches start up to ~5 min before the time PandaScore
+// gives). It ranks as normal meanwhile — not as a break — so a far bigger
+// match about to start can take the screen in time. The dashboard's LIVE
+// badge and chime still go by the start time.
+export const CS_LEAD_MS = 10 * 60_000;
+export function isOnLiveDisplay(e: NormalizedEvent, now: Date): boolean {
+  if (isLiveNow(e, now)) return true;
+  return e.sport === "cs2" && !hasEventEnded(e, now.getTime()) && new Date(e.startTime).getTime() - CS_LEAD_MS <= now.getTime();
+}
+
 // The one-game display's pick, ranked the same way as the multi-game
 // layouts (interest() in multiGame.ts: how big the event is, what's
 // happening in it, followed teams):
 //   1. only live events in a sport the display can render — "live" as the
-//      dashboard counts it (isLiveNow): past its start time and not over,
+//      dashboard counts it (isLiveNow): past its start time and not over
+//      (a CS match from CS_LEAD_MS before it: isOnLiveDisplay),
 //      even before the source flips its status (small PandaScore events
 //      can sit at not_started long after they've begun)
 //   2. highest interest first
@@ -37,7 +52,7 @@ export function selectLiveEvent(
   hintsFor: (key: string) => InterestHints = () => ({})
 ): NormalizedEvent | null {
   const now = new Date();
-  const live = events.filter((e) => isLiveNow(e, now) && LIVE_VIEW_SPORTS.has(e.sport));
+  const live = events.filter((e) => isOnLiveDisplay(e, now) && LIVE_VIEW_SPORTS.has(e.sport));
   if (live.length === 0) return null;
   const t = now.getTime();
   const score = (e: NormalizedEvent) =>

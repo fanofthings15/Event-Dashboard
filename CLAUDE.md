@@ -86,7 +86,9 @@ scoreboard's `situation`, a score in the last 3 minutes, a power play, a
 close finish, a deciding map — counted only while that map is being played,
 not the break before it) + followed teams + 10 for a stream that plays
 on the display − 20 for an esports match between maps (`mapLive` false,
-from PandaScore's per-map status), and on that break neither its follow bonus
+from PandaScore's per-map status: a map played and none being played — not
+before map 1, which used to count as a break and cost the first round,
+2026-11-10), and on that break neither its follow bonus
 nor any moment counts. Live gameplay comes first (user's rules, 2026-11-04):
 a match between maps hands the top spot (Single, RedZone's big spot) to the
 best match or game being played that `canTakeOver` (not FRC or tier D), and
@@ -100,7 +102,10 @@ RedZone/Grid it moves to a small tile, never the big spot even if pinned, and
 ranks like a break there, so live games still come first — with a +15 bonus for games already shown so they don't churn on a close score or red-zone drive. When a game goes live, it gets that same +15 for one pass (`arrivals` in `placeGames`/`selectLiveEvent`), so a new game that beats the one on screen takes over. Ties (the user's rule, 2026-11-03): between games already on screen they keep their order; otherwise the bigger event (`importance`, i.e. a tier/stage difference) wins, and between events the same size the game that has been on longer — a new game never wins a tie on being new.
 Nothing is dropped for being small; unwanted sources are filtered in
 settings. "Live" means `isLiveNow` (start time passed), same as the
-dashboard. Layout "Auto" (default) picks Single / RedZone / Grid
+dashboard, except that a CS match joins the display 10 minutes before its
+start (`isOnLiveDisplay`, `CS_LEAD_MS`; user's rule, 2026-11-10 — the first
+round kept being missed), ranked as normal, not as a break. The dashboard's
+LIVE badge and chime still go by the start time. Layout "Auto" (default) picks Single / RedZone / Grid
 from how big the live games are (`eventSize`: size + stream — not follows,
 not moments; a followed game gets the best spot, never the whole screen —
 a followed F1 race beside four NFL games went Single before 2026-11-01).

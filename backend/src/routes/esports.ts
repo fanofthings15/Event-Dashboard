@@ -210,7 +210,20 @@ export async function fetchGame(slug: string, sport: string, color: string, apiK
       stage: stageOf(m),
       // between maps (one finished, the next not started) a match is on a
       // break; PandaScore lists each map's own status
-      mapLive: m.status === "running" && m.games?.length ? m.games.some((g: any) => g.status === "running") : undefined,
+      // Between maps = a map has been played and none is being played now.
+      // Before map 1 starts (warm-up, a late start, PandaScore not showing
+      // map 1 running yet) it isn't a break: it used to count as one, so a
+      // match that had just gone live handed its spot to another match and
+      // only got it back ~4 minutes into map 1 (PandaScore's map-status lag
+      // plus the 2-minute cache) — the first round was missed every time.
+      mapLive:
+        m.status === "running" && m.games?.length
+          ? m.games.some((g: any) => g.status === "running")
+            ? true
+            : m.games.some((g: any) => g.status === "finished")
+              ? false
+              : undefined
+          : undefined,
       extra: extra.length ? extra : undefined,
       detailUrl: m.league?.url ?? undefined,
     };
