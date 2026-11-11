@@ -56,6 +56,8 @@ import "./live.css";
 const ESPN_SPORTS = new Set(["nfl", "ncaaf", "nba", "nhl", "mlb"]);
 const POLL_MS: Record<string, number> = { f1: 3_000, nhl: 5_000, frc: 60_000 };
 const FINALS_WINDOW_MS = 18 * 60 * 60 * 1000;
+// most rows a column of the idle screen can hold; it shows as many as fit
+const IDLE_ROWS = 25;
 
 function SportView({
   event,
@@ -653,15 +655,25 @@ export default function LiveScreen({ onBack, pin, onPinSaved }: { onBack?: () =>
     );
   } else if (!selected) {
     const now = Date.now();
-    const upcoming = events
+    // three columns, each as long as fits (IdleView): finals, the user's
+    // followed games coming up, then everything else coming up
+    const followed = (e: NormalizedEvent) => Boolean(e.followed || e.manuallyFollowed);
+    const coming = events
       .filter((e) => e.status === "upcoming" && LIVE_VIEW_SPORTS.has(e.sport))
-      .sort((a, b) => followedFirst(a, b) || a.startTime.localeCompare(b.startTime))
-      .slice(0, 5);
+      .sort((a, b) => a.startTime.localeCompare(b.startTime));
     const finished = events
       .filter((e) => e.status === "finished" && LIVE_VIEW_SPORTS.has(e.sport) && e.seriesScore && now - new Date(e.startTime).getTime() < FINALS_WINDOW_MS)
       .sort((a, b) => followedFirst(a, b) || b.startTime.localeCompare(a.startTime))
-      .slice(0, 6);
-    body = <IdleView upcoming={upcoming} finished={finished} timezone={settings.timezone} metaFor={metaFor} />;
+      .slice(0, IDLE_ROWS);
+    body = (
+      <IdleView
+        finished={finished}
+        yours={coming.filter(followed).slice(0, IDLE_ROWS)}
+        upcoming={coming.filter((e) => !followed(e)).slice(0, IDLE_ROWS)}
+        timezone={settings.timezone}
+        metaFor={metaFor}
+      />
+    );
   } else {
     const meta = metaFor(selected);
     const sel = selected;

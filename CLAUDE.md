@@ -70,6 +70,14 @@ clipped and overlapped as soon as real data and other screen sizes hit it —
 don't go back to that. Fixed dark palette, not the app theme. A strip of
 other live games sits along the bottom; tapping one overrides the automatic
 pick until that game ends.
+Nothing live: the idle screen (`views/IdleView.tsx`) is a clock and three
+columns (the user's layout, 2026-11-11) — Final (scores from the last 18 h,
+followed first), Your games (followed games coming up) and Up next
+(everything else coming up), soonest first, each showing as many compact
+rows as fit and "+N more" for the rest. It was 6 finals and 5 upcoming,
+followed first, so with more than five follows the next games were hidden.
+Portrait (a phone) stacks them — your games, Up next (10), Final (5) — at
+15px, scrolling.
 
 Several games at once (`live/multiGame.ts`, `live/GameTile.tsx`): with 2+
 games live, the RedZone (one big + up to 3) or Grid (up to 6) layout,

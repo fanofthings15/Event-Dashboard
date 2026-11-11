@@ -541,47 +541,55 @@ body.live-body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 1.5em;
-  padding: 2em;
+  gap: 1.2em;
+  padding: 1.5em 2em;
   color: var(--text);
 }
 
 .lv-clock {
-  font-size: 5em;
+  font-size: 4em;
   font-weight: 800;
   line-height: 1;
 }
 
+/* a column of the idle screen: as tall as its rows, at most the room left */
 .lv-upcoming {
-  width: min(100%, 44em);
+  max-height: 100%;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: 0.6em;
+  overflow: hidden;
 }
 
-.lv-upcoming > div:not(.lv-idle-head) {
+.lv-idle-rows {
+  position: relative; /* rows measure their offsetTop against it */
+  min-height: 0;
+  overflow: hidden;
+}
+
+.lv-idle-row {
   display: grid;
-  grid-template-columns: 0.35em minmax(0, 1fr) auto;
+  grid-template-columns: 0.3em minmax(0, 1fr) auto;
   align-items: center;
-  gap: 0.9em;
-  padding: 0.8em 1.1em;
+  gap: 0.75em;
+  padding: 0.5em 1em;
 }
 
-.lv-upcoming > div + div:not(.lv-idle-head) {
+.lv-idle-slot + .lv-idle-slot .lv-idle-row {
   border-top: 1px solid var(--border);
 }
 
 .lv-upcoming .bar {
-  height: 2.2em;
+  height: 1.9em;
   border-radius: 2px;
 }
 
 .lv-upcoming .name {
   font-weight: 700;
-  font-size: 1.1em;
+  font-size: 1em;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -621,25 +629,55 @@ body.live-body {
 }
 
 .lv-idle-cols {
-  width: min(100%, 76em);
-  display: flex;
-  gap: 1.2em;
-  align-items: flex-start;
-}
-
-.lv-idle-cols > * {
   flex: 1;
-  min-width: 0;
+  min-height: 0;
+  width: min(100%, 110em);
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  gap: 1.2em;
+  align-items: start;
 }
 
 .lv-idle-head {
-  padding: 0.9em 1.1em 0.5em;
+  display: flex;
+  justify-content: space-between;
+  gap: 1em;
+  padding: 0.8em 1em 0.4em;
 }
 
+.lv-idle-more {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+/* portrait (a phone): the columns stack, your games first, every row shows
+   and the screen scrolls */
 @media (max-aspect-ratio: 1/1) {
+  .lv-idle {
+    /* the display's own size runs off the width: 11px on a phone */
+    font-size: 15px;
+    overflow-y: auto;
+    padding: 1em 16px max(1em, env(safe-area-inset-bottom));
+  }
+  .lv-clock {
+    font-size: 3em;
+  }
   .lv-idle-cols {
+    flex: none;
+    width: 100%;
+    display: flex;
     flex-direction: column;
     align-items: stretch;
+    gap: 1em;
+  }
+  .lv-upcoming {
+    max-height: none;
+    flex: none;
+  }
+  .lv-idle-final {
+    order: 1;
   }
 }
 
