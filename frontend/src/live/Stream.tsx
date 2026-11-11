@@ -201,6 +201,12 @@ export function isStreamFullscreen(): boolean {
   return fs instanceof HTMLIFrameElement || Boolean(fs?.classList.contains("lv-stream-float")) || Boolean(document.querySelector(".lv-pseudo-fs"));
 }
 
+// The stream fills the screen: in its own player's fullscreen, the box's,
+// or filling the window with the page fullscreen behind it (phones).
+function filling(e: { frame: Element; box: Element; pseudoFs: boolean }, fs: Element | null): boolean {
+  return fs === e.frame || fs === e.box || (e.pseudoFs && fs === document.documentElement);
+}
+
 // A stream's box sits in the layer, not in its tile, so hit-testing the
 // screen finds the box: this maps it back to the placeholder in the tile.
 const boxEntries = new WeakMap<Element, Entry>();
@@ -235,6 +241,8 @@ export class StreamLayer {
   private raf = 0;
   private listening = false;
   private pointer: { x: number; y: number } | null = null;
+  // the stream that put the whole page fullscreen (phones: see toggleFullscreen)
+  private rootFsFor: Entry | undefined;
 
   private onMessage = (ev: MessageEvent) => {
     for (const e of this.entries.values()) {
@@ -306,10 +314,17 @@ export class StreamLayer {
   // the display's own button, is left alone.
   private onFullscreen = () => {
     const fs = document.fullscreenElement;
+    // the page left fullscreen by itself (a phone's back gesture): the
+    // stream that took it leaves too
+    if (this.rootFsFor && fs !== document.documentElement) {
+      const e = this.rootFsFor;
+      this.rootFsFor = undefined;
+      this.setPseudo(e, false);
+    }
     for (const e of this.entries.values()) {
       e.placed = "";
       this.notify(e);
-      if ((e.frame !== fs && e.box !== fs) || e.paused === true) continue;
+      if (!filling(e, fs) || e.paused === true) continue;
       e.resumeUntil = Date.now() + 6000;
       for (const ms of [800, 2000, 3500, 5000]) setTimeout(() => this.resumeIfFullscreened(e), ms);
     }
@@ -335,7 +350,7 @@ export class StreamLayer {
   private resumeIfFullscreened(e: Entry) {
     const now = Date.now();
     const fs = document.fullscreenElement;
-    if (!e.paused || e.handPaused || !e.resumeUntil || now > e.resumeUntil || (fs !== e.frame && fs !== e.box)) return;
+    if (!e.paused || e.handPaused || !e.resumeUntil || now > e.resumeUntil || !filling(e, fs)) return;
     if (e.resumedAt && now - e.resumedAt < 700) return;
     e.resumedAt = now;
     send(e.frame, playerOf(e.embed), "play");
@@ -588,8 +603,17 @@ export class StreamLayer {
 
   // The box, not the player, goes fullscreen, so the display's controls go
   // with it. Where a page can't put an element fullscreen (iPhone Safari),
-  // the box fills the window instead. On a phone, fullscreen also turns the
-  // picture sideways where the browser allows it.
+  // the box fills the window instead.
+  //
+  // On a phone the box always fills the window, and the whole page goes
+  // fullscreen behind it where the browser allows (hiding its bars), with
+  // the screen turned to landscape where it allows that too. Where the
+  // screen stays upright — an iPhone, or rotation not allowed — the CSS
+  // lays the box on its side (.lv-pseudo-fs in portrait, live.css), so the
+  // picture fills the screen when the phone is turned: upright, a 16:9
+  // stream was a band across the middle of a tall black box (2026-11-11).
+  // A fullscreen element can't be turned (browsers force transform: none
+  // on it), hence the page rather than the box.
   toggleFullscreen(e: Entry) {
     if (document.fullscreenElement === e.box) {
       document.exitFullscreen().catch(() => undefined);
@@ -597,6 +621,25 @@ export class StreamLayer {
     }
     if (e.pseudoFs) {
       this.setPseudo(e, false);
+      return;
+    }
+    if (window.matchMedia("(pointer: coarse)").matches) {
+      this.setPseudo(e, true);
+      const landscape = () => {
+        const o = screen.orientation as ScreenOrientation & { lock?: (o: string) => Promise<void> };
+        o?.lock?.("landscape").catch(() => undefined);
+      };
+      if (document.fullscreenElement) landscape();
+      else if (document.fullscreenEnabled && document.documentElement.requestFullscreen) {
+        document.documentElement
+          .requestFullscreen({ navigationUI: "hide" })
+          .then(() => {
+            if (!e.pseudoFs) return void document.exitFullscreen().catch(() => undefined);
+            this.rootFsFor = e;
+            landscape();
+          })
+          .catch(() => undefined);
+      }
       return;
     }
     if (document.fullscreenEnabled && e.box.requestFullscreen) {
@@ -615,6 +658,11 @@ export class StreamLayer {
   private setPseudo(e: Entry, on: boolean) {
     if (e.pseudoFs === on) return;
     e.pseudoFs = on;
+    if (!on && this.rootFsFor === e) {
+      this.rootFsFor = undefined;
+      (screen.orientation as ScreenOrientation & { unlock?: () => void })?.unlock?.();
+      if (document.fullscreenElement === document.documentElement) document.exitFullscreen().catch(() => undefined);
+    }
     e.box.classList.toggle("lv-pseudo-fs", on);
     this.layer?.classList.toggle("lv-has-pseudo-fs", [...this.entries.values()].some((x) => x.pseudoFs));
     e.placed = "";

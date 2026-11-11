@@ -124,7 +124,11 @@ works nights): layout unchanged, every stream loads muted (its player can still 
 hand), no in-tab chime. The in-tab chime is only for an
 event going live; reminders are Discord's. Esports streams are ordered English first,
 then main/official, then platform (PandaScore's language tags can be wrong:
-a JP co-stream was tagged "en"). Esports teams are white and violet
+a JP co-stream was tagged "en"). PandaScore flags only one stream as
+main/official, so an English YouTube stream on the flagged stream's own
+channel (name or @handle from YouTube's oEmbed, matched to the flagged
+Twitch/Kick channel; `officialYouTubeUrls`) counts as official too and wins
+on platform (2026-11-11: BLAST Premier's YouTube was behind its Twitch). Esports teams are white and violet
 (`ESPORTS_TEAM_COLORS` in `Layout.tsx`), never blue/red: PandaScore's team
 order says nothing about the in-game side, and its per-game data (which has
 League sides) is 403 on the free plan. The dashboard's Live tab is in the address
@@ -177,7 +181,15 @@ too (user's ask, 2026-11-06; not while typing in a field): it leaves the
 stream that's fullscreen, else takes the one under the mouse, else the one
 with sound, else the biggest (`fullscreenTarget` in `Stream.tsx`);
 where a page can't (iPhone) the box fills the window (`.lv-pseudo-fs`, Escape
-leaves it, before LiveScreen takes Escape as Back). Volume is one level per
+leaves it, before LiveScreen takes Escape as Back). On a phone (pointer:
+coarse) the box always fills the window, the page itself goes fullscreen
+behind it where allowed (`rootFsFor`; leaving page fullscreen, e.g. the back
+gesture, leaves the stream's too) and landscape is locked where allowed; if
+the screen stays upright the box is turned 90° (top to the right) to fill it
+— upright, a 16:9 stream was a band in a tall black box (2026-11-11). The
+box can't be the fullscreen element there: browsers force `transform: none`
+on it. Twitch's strip sizes use offsetWidth/Height, not on-screen rects,
+which the turn swaps. Volume is one level per
 device (`live-volume`), applied to whichever stream has the sound; unmuting a
 stream by hand mutes the others. "<Service>'s own controls" in the stream
 menu reloads that player with its controls on (age/sign-in prompts, YouTube's

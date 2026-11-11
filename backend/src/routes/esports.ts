@@ -50,13 +50,13 @@ function platformLabel(url: string): string {
 // Every available stream, ranked YouTube-first (the preferred default) —
 // exposed in full so the frontend can offer the alternatives too, rather
 // than silently hiding everything but the top pick.
-function allStreams(streamsList: any[] | undefined): { label: string; url: string }[] {
+function allStreams(streamsList: any[] | undefined, officialYouTube: Set<string> = new Set()): { label: string; url: string }[] {
   const candidates = (streamsList ?? []).filter((s) => s.raw_url);
   const ranked = candidates
     .map((s) => ({
       url: s.raw_url as string,
       platform: platformRank(s.raw_url),
-      quality: s.official && s.main ? 0 : s.main ? 1 : s.official ? 2 : 3,
+      quality: (s.official && s.main) || officialYouTube.has(s.raw_url) ? 0 : s.main ? 1 : s.official ? 2 : 3,
       // Most matches carry a broadcast per region/language
       // (LoL especially: en/ko/vi/fr/... often all tied at the same quality
       // tier), and PandaScore's array order between those ties is otherwise
@@ -65,7 +65,8 @@ function allStreams(streamsList: any[] | undefined): { label: string; url: strin
       isEnglish: s.language === "en" ? 0 : 1,
     }))
     // English first (the user wants English), then the official/main
-    // broadcast, then platform. Language labels aren't trustworthy on their
+    // broadcast, then platform (YouTube first). A YouTube stream on the
+    // organizer's own channel counts as official too (officialYouTubeUrls). Language labels aren't trustworthy on their
     // own: a Worlds match had the Japanese YouTube co-stream ("[JP] Worlds
     // 2026 | LoL Esports JP") tagged "en", which won on platform while Riot's
     // official English Twitch (main, official) sat behind it.
@@ -85,6 +86,61 @@ function allStreams(streamsList: any[] | undefined): { label: string; url: strin
   return deduped;
 }
 
+// PandaScore flags only one stream per match as the main/official one, so
+// the organizer's own YouTube simulcast loses to its flagged Twitch on
+// "official" before YouTube's platform preference is reached (BLAST Rivals
+// 2026-11-11: BLAST Premier's YouTube, unflagged, behind twitch.tv/
+// blastpremier). An English YouTube stream whose channel — name or @handle,
+// from YouTube's oEmbed (no key), cached a day — is the flagged stream's
+// channel counts as official too. A co-stream's channel doesn't match ("LoL
+// Esports JP" beside Riot's own), so that case (see allStreams) stays fixed.
+const chan = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+
+function channelOf(url: string): string | undefined {
+  try {
+    const u = new URL(url);
+    if (/(^|\.)(twitch\.tv|kick\.com)$/.test(u.hostname)) return u.pathname.split("/").filter(Boolean)[0];
+    if (/youtube\.com$/.test(u.hostname) && u.pathname.startsWith("/@")) return u.pathname.slice(2).split("/")[0];
+  } catch {
+    /* not a URL */
+  }
+  return undefined;
+}
+
+async function youTubeChannel(url: string): Promise<string[]> {
+  try {
+    return await cached(`yt-channel:${url}`, 24 * 3600, async () => {
+      const r = await fetch(`https://www.youtube.com/oembed?format=json&url=${encodeURIComponent(url)}`, { signal: AbortSignal.timeout(4000) });
+      if (!r.ok) throw new Error(`oembed ${r.status}`);
+      const d: any = await r.json();
+      const handle = String(d?.author_url ?? "").match(/\/@([^/?#]+)/)?.[1];
+      return [d?.author_name, handle].filter((x): x is string => Boolean(x)).map(chan);
+    });
+  } catch {
+    return [];
+  }
+}
+
+async function officialYouTubeUrls(matches: any[]): Promise<Set<string>> {
+  const out = new Set<string>();
+  const checks: Promise<void>[] = [];
+  for (const m of matches) {
+    if (m.status === "finished") continue;
+    const list: any[] = (m.streams_list ?? []).filter((s: any) => s.raw_url);
+    const flagged = list.filter((s) => s.main || s.official).map((s) => channelOf(s.raw_url)).filter((c): c is string => Boolean(c)).map(chan);
+    if (!flagged.length) continue;
+    for (const s of list) {
+      if (s.language !== "en" || s.main || s.official || platformRank(s.raw_url) !== 0) continue;
+      checks.push(
+        youTubeChannel(s.raw_url).then((names) => {
+          if (names.some((n) => flagged.includes(n))) out.add(s.raw_url);
+        })
+      );
+    }
+  }
+  await Promise.all(checks);
+  return out;
+}
 
 function seriesScore(m: any): string | undefined {
   const bestOf = m.number_of_games;
@@ -182,6 +238,7 @@ export async function fetchGame(slug: string, sport: string, color: string, apiK
     matches.push(m);
   }
 
+  const officialYouTube = await officialYouTubeUrls(matches);
   return matches.map((m) => {
     const opponents = m.opponents ?? [];
     const teams = opponents.map((o: any) => ({
@@ -189,7 +246,7 @@ export async function fetchGame(slug: string, sport: string, color: string, apiK
       imageUrl: o.opponent?.image_url ?? undefined,
     }));
     const teamNames = teams.map((t: any) => t.name).join(" vs ");
-    const streams = allStreams(m.streams_list);
+    const streams = allStreams(m.streams_list, officialYouTube);
 
     const extra: ExtraFact[] = [];
 
@@ -208,8 +265,6 @@ export async function fetchGame(slug: string, sport: string, color: string, apiK
       seriesScore: seriesScore(m),
       tier: /^[sabcd]$/.test(m.tournament?.tier ?? "") ? m.tournament.tier : undefined,
       stage: stageOf(m),
-      // between maps (one finished, the next not started) a match is on a
-      // break; PandaScore lists each map's own status
       // Between maps = a map has been played and none is being played now.
       // Before map 1 starts (warm-up, a late start, PandaScore not showing
       // map 1 running yet) it isn't a break: it used to count as one, so a

@@ -168,11 +168,12 @@ export default function StreamControls({
   // once they're snapped to the screen)
   useLayoutEffect(() => {
     const open = v.guard && !v.native && visible;
-    const r = (el: HTMLElement | null) => el?.getBoundingClientRect();
-    const bar = r(barRef.current);
-    const box = r(menuRef.current);
-    entry.box.style.setProperty("--sc-bottom", open && bar ? `${Math.ceil(bar.height) + 1}px` : "0px");
-    entry.box.style.setProperty("--sc-right", open && box ? `${Math.ceil(box.width) + 1}px` : "0px");
+    // layout sizes, not on-screen ones: a phone's fullscreen box can be
+    // turned on its side, which swaps an on-screen width and height
+    const bar = barRef.current;
+    const box = menuRef.current;
+    entry.box.style.setProperty("--sc-bottom", open && bar ? `${bar.offsetHeight + 1}px` : "0px");
+    entry.box.style.setProperty("--sc-right", open && box ? `${box.offsetWidth + 1}px` : "0px");
     entry.box.style.setProperty("--sc-top", v.guard && v.native ? "calc(var(--sc-top-strip) + 1px)" : "0px");
   });
 
