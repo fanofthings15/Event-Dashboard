@@ -94,6 +94,13 @@ function allStreams(streamsList: any[] | undefined, officialYouTube: Set<string>
 // from YouTube's oEmbed (no key), cached a day — is the flagged stream's
 // channel counts as official too. A co-stream's channel doesn't match ("LoL
 // Esports JP" beside Riot's own), so that case (see allStreams) stays fixed.
+// That includes a YouTube stream PandaScore itself flags official but not
+// main: it used to be skipped as "already flagged", which ranked it below the
+// main Twitch — and PandaScore adds that flag mid-match (LCP NH vs SGW,
+// 2026-11-12: unflagged at the start, official once game 1 ended), so the
+// display switched from YouTube to Twitch when a map was won. The channels
+// matched against are the flagged Twitch/Kick ones only, so a YouTube stream
+// never matches itself.
 const chan = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
 
 function channelOf(url: string): string | undefined {
@@ -107,17 +114,26 @@ function channelOf(url: string): string | undefined {
   return undefined;
 }
 
+// The last answer oEmbed gave for each stream, kept past the day-long cache:
+// a lookup that fails (timeout, a 5xx) answers with it instead of nothing, so
+// one bad lookup doesn't drop the YouTube stream behind Twitch for a poll and
+// switch the display's player over and back.
+const lastChannel = new Map<string, string[]>();
+
 async function youTubeChannel(url: string): Promise<string[]> {
   try {
-    return await cached(`yt-channel:${url}`, 24 * 3600, async () => {
+    const names = await cached(`yt-channel:${url}`, 24 * 3600, async () => {
       const r = await fetch(`https://www.youtube.com/oembed?format=json&url=${encodeURIComponent(url)}`, { signal: AbortSignal.timeout(4000) });
       if (!r.ok) throw new Error(`oembed ${r.status}`);
       const d: any = await r.json();
       const handle = String(d?.author_url ?? "").match(/\/@([^/?#]+)/)?.[1];
       return [d?.author_name, handle].filter((x): x is string => Boolean(x)).map(chan);
     });
+    if (lastChannel.size > 500) lastChannel.clear();
+    lastChannel.set(url, names);
+    return names;
   } catch {
-    return [];
+    return lastChannel.get(url) ?? [];
   }
 }
 
@@ -127,10 +143,15 @@ async function officialYouTubeUrls(matches: any[]): Promise<Set<string>> {
   for (const m of matches) {
     if (m.status === "finished") continue;
     const list: any[] = (m.streams_list ?? []).filter((s: any) => s.raw_url);
-    const flagged = list.filter((s) => s.main || s.official).map((s) => channelOf(s.raw_url)).filter((c): c is string => Boolean(c)).map(chan);
+    const flagged = list
+      .filter((s) => (s.main || s.official) && platformRank(s.raw_url) !== 0)
+      .map((s) => channelOf(s.raw_url))
+      .filter((c): c is string => Boolean(c))
+      .map(chan);
     if (!flagged.length) continue;
     for (const s of list) {
-      if (s.language !== "en" || s.main || s.official || platformRank(s.raw_url) !== 0) continue;
+      // main + official already ranks first; anything else, flagged or not, is checked
+      if (s.language !== "en" || (s.main && s.official) || platformRank(s.raw_url) !== 0) continue;
       checks.push(
         youTubeChannel(s.raw_url).then((names) => {
           if (names.some((n) => flagged.includes(n))) out.add(s.raw_url);

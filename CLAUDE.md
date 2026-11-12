@@ -136,7 +136,13 @@ a JP co-stream was tagged "en"). PandaScore flags only one stream as
 main/official, so an English YouTube stream on the flagged stream's own
 channel (name or @handle from YouTube's oEmbed, matched to the flagged
 Twitch/Kick channel; `officialYouTubeUrls`) counts as official too and wins
-on platform (2026-11-11: BLAST Premier's YouTube was behind its Twitch). Esports teams are white and violet
+on platform (2026-11-11: BLAST Premier's YouTube was behind its Twitch).
+That check runs whether or not PandaScore itself flags the YouTube stream
+`official` (only main + official skips it): PandaScore adds that flag
+mid-match, and skipping flagged ones ranked it official-not-main, under the
+main Twitch, so the display switched to Twitch when a map was won (LCP,
+2026-11-12). A failed oEmbed lookup answers with that stream's last good
+one (`lastChannel`), so one timeout doesn't flip the player for a poll. Esports teams are white and violet
 (`ESPORTS_TEAM_COLORS` in `Layout.tsx`), never blue/red: PandaScore's team
 order says nothing about the in-game side, and its per-game data (which has
 League sides) is 403 on the free plan. The dashboard's Live tab is in the address
