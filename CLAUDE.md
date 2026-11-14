@@ -141,8 +141,20 @@ That check runs whether or not PandaScore itself flags the YouTube stream
 `official` (only main + official skips it): PandaScore adds that flag
 mid-match, and skipping flagged ones ranked it official-not-main, under the
 main Twitch, so the display switched to Twitch when a map was won (LCP,
-2026-11-12). A failed oEmbed lookup answers with that stream's last good
-one (`lastChannel`), so one timeout doesn't flip the player for a poll. Esports teams are white and violet
+2026-11-12). An English YouTube stream PandaScore flags `official` also
+counts when its oEmbed title and channel show no other language
+(`looksEnglish`: no [JP]/(PT-BR)-style tag, no channel ending in a language
+code, no other script): the organizer's YouTube is often named differently
+from its Twitch (R6 "Rainbow Six Esports" / twitch.tv/rainbow6, Worlds "LoL
+Esports" / riotgames), while the JP co-stream that once won is "[JP] Worlds
+2026 | LoL Esports JP". A failed oEmbed lookup answers with that stream's
+last good one (`lastInfo`), so one timeout doesn't flip the player for a
+poll. A YouTube live tab (`youtube.com/@X/live`, which can't be embedded —
+R6's Grand Final, 2026-11-15) is swapped for the video it's showing (the
+page's canonical link while `"isLive":true`) for matches on or starting
+within 10 min (`resolveLiveTabs`). Rainbow Six Siege is PandaScore
+`r6siege` (its /videogames list says `r6-siege`; the path slug is
+`r6siege`, checked 2026-11-13). Esports teams are white and violet
 (`ESPORTS_TEAM_COLORS` in `Layout.tsx`), never blue/red: PandaScore's team
 order says nothing about the in-game side, and its per-game data (which has
 League sides) is 403 on the free plan. The dashboard's Live tab is in the address
